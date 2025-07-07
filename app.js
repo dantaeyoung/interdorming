@@ -281,8 +281,8 @@ class DormAssignmentTool {
             { key: 'lastName', label: 'Last Name' },
             { key: 'gender', label: 'Gender' },
             { key: 'age', label: 'Age' },
-            { key: 'groupName', label: 'Group' },
             { key: 'lowerBunk', label: 'Lower Bunk' },
+            { key: 'groupName', label: 'Group' },
             { key: 'arrival', label: 'Arrival' },
             { key: 'departure', label: 'Departure' }
         ];
@@ -346,7 +346,7 @@ class DormAssignmentTool {
                         value += ` (${guest.firstName})`;
                     }
                 } else if (col.key === 'lowerBunk') {
-                    value = guest.lowerBunk ? 'Yes' : 'No';
+                    value = guest.lowerBunk ? 'Lower bunk required' : '';
                 } else if (col.key === 'arrival' || col.key === 'departure') {
                     if (value) {
                         const date = new Date(value);
@@ -496,7 +496,14 @@ class DormAssignmentTool {
                         
                         const guestDetails = document.createElement('div');
                         guestDetails.className = 'guest-details';
-                        guestDetails.textContent = `${guest.gender}, Age ${guest.age}${guest.groupName ? `, Group: ${guest.groupName}` : ''}`;
+                        let details = `${guest.gender}, Age ${guest.age}`;
+                        if (guest.lowerBunk) {
+                            details += ', Lower bunk required';
+                        }
+                        if (guest.groupName) {
+                            details += `, Group: ${guest.groupName}`;
+                        }
+                        guestDetails.textContent = details;
                         
                         assignedGuest.appendChild(guestName);
                         assignedGuest.appendChild(guestDetails);
