@@ -361,54 +361,200 @@
         .btn-secondary:hover {
             background-color: #7f8c8d;
         }
+
+        .tab-container {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+
+        .tab-button {
+            background-color: #34495e;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover {
+            background-color: #2c3e50;
+        }
+
+        .tab-button.active {
+            background-color: #3498db;
+            border-bottom-color: #2980b9;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .dormitory-card {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dormitory-card:hover {
+            border-color: #3498db;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .dormitory-card.selected {
+            border-color: #3498db;
+            background-color: #ebf3fd;
+        }
+
+        .dormitory-card.inactive {
+            opacity: 0.6;
+            background-color: #f8f9fa;
+        }
+
+        .dormitory-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .dormitory-header h4 {
+            margin: 0;
+            font-size: 1rem;
+            color: #2c3e50;
+        }
+
+        .room-count {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .dormitory-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .btn-small {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Blue Cliff Monastery Dorm Assignment Tool</h1>
         <p>Drag and drop guests to assign them to dormitory beds</p>
-    </div>
-
-    <div class="controls">
-        <div class="file-upload">
-            <label for="csvFile">Upload CSV File</label>
-            <input type="file" id="csvFile" accept=".csv" />
-        </div>
-        <div class="status-message" id="statusMessage"></div>
-        <div style="margin-left: auto;">
-            <button class="btn btn-secondary" id="undoBtn" style="display: none;" disabled>Undo</button>
-            <button class="btn btn-secondary" id="exportBtn" style="display: none;">Export CSV</button>
-            <button class="btn btn-secondary" id="clearBtn" style="display: none;">Clear All</button>
+        
+        <div class="tab-container">
+            <button class="tab-button active" id="assignmentTab">Guest Assignment</button>
+            <button class="tab-button" id="configurationTab">Room Configuration</button>
         </div>
     </div>
 
-    <div class="main-container">
-        <div class="left-panel">
-            <div class="panel-header">
-                <span>Unassigned Guests</span>
-                <span id="unassignedCount">(0)</span>
+    <!-- Guest Assignment Tab Content -->
+    <div id="assignmentContent" class="tab-content active">
+        <div class="controls">
+            <div class="file-upload">
+                <label for="csvFile">Upload CSV File</label>
+                <input type="file" id="csvFile" accept=".csv" />
             </div>
-            <div class="panel-content">
-                <div class="search-filter">
-                    <input type="text" id="searchGuests" placeholder="Search guests by name, group, or other details..." />
+            <div class="status-message" id="statusMessage"></div>
+            <div style="margin-left: auto;">
+                <button class="btn btn-secondary" id="undoBtn" style="display: none;" disabled>Undo</button>
+                <button class="btn btn-secondary" id="exportBtn" style="display: none;">Export CSV</button>
+                <button class="btn btn-secondary" id="clearBtn" style="display: none;">Clear All</button>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div class="left-panel">
+                <div class="panel-header">
+                    <span>Unassigned Guests</span>
+                    <span id="unassignedCount">(0)</span>
                 </div>
-                <div id="guestsContainer">
-                    <div class="empty-state">
-                        <p>Upload a CSV file to begin assigning guests to dormitory beds.</p>
+                <div class="panel-content">
+                    <div class="search-filter">
+                        <input type="text" id="searchGuests" placeholder="Search guests by name, group, or other details..." />
+                    </div>
+                    <div id="guestsContainer">
+                        <div class="empty-state">
+                            <p>Upload a CSV file to begin assigning guests to dormitory beds.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="panel-header">
+                    <span>Room Assignments</span>
+                    <span id="assignedCount">(0)</span>
+                </div>
+                <div class="panel-content">
+                    <div id="roomsContainer">
+                        <div class="empty-state">
+                            <p>Room layout will appear here once guest data is loaded.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="right-panel">
-            <div class="panel-header">
-                <span>Room Assignments</span>
-                <span id="assignedCount">(0)</span>
+    <!-- Room Configuration Tab Content -->
+    <div id="configurationContent" class="tab-content">
+        <div class="controls">
+            <div style="margin-left: auto;">
+                <button class="btn btn-secondary" id="exportRoomsBtn">Export Room Config</button>
+                <button class="btn btn-secondary" id="importRoomsBtn">Import Room Config</button>
+                <input type="file" id="roomConfigFile" accept=".csv" style="display: none;" />
             </div>
-            <div class="panel-content">
-                <div id="roomsContainer">
-                    <div class="empty-state">
-                        <p>Room layout will appear here once guest data is loaded.</p>
+        </div>
+
+        <div class="main-container">
+            <div class="left-panel">
+                <div class="panel-header">
+                    <span>Dormitories</span>
+                    <button class="btn" id="addDormitoryBtn" style="margin-left: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">+ Add</button>
+                </div>
+                <div class="panel-content">
+                    <div id="dormitoriesContainer">
+                        <div class="empty-state">
+                            <p>No dormitories configured. Click "Add" to create your first dormitory.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="panel-header">
+                    <span id="selectedDormitoryName">Select a Dormitory</span>
+                    <button class="btn" id="addRoomBtn" style="margin-left: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; display: none;">+ Add Room</button>
+                </div>
+                <div class="panel-content">
+                    <div id="roomConfigContainer">
+                        <div class="empty-state">
+                            <p>Select a dormitory to configure its rooms.</p>
+                        </div>
                     </div>
                 </div>
             </div>

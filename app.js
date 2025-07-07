@@ -8,6 +8,9 @@ class DormAssignmentTool {
         this.searchQuery = '';
         this.assignmentHistory = [];
         this.maxHistorySize = 10;
+        this.currentTab = 'assignment';
+        this.dormitories = [];
+        this.selectedDormitory = null;
         
         this.initializeRooms();
         this.bindEvents();
@@ -15,70 +18,144 @@ class DormAssignmentTool {
     }
 
     initializeRooms() {
-        this.rooms = [
+        // Initialize default dormitory structure
+        this.dormitories = [
             {
-                roomName: "Men's Dorm A",
-                roomGender: "M",
-                beds: [
-                    { bedId: "MA1", bedType: "lower", assignedGuestId: null, position: 1 },
-                    { bedId: "MA2", bedType: "upper", assignedGuestId: null, position: 2 },
-                    { bedId: "MA3", bedType: "lower", assignedGuestId: null, position: 3 },
-                    { bedId: "MA4", bedType: "upper", assignedGuestId: null, position: 4 },
-                    { bedId: "MA5", bedType: "single", assignedGuestId: null, position: 5 },
-                    { bedId: "MA6", bedType: "single", assignedGuestId: null, position: 6 }
+                dormitoryName: "Main Building",
+                active: true,
+                rooms: [
+                    {
+                        roomName: "Men's Dorm A",
+                        roomGender: "M",
+                        active: true,
+                        beds: [
+                            { bedId: "MA1", bedType: "lower", assignedGuestId: null, position: 1 },
+                            { bedId: "MA2", bedType: "upper", assignedGuestId: null, position: 2 },
+                            { bedId: "MA3", bedType: "lower", assignedGuestId: null, position: 3 },
+                            { bedId: "MA4", bedType: "upper", assignedGuestId: null, position: 4 },
+                            { bedId: "MA5", bedType: "single", assignedGuestId: null, position: 5 },
+                            { bedId: "MA6", bedType: "single", assignedGuestId: null, position: 6 }
+                        ]
+                    },
+                    {
+                        roomName: "Men's Dorm B",
+                        roomGender: "M",
+                        active: true,
+                        beds: [
+                            { bedId: "MB1", bedType: "lower", assignedGuestId: null, position: 1 },
+                            { bedId: "MB2", bedType: "upper", assignedGuestId: null, position: 2 },
+                            { bedId: "MB3", bedType: "lower", assignedGuestId: null, position: 3 },
+                            { bedId: "MB4", bedType: "upper", assignedGuestId: null, position: 4 }
+                        ]
+                    },
+                    {
+                        roomName: "Women's Dorm A",
+                        roomGender: "F",
+                        active: true,
+                        beds: [
+                            { bedId: "WA1", bedType: "lower", assignedGuestId: null, position: 1 },
+                            { bedId: "WA2", bedType: "upper", assignedGuestId: null, position: 2 },
+                            { bedId: "WA3", bedType: "lower", assignedGuestId: null, position: 3 },
+                            { bedId: "WA4", bedType: "upper", assignedGuestId: null, position: 4 },
+                            { bedId: "WA5", bedType: "single", assignedGuestId: null, position: 5 },
+                            { bedId: "WA6", bedType: "single", assignedGuestId: null, position: 6 }
+                        ]
+                    },
+                    {
+                        roomName: "Women's Dorm B",
+                        roomGender: "F",
+                        active: true,
+                        beds: [
+                            { bedId: "WB1", bedType: "lower", assignedGuestId: null, position: 1 },
+                            { bedId: "WB2", bedType: "upper", assignedGuestId: null, position: 2 },
+                            { bedId: "WB3", bedType: "lower", assignedGuestId: null, position: 3 },
+                            { bedId: "WB4", bedType: "upper", assignedGuestId: null, position: 4 }
+                        ]
+                    }
                 ]
             },
             {
-                roomName: "Men's Dorm B",
-                roomGender: "M",
-                beds: [
-                    { bedId: "MB1", bedType: "lower", assignedGuestId: null, position: 1 },
-                    { bedId: "MB2", bedType: "upper", assignedGuestId: null, position: 2 },
-                    { bedId: "MB3", bedType: "lower", assignedGuestId: null, position: 3 },
-                    { bedId: "MB4", bedType: "upper", assignedGuestId: null, position: 4 }
-                ]
-            },
-            {
-                roomName: "Women's Dorm A",
-                roomGender: "F",
-                beds: [
-                    { bedId: "WA1", bedType: "lower", assignedGuestId: null, position: 1 },
-                    { bedId: "WA2", bedType: "upper", assignedGuestId: null, position: 2 },
-                    { bedId: "WA3", bedType: "lower", assignedGuestId: null, position: 3 },
-                    { bedId: "WA4", bedType: "upper", assignedGuestId: null, position: 4 },
-                    { bedId: "WA5", bedType: "single", assignedGuestId: null, position: 5 },
-                    { bedId: "WA6", bedType: "single", assignedGuestId: null, position: 6 }
-                ]
-            },
-            {
-                roomName: "Women's Dorm B",
-                roomGender: "F",
-                beds: [
-                    { bedId: "WB1", bedType: "lower", assignedGuestId: null, position: 1 },
-                    { bedId: "WB2", bedType: "upper", assignedGuestId: null, position: 2 },
-                    { bedId: "WB3", bedType: "lower", assignedGuestId: null, position: 3 },
-                    { bedId: "WB4", bedType: "upper", assignedGuestId: null, position: 4 }
-                ]
-            },
-            {
-                roomName: "Family Room",
-                roomGender: "Coed",
-                beds: [
-                    { bedId: "FR1", bedType: "single", assignedGuestId: null, position: 1 },
-                    { bedId: "FR2", bedType: "single", assignedGuestId: null, position: 2 },
-                    { bedId: "FR3", bedType: "single", assignedGuestId: null, position: 3 },
-                    { bedId: "FR4", bedType: "single", assignedGuestId: null, position: 4 }
+                dormitoryName: "Family Building",
+                active: true,
+                rooms: [
+                    {
+                        roomName: "Family Room",
+                        roomGender: "Coed",
+                        active: true,
+                        beds: [
+                            { bedId: "FR1", bedType: "single", assignedGuestId: null, position: 1 },
+                            { bedId: "FR2", bedType: "single", assignedGuestId: null, position: 2 },
+                            { bedId: "FR3", bedType: "single", assignedGuestId: null, position: 3 },
+                            { bedId: "FR4", bedType: "single", assignedGuestId: null, position: 4 }
+                        ]
+                    }
                 ]
             }
         ];
+        
+        // Generate flat rooms array for backward compatibility
+        this.rooms = this.getFlatRoomsList();
+    }
+    
+    getFlatRoomsList() {
+        const flatRooms = [];
+        this.dormitories.forEach(dormitory => {
+            if (dormitory.active) {
+                dormitory.rooms.forEach(room => {
+                    if (room.active) {
+                        flatRooms.push({
+                            ...room,
+                            dormitoryName: dormitory.dormitoryName
+                        });
+                    }
+                });
+            }
+        });
+        return flatRooms;
     }
 
     bindEvents() {
+        // Tab switching
+        document.getElementById('assignmentTab').addEventListener('click', () => this.switchTab('assignment'));
+        document.getElementById('configurationTab').addEventListener('click', () => this.switchTab('configuration'));
+        
+        // Assignment tab events
         document.getElementById('csvFile').addEventListener('change', (e) => this.handleCSVUpload(e));
         document.getElementById('searchGuests').addEventListener('input', (e) => this.handleSearch(e));
         document.getElementById('exportBtn').addEventListener('click', () => this.exportCSV());
         document.getElementById('clearBtn').addEventListener('click', () => this.clearAll());
         document.getElementById('undoBtn').addEventListener('click', () => this.undoLastAction());
+        
+        // Configuration tab events
+        document.getElementById('addDormitoryBtn').addEventListener('click', () => this.addDormitory());
+        document.getElementById('addRoomBtn').addEventListener('click', () => this.addRoom());
+        document.getElementById('exportRoomsBtn').addEventListener('click', () => this.exportRoomConfig());
+        document.getElementById('importRoomsBtn').addEventListener('click', () => this.importRoomConfig());
+    }
+    
+    switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        if (tabName === 'assignment') {
+            document.getElementById('assignmentTab').classList.add('active');
+            document.getElementById('assignmentContent').classList.add('active');
+        } else if (tabName === 'configuration') {
+            document.getElementById('configurationTab').classList.add('active');
+            document.getElementById('configurationContent').classList.add('active');
+            this.renderDormitories();
+        }
+        
+        this.currentTab = tabName;
+    }
+    
+    refreshRoomsFromDormitories() {
+        this.rooms = this.getFlatRoomsList();
+        // Re-render assignment interface if we're in assignment mode
+        if (this.currentTab === 'assignment') {
+            this.renderRooms();
+        }
     }
 
     handleCSVUpload(event) {
@@ -864,8 +941,168 @@ class DormAssignmentTool {
             }
         }
     }
+    
+    // Room Configuration Methods
+    renderDormitories() {
+        const container = document.getElementById('dormitoriesContainer');
+        container.innerHTML = '';
+        
+        if (this.dormitories.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No dormitories configured. Click "Add" to create your first dormitory.</p></div>';
+            return;
+        }
+        
+        this.dormitories.forEach((dormitory, index) => {
+            const dormCard = document.createElement('div');
+            dormCard.className = `dormitory-card ${!dormitory.active ? 'inactive' : ''}`;
+            dormCard.dataset.dormitoryIndex = index;
+            
+            const roomCount = dormitory.rooms ? dormitory.rooms.filter(r => r.active).length : 0;
+            
+            dormCard.innerHTML = `
+                <div class="dormitory-header">
+                    <h4>${dormitory.dormitoryName}</h4>
+                    <span class="room-count">${roomCount} rooms</span>
+                </div>
+                <div class="dormitory-actions">
+                    <button class="btn btn-small" onclick="app.toggleDormitoryActive(${index})">
+                        ${dormitory.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button class="btn btn-small" onclick="app.renameDormitory(${index})">Rename</button>
+                    <button class="btn btn-small btn-danger" onclick="app.removeDormitory(${index})">Remove</button>
+                </div>
+            `;
+            
+            dormCard.addEventListener('click', (e) => {
+                if (!e.target.closest('.dormitory-actions')) {
+                    this.selectDormitory(index);
+                }
+            });
+            
+            container.appendChild(dormCard);
+        });
+    }
+    
+    selectDormitory(dormitoryIndex) {
+        this.selectedDormitory = dormitoryIndex;
+        const dormitory = this.dormitories[dormitoryIndex];
+        
+        // Update UI
+        document.querySelectorAll('.dormitory-card').forEach(card => card.classList.remove('selected'));
+        document.querySelector(`[data-dormitory-index="${dormitoryIndex}"]`).classList.add('selected');
+        
+        document.getElementById('selectedDormitoryName').textContent = dormitory.dormitoryName;
+        document.getElementById('addRoomBtn').style.display = 'inline-block';
+        
+        this.renderRoomConfiguration();
+    }
+    
+    renderRoomConfiguration() {
+        const container = document.getElementById('roomConfigContainer');
+        if (this.selectedDormitory === null) {
+            container.innerHTML = '<div class="empty-state"><p>Select a dormitory to configure its rooms.</p></div>';
+            return;
+        }
+        
+        const dormitory = this.dormitories[this.selectedDormitory];
+        container.innerHTML = '<div class="empty-state"><p>Room configuration interface coming soon...</p></div>';
+    }
+    
+    addDormitory() {
+        const name = prompt('Enter dormitory name:');
+        if (!name) return;
+        
+        this.dormitories.push({
+            dormitoryName: name,
+            active: true,
+            rooms: []
+        });
+        
+        this.renderDormitories();
+        this.refreshRoomsFromDormitories();
+        this.saveToLocalStorage();
+    }
+    
+    addRoom() {
+        if (this.selectedDormitory === null) return;
+        
+        const name = prompt('Enter room name:');
+        if (!name) return;
+        
+        const gender = prompt('Enter room gender (M/F/Coed):');
+        if (!['M', 'F', 'Coed'].includes(gender)) {
+            alert('Invalid gender. Use M, F, or Coed');
+            return;
+        }
+        
+        this.dormitories[this.selectedDormitory].rooms.push({
+            roomName: name,
+            roomGender: gender,
+            active: true,
+            beds: []
+        });
+        
+        this.renderDormitories();
+        this.renderRoomConfiguration();
+        this.refreshRoomsFromDormitories();
+        this.saveToLocalStorage();
+    }
+    
+    toggleDormitoryActive(dormitoryIndex) {
+        this.dormitories[dormitoryIndex].active = !this.dormitories[dormitoryIndex].active;
+        this.renderDormitories();
+        this.refreshRoomsFromDormitories();
+        this.saveToLocalStorage();
+    }
+    
+    renameDormitory(dormitoryIndex) {
+        const newName = prompt('Enter new dormitory name:', this.dormitories[dormitoryIndex].dormitoryName);
+        if (!newName) return;
+        
+        this.dormitories[dormitoryIndex].dormitoryName = newName;
+        this.renderDormitories();
+        this.refreshRoomsFromDormitories();
+        this.saveToLocalStorage();
+    }
+    
+    removeDormitory(dormitoryIndex) {
+        if (!confirm('Are you sure you want to remove this dormitory? All rooms and guest assignments will be lost.')) return;
+        
+        // Unassign all guests from rooms in this dormitory
+        const dormitory = this.dormitories[dormitoryIndex];
+        dormitory.rooms.forEach(room => {
+            room.beds.forEach(bed => {
+                if (bed.assignedGuestId) {
+                    this.assignments.delete(bed.assignedGuestId);
+                }
+            });
+        });
+        
+        this.dormitories.splice(dormitoryIndex, 1);
+        this.selectedDormitory = null;
+        
+        this.renderDormitories();
+        this.renderRoomConfiguration();
+        this.refreshRoomsFromDormitories();
+        this.renderGuestsTable();
+        this.updateCounts();
+        this.saveToLocalStorage();
+    }
+    
+    exportRoomConfig() {
+        // Placeholder for CSV export
+        console.log('Export room config');
+    }
+    
+    importRoomConfig() {
+        // Placeholder for CSV import
+        console.log('Import room config');
+    }
 }
 
+// Make app globally accessible for onclick handlers
+let app;
+
 document.addEventListener('DOMContentLoaded', () => {
-    new DormAssignmentTool();
+    app = new DormAssignmentTool();
 });
