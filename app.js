@@ -379,7 +379,8 @@ class DormAssignmentTool {
             { key: 'lowerBunk', label: 'Lower Bunk' },
             { key: 'groupName', label: 'Group' },
             { key: 'arrival', label: 'Arrival' },
-            { key: 'departure', label: 'Departure' }
+            { key: 'departure', label: 'Departure' },
+            { key: 'warnings', label: 'Assignment Issues' }
         ];
 
         columns.forEach(col => {
@@ -448,6 +449,15 @@ class DormAssignmentTool {
                         if (!isNaN(date.getTime())) {
                             value = date.toLocaleDateString();
                         }
+                    }
+                } else if (col.key === 'warnings') {
+                    const warnings = this.getAssignmentWarningsForUnassignedGuest(guest);
+                    if (warnings.length > 0) {
+                        value = warnings.join('; ');
+                        td.className = 'warning-cell';
+                        td.title = warnings.join('\n');
+                    } else {
+                        value = '';
                     }
                 }
                 
@@ -676,6 +686,82 @@ class DormAssignmentTool {
             }
             if (guestAge >= 18 && roommates.some(r => parseInt(r.age) < 16)) {
                 warnings.push('Adult assigned with minor(s)');
+            }
+        }
+        
+        return warnings;
+    }
+
+    getAssignmentWarningsForUnassignedGuest(guest) {
+        const warnings = [];
+        
+        // Check room availability for guest's gender
+        const compatibleRooms = this.rooms.filter(room => 
+            room.active && (room.roomGender === guest.gender || room.roomGender === 'Coed')
+        );
+        
+        if (compatibleRooms.length === 0) {
+            warnings.push(`No ${guest.gender === 'M' ? 'male' : 'female'} rooms available`);
+            return warnings; // No point checking further if no compatible rooms
+        }
+        
+        // Check for available beds in compatible rooms
+        const availableBeds = compatibleRooms.flatMap(room => 
+            room.beds.filter(bed => !bed.assignedGuestId)
+        );
+        
+        if (availableBeds.length === 0) {
+            warnings.push('No beds available in compatible rooms');
+            return warnings;
+        }
+        
+        // Check for lower bunk requirement
+        if (guest.lowerBunk) {
+            const availableLowerBunks = availableBeds.filter(bed => 
+                bed.bedType === 'lower' || bed.bedType === 'single'
+            );
+            if (availableLowerBunks.length === 0) {
+                warnings.push('No lower bunks available in compatible rooms');
+            }
+        }
+        
+        // Check for group separation potential
+        if (guest.groupName && guest.groupName.trim()) {
+            const groupMembers = this.guests.filter(g => 
+                g.groupName === guest.groupName && g.id !== guest.id
+            );
+            const assignedGroupMembers = groupMembers.filter(member => 
+                this.assignments.has(member.id)
+            );
+            
+            if (assignedGroupMembers.length > 0) {
+                const groupRooms = new Set();
+                assignedGroupMembers.forEach(member => {
+                    const bedId = this.assignments.get(member.id);
+                    const room = this.rooms.find(r => r.beds.some(b => b.bedId === bedId));
+                    if (room) groupRooms.add(room.roomName);
+                });
+                
+                if (groupRooms.size > 1) {
+                    warnings.push(`Group already split across ${groupRooms.size} rooms`);
+                } else if (groupRooms.size === 1) {
+                    // Check if the group's room has available beds
+                    const groupRoomName = Array.from(groupRooms)[0];
+                    const groupRoom = this.rooms.find(r => r.roomName === groupRoomName);
+                    if (groupRoom) {
+                        const availableBedsInGroupRoom = groupRoom.beds.filter(bed => !bed.assignedGuestId);
+                        if (availableBedsInGroupRoom.length === 0) {
+                            warnings.push('No beds available in group\'s room');
+                        } else if (guest.lowerBunk) {
+                            const availableLowerBunksInGroupRoom = availableBedsInGroupRoom.filter(bed => 
+                                bed.bedType === 'lower' || bed.bedType === 'single'
+                            );
+                            if (availableLowerBunksInGroupRoom.length === 0) {
+                                warnings.push('No lower bunks available in group\'s room');
+                            }
+                        }
+                    }
+                }
             }
         }
         
