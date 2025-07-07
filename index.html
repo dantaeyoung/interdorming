@@ -458,6 +458,362 @@
         .btn-danger:hover {
             background-color: #c0392b;
         }
+
+        .room-config-card {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .room-config-card:hover {
+            border-color: #3498db;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .room-config-card.inactive {
+            opacity: 0.6;
+            background-color: #f8f9fa;
+        }
+
+        .room-config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .room-config-header h4 {
+            margin: 0;
+            font-size: 1rem;
+            color: #2c3e50;
+        }
+
+        .room-config-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .room-config-detail {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .gender-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .gender-badge.male {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .gender-badge.female {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .gender-badge.coed {
+            background-color: #9b59b6;
+            color: white;
+        }
+
+        .room-config-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .room-config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-badge.active {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .status-badge.inactive {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        /* Bed Configuration Modal */
+        .bed-config-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .bed-config-modal.active {
+            display: flex;
+        }
+
+        .bed-config-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .bed-config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .bed-config-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+
+        .bed-config-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .bed-config-close:hover {
+            background-color: #f8f9fa;
+        }
+
+        .bed-config-info {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+        }
+
+        .bed-config-info h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+
+        .bed-config-info p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .bed-config-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .bed-config-section {
+            margin-bottom: 2rem;
+        }
+
+        .bed-config-section h4 {
+            margin: 0 0 1rem 0;
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+
+        .bed-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .bed-config-card {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            background-color: white;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .bed-config-card:hover {
+            border-color: #3498db;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .bed-config-card.occupied {
+            border-color: #27ae60;
+            background-color: #d5f4e6;
+        }
+
+        .bed-config-card.warning {
+            border-color: #f39c12;
+            background-color: #fef5e7;
+        }
+
+        .bed-config-card.error {
+            border-color: #e74c3c;
+            background-color: #fadbd8;
+        }
+
+        .bed-icon {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .bed-icon.single::before {
+            content: "🛏️";
+        }
+
+        .bed-icon.upper::before {
+            content: "🏠";
+        }
+
+        .bed-icon.lower::before {
+            content: "🛏️";
+        }
+
+        .bed-config-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .bed-id {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .bed-type {
+            background-color: #3498db;
+            color: white;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .bed-type.upper {
+            background-color: #9b59b6;
+        }
+
+        .bed-type.lower {
+            background-color: #27ae60;
+        }
+
+        .bed-type.single {
+            background-color: #3498db;
+        }
+
+        .bed-assignment-info {
+            margin-bottom: 1rem;
+        }
+
+        .bed-assignment-status {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .bed-assignment-status.occupied {
+            color: #27ae60;
+        }
+
+        .bed-assignment-status.empty {
+            color: #95a5a6;
+        }
+
+        .bed-guest-info {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .bed-guest-info .guest-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .bed-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .bed-actions .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .bed-type-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .bed-type-option {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .bed-type-option:hover {
+            border-color: #3498db;
+            background-color: #f8f9fa;
+        }
+
+        .bed-type-option.selected {
+            border-color: #3498db;
+            background-color: #3498db;
+            color: white;
+        }
+
+        .empty-beds {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -556,6 +912,55 @@
                             <p>Select a dormitory to configure its rooms.</p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bed Configuration Modal -->
+    <div id="bedConfigModal" class="bed-config-modal">
+        <div class="bed-config-content">
+            <div class="bed-config-header">
+                <h2 id="bedConfigTitle">Configure Beds</h2>
+                <button class="bed-config-close" onclick="app.closeBedConfiguration()">×</button>
+            </div>
+            
+            <div id="bedConfigInfo" class="bed-config-info">
+                <h3 id="bedConfigRoomName">Room Name</h3>
+                <p id="bedConfigRoomDetails">Room details will appear here</p>
+            </div>
+
+            <div class="bed-config-actions">
+                <button class="btn" onclick="app.showAddBedInterface()">+ Add Bed</button>
+                <button class="btn btn-secondary" onclick="app.closeBedConfiguration()">Close</button>
+            </div>
+
+            <div id="addBedInterface" class="bed-config-section" style="display: none;">
+                <h4>Add New Bed</h4>
+                <div class="bed-type-selector">
+                    <div class="bed-type-option selected" data-type="single">
+                        <div class="bed-icon single"></div>
+                        <div>Single</div>
+                    </div>
+                    <div class="bed-type-option" data-type="lower">
+                        <div class="bed-icon lower"></div>
+                        <div>Lower Bunk</div>
+                    </div>
+                    <div class="bed-type-option" data-type="upper">
+                        <div class="bed-icon upper"></div>
+                        <div>Upper Bunk</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn" onclick="app.addBedToCurrent()">Add Bed</button>
+                    <button class="btn btn-secondary" onclick="app.hideAddBedInterface()">Cancel</button>
+                </div>
+            </div>
+
+            <div class="bed-config-section">
+                <h4>Beds in This Room</h4>
+                <div id="bedConfigGrid" class="bed-grid">
+                    <!-- Bed cards will be populated here -->
                 </div>
             </div>
         </div>
