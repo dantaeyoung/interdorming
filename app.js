@@ -15,9 +15,33 @@ class DormAssignmentTool {
         this.bedConfigRoomIndex = null;
         this.selectedBedType = 'single';
         
+        // Initialize settings with defaults
+        this.settings = this.getDefaultSettings();
+        
         this.initializeRooms();
         this.bindEvents();
+        this.loadSettingsFromLocalStorage();
         this.loadFromLocalStorage();
+    }
+
+    getDefaultSettings() {
+        return {
+            warnings: {
+                ageGap: {
+                    enabled: true,
+                    threshold: 20
+                },
+                genderMismatch: true,
+                bunkPreference: true,
+                familySeparation: true,
+                adultMinor: true,
+                roomAvailability: true
+            },
+            display: {
+                showAgeHistograms: true
+            },
+            version: "1.0"
+        };
     }
 
     initializeRooms() {
@@ -121,6 +145,7 @@ class DormAssignmentTool {
         // Tab switching
         document.getElementById('assignmentTab').addEventListener('click', () => this.switchTab('assignment'));
         document.getElementById('configurationTab').addEventListener('click', () => this.switchTab('configuration'));
+        document.getElementById('settingsTab').addEventListener('click', () => this.switchTab('settings'));
         
         // Assignment tab events
         document.getElementById('csvFile').addEventListener('change', (e) => this.handleCSVUpload(e));
@@ -135,6 +160,20 @@ class DormAssignmentTool {
         document.getElementById('exportRoomsBtn').addEventListener('click', () => this.exportRoomConfig());
         document.getElementById('importRoomsBtn').addEventListener('click', () => this.importRoomConfig());
         document.getElementById('roomConfigFile').addEventListener('change', (e) => this.handleRoomConfigUpload(e));
+        
+        // Settings tab events
+        document.getElementById('ageGapEnabled').addEventListener('change', (e) => this.updateSetting('warnings.ageGap.enabled', e.target.checked));
+        document.getElementById('ageGapThreshold').addEventListener('input', (e) => this.updateAgeGapThreshold(parseInt(e.target.value)));
+        document.getElementById('showAgeHistograms').addEventListener('change', (e) => this.updateSetting('display.showAgeHistograms', e.target.checked));
+        document.getElementById('genderMismatchWarnings').addEventListener('change', (e) => this.updateSetting('warnings.genderMismatch', e.target.checked));
+        document.getElementById('bunkPreferenceWarnings').addEventListener('change', (e) => this.updateSetting('warnings.bunkPreference', e.target.checked));
+        document.getElementById('familySeparationWarnings').addEventListener('change', (e) => this.updateSetting('warnings.familySeparation', e.target.checked));
+        document.getElementById('adultMinorWarnings').addEventListener('change', (e) => this.updateSetting('warnings.adultMinor', e.target.checked));
+        document.getElementById('roomAvailabilityWarnings').addEventListener('change', (e) => this.updateSetting('warnings.roomAvailability', e.target.checked));
+        document.getElementById('resetSettingsBtn').addEventListener('click', () => this.resetSettings());
+        document.getElementById('exportSettingsBtn').addEventListener('click', () => this.exportSettings());
+        document.getElementById('importSettingsBtn').addEventListener('click', () => this.importSettingsClick());
+        document.getElementById('settingsFile').addEventListener('change', (e) => this.importSettings(e));
         
         // Bed configuration modal events
         document.getElementById('bedConfigModal').addEventListener('click', (e) => {
@@ -159,10 +198,19 @@ class DormAssignmentTool {
         if (tabName === 'assignment') {
             document.getElementById('assignmentTab').classList.add('active');
             document.getElementById('assignmentContent').classList.add('active');
+            // Refresh assignment interface to update warnings based on current settings
+            if (this.guests.length > 0) {
+                this.renderGuestsTable();
+                this.renderRooms();
+            }
         } else if (tabName === 'configuration') {
             document.getElementById('configurationTab').classList.add('active');
             document.getElementById('configurationContent').classList.add('active');
             this.renderDormitories();
+        } else if (tabName === 'settings') {
+            document.getElementById('settingsTab').classList.add('active');
+            document.getElementById('settingsContent').classList.add('active');
+            this.renderSettings();
         }
         
         this.currentTab = tabName;
@@ -638,16 +686,18 @@ class DormAssignmentTool {
     getAssignmentWarnings(guest, bed, room) {
         const warnings = [];
         
-        if (guest.gender !== room.roomGender && room.roomGender !== 'Coed') {
+        // Check gender mismatch warnings
+        if (this.settings.warnings.genderMismatch && guest.gender !== room.roomGender && room.roomGender !== 'Coed') {
             warnings.push(`Gender mismatch: ${guest.gender} guest in ${room.roomGender} room`);
         }
         
-        if (guest.lowerBunk && bed.bedType === 'upper') {
+        // Check bunk preference violations
+        if (this.settings.warnings.bunkPreference && guest.lowerBunk && bed.bedType === 'upper') {
             warnings.push('Upper bunk assigned to guest requiring lower bunk');
         }
         
         // Check for family/group separation warnings
-        if (guest.groupName && guest.groupName.trim()) {
+        if (this.settings.warnings.familySeparation && guest.groupName && guest.groupName.trim()) {
             const groupMembers = this.guests.filter(g => g.groupName === guest.groupName && g.id !== guest.id);
             const separatedMembers = groupMembers.filter(member => {
                 const memberBedId = this.assignments.get(member.id);
@@ -676,16 +726,20 @@ class DormAssignmentTool {
             });
             
             const maxAgeDiff = Math.max(...ageDifferences);
-            if (maxAgeDiff > 20) {
+            
+            // Check age gap warnings with configurable threshold
+            if (this.settings.warnings.ageGap.enabled && maxAgeDiff > this.settings.warnings.ageGap.threshold) {
                 warnings.push(`Large age gap: ${maxAgeDiff} year difference with roommate(s)`);
             }
             
-            // Check for very young with adults
-            if (guestAge < 16 && roommates.some(r => parseInt(r.age) >= 18)) {
-                warnings.push('Minor assigned with adult(s)');
-            }
-            if (guestAge >= 18 && roommates.some(r => parseInt(r.age) < 16)) {
-                warnings.push('Adult assigned with minor(s)');
+            // Check for adult/minor conflict warnings
+            if (this.settings.warnings.adultMinor) {
+                if (guestAge < 16 && roommates.some(r => parseInt(r.age) >= 18)) {
+                    warnings.push('Minor assigned with adult(s)');
+                }
+                if (guestAge >= 18 && roommates.some(r => parseInt(r.age) < 16)) {
+                    warnings.push('Adult assigned with minor(s)');
+                }
             }
         }
         
@@ -696,37 +750,39 @@ class DormAssignmentTool {
         const warnings = [];
         
         // Check room availability for guest's gender
-        const compatibleRooms = this.rooms.filter(room => 
-            room.active && (room.roomGender === guest.gender || room.roomGender === 'Coed')
-        );
-        
-        if (compatibleRooms.length === 0) {
-            warnings.push(`No ${guest.gender === 'M' ? 'male' : 'female'} rooms available`);
-            return warnings; // No point checking further if no compatible rooms
-        }
-        
-        // Check for available beds in compatible rooms
-        const availableBeds = compatibleRooms.flatMap(room => 
-            room.beds.filter(bed => !bed.assignedGuestId)
-        );
-        
-        if (availableBeds.length === 0) {
-            warnings.push('No beds available in compatible rooms');
-            return warnings;
-        }
-        
-        // Check for lower bunk requirement
-        if (guest.lowerBunk) {
-            const availableLowerBunks = availableBeds.filter(bed => 
-                bed.bedType === 'lower' || bed.bedType === 'single'
+        if (this.settings.warnings.roomAvailability) {
+            const compatibleRooms = this.rooms.filter(room => 
+                room.active && (room.roomGender === guest.gender || room.roomGender === 'Coed')
             );
-            if (availableLowerBunks.length === 0) {
-                warnings.push('No lower bunks available in compatible rooms');
+            
+            if (compatibleRooms.length === 0) {
+                warnings.push(`No ${guest.gender === 'M' ? 'male' : 'female'} rooms available`);
+                return warnings; // No point checking further if no compatible rooms
+            }
+            
+            // Check for available beds in compatible rooms
+            const availableBeds = compatibleRooms.flatMap(room => 
+                room.beds.filter(bed => !bed.assignedGuestId)
+            );
+            
+            if (availableBeds.length === 0) {
+                warnings.push('No beds available in compatible rooms');
+                return warnings;
+            }
+            
+            // Check for lower bunk requirement
+            if (this.settings.warnings.bunkPreference && guest.lowerBunk) {
+                const availableLowerBunks = availableBeds.filter(bed => 
+                    bed.bedType === 'lower' || bed.bedType === 'single'
+                );
+                if (availableLowerBunks.length === 0) {
+                    warnings.push('No lower bunks available in compatible rooms');
+                }
             }
         }
         
         // Check for group separation potential
-        if (guest.groupName && guest.groupName.trim()) {
+        if (this.settings.warnings.familySeparation && guest.groupName && guest.groupName.trim()) {
             const groupMembers = this.guests.filter(g => 
                 g.groupName === guest.groupName && g.id !== guest.id
             );
@@ -752,7 +808,7 @@ class DormAssignmentTool {
                         const availableBedsInGroupRoom = groupRoom.beds.filter(bed => !bed.assignedGuestId);
                         if (availableBedsInGroupRoom.length === 0) {
                             warnings.push('No beds available in group\'s room');
-                        } else if (guest.lowerBunk) {
+                        } else if (this.settings.warnings.bunkPreference && guest.lowerBunk) {
                             const availableLowerBunksInGroupRoom = availableBedsInGroupRoom.filter(bed => 
                                 bed.bedType === 'lower' || bed.bedType === 'single'
                             );
@@ -788,7 +844,12 @@ class DormAssignmentTool {
                     const room = this.rooms.find(r => r.beds.includes(bedObj));
                     if (room) {
                         const warnings = this.getAssignmentWarnings(guest, bedObj, room);
-                        if (warnings.some(w => w.includes('Gender mismatch') || w.includes('Minor assigned with adult'))) {
+                        // Only show as invalid if serious warnings are enabled and present
+                        const hasSerious = warnings.some(w => 
+                            (this.settings.warnings.genderMismatch && w.includes('Gender mismatch')) ||
+                            (this.settings.warnings.adultMinor && w.includes('Minor assigned with adult'))
+                        );
+                        if (hasSerious) {
                             bed.classList.add('invalid');
                         }
                     }
@@ -1021,6 +1082,7 @@ class DormAssignmentTool {
             guests: this.guests,
             assignments: Array.from(this.assignments.entries()),
             dormitories: this.dormitories,
+            settings: this.settings,
             assignmentHistory: this.assignmentHistory.map(state => ({
                 assignments: Array.from(state.assignments.entries()),
                 rooms: state.rooms,
@@ -1038,6 +1100,9 @@ class DormAssignmentTool {
                 const data = JSON.parse(saved);
                 this.guests = data.guests || [];
                 this.assignments = new Map(data.assignments || []);
+                
+                // Load settings with validation and merging
+                this.loadSettings(data.settings);
                 
                 // Check if we have the new dormitory structure or need to migrate
                 if (data.version === '2.0' && data.dormitories) {
@@ -1081,6 +1146,176 @@ class DormAssignmentTool {
                 this.initializeRooms();
             }
         }
+    }
+    
+    loadSettings(savedSettings) {
+        // Validate and merge settings with defaults
+        if (!savedSettings || typeof savedSettings !== 'object') {
+            // No saved settings or invalid, use defaults
+            return;
+        }
+        
+        try {
+            // Merge saved settings with defaults to ensure all required fields exist
+            const mergedSettings = {
+                warnings: {
+                    ageGap: {
+                        enabled: this.settings.warnings.ageGap.enabled,
+                        threshold: this.settings.warnings.ageGap.threshold
+                    },
+                    genderMismatch: this.settings.warnings.genderMismatch,
+                    bunkPreference: this.settings.warnings.bunkPreference,
+                    familySeparation: this.settings.warnings.familySeparation,
+                    adultMinor: this.settings.warnings.adultMinor,
+                    roomAvailability: this.settings.warnings.roomAvailability
+                },
+                display: {
+                    showAgeHistograms: this.settings.display.showAgeHistograms
+                },
+                version: this.settings.version
+            };
+            
+            // Apply saved settings where valid
+            if (savedSettings.warnings) {
+                if (savedSettings.warnings.ageGap) {
+                    if (typeof savedSettings.warnings.ageGap.enabled === 'boolean') {
+                        mergedSettings.warnings.ageGap.enabled = savedSettings.warnings.ageGap.enabled;
+                    }
+                    if (typeof savedSettings.warnings.ageGap.threshold === 'number' && 
+                        savedSettings.warnings.ageGap.threshold >= 0 && 
+                        savedSettings.warnings.ageGap.threshold <= 50) {
+                        mergedSettings.warnings.ageGap.threshold = savedSettings.warnings.ageGap.threshold;
+                    }
+                }
+                if (typeof savedSettings.warnings.genderMismatch === 'boolean') {
+                    mergedSettings.warnings.genderMismatch = savedSettings.warnings.genderMismatch;
+                }
+                if (typeof savedSettings.warnings.bunkPreference === 'boolean') {
+                    mergedSettings.warnings.bunkPreference = savedSettings.warnings.bunkPreference;
+                }
+                if (typeof savedSettings.warnings.familySeparation === 'boolean') {
+                    mergedSettings.warnings.familySeparation = savedSettings.warnings.familySeparation;
+                }
+                if (typeof savedSettings.warnings.adultMinor === 'boolean') {
+                    mergedSettings.warnings.adultMinor = savedSettings.warnings.adultMinor;
+                }
+                if (typeof savedSettings.warnings.roomAvailability === 'boolean') {
+                    mergedSettings.warnings.roomAvailability = savedSettings.warnings.roomAvailability;
+                }
+            }
+            
+            if (savedSettings.display) {
+                if (typeof savedSettings.display.showAgeHistograms === 'boolean') {
+                    mergedSettings.display.showAgeHistograms = savedSettings.display.showAgeHistograms;
+                }
+            }
+            
+            // Update the settings object
+            this.settings = mergedSettings;
+            
+        } catch (error) {
+            console.error('Error loading settings, using defaults:', error);
+            // Keep default settings if loading fails
+        }
+    }
+    
+    // Settings management methods
+    updateSettings(newSettings) {
+        // Validate and update settings with immediate effect
+        if (!newSettings || typeof newSettings !== 'object') {
+            return false;
+        }
+        
+        try {
+            // Merge new settings with existing ones
+            const updatedSettings = JSON.parse(JSON.stringify(this.settings));
+            
+            if (newSettings.warnings) {
+                if (newSettings.warnings.ageGap) {
+                    if (typeof newSettings.warnings.ageGap.enabled === 'boolean') {
+                        updatedSettings.warnings.ageGap.enabled = newSettings.warnings.ageGap.enabled;
+                    }
+                    if (typeof newSettings.warnings.ageGap.threshold === 'number' && 
+                        newSettings.warnings.ageGap.threshold >= 0 && 
+                        newSettings.warnings.ageGap.threshold <= 50) {
+                        updatedSettings.warnings.ageGap.threshold = newSettings.warnings.ageGap.threshold;
+                    }
+                }
+                if (typeof newSettings.warnings.genderMismatch === 'boolean') {
+                    updatedSettings.warnings.genderMismatch = newSettings.warnings.genderMismatch;
+                }
+                if (typeof newSettings.warnings.bunkPreference === 'boolean') {
+                    updatedSettings.warnings.bunkPreference = newSettings.warnings.bunkPreference;
+                }
+                if (typeof newSettings.warnings.familySeparation === 'boolean') {
+                    updatedSettings.warnings.familySeparation = newSettings.warnings.familySeparation;
+                }
+                if (typeof newSettings.warnings.adultMinor === 'boolean') {
+                    updatedSettings.warnings.adultMinor = newSettings.warnings.adultMinor;
+                }
+                if (typeof newSettings.warnings.roomAvailability === 'boolean') {
+                    updatedSettings.warnings.roomAvailability = newSettings.warnings.roomAvailability;
+                }
+            }
+            
+            if (newSettings.display) {
+                if (typeof newSettings.display.showAgeHistograms === 'boolean') {
+                    updatedSettings.display.showAgeHistograms = newSettings.display.showAgeHistograms;
+                }
+            }
+            
+            // Apply the updated settings
+            this.settings = updatedSettings;
+            
+            // Refresh the UI to apply changes immediately
+            this.refreshUIAfterSettingsChange();
+            
+            // Save to localStorage
+            this.saveToLocalStorage();
+            
+            return true;
+        } catch (error) {
+            console.error('Error updating settings:', error);
+            return false;
+        }
+    }
+    
+    refreshUIAfterSettingsChange() {
+        // Re-render components that depend on settings
+        if (this.guests.length > 0) {
+            this.renderGuestsTable();
+            this.renderRooms();
+        }
+        
+        // Update any settings-dependent UI elements
+        // (This would include room card histograms when that feature is implemented)
+    }
+    
+    resetSettingsToDefaults() {
+        // Reset all settings to their default values
+        this.settings = {
+            warnings: {
+                ageGap: {
+                    enabled: true,
+                    threshold: 20
+                },
+                genderMismatch: true,
+                bunkPreference: true,
+                familySeparation: true,
+                adultMinor: true,
+                roomAvailability: true
+            },
+            display: {
+                showAgeHistograms: true
+            },
+            version: "1.0"
+        };
+        
+        // Refresh the UI
+        this.refreshUIAfterSettingsChange();
+        
+        // Save to localStorage
+        this.saveToLocalStorage();
     }
     
     migrateFromOldStructure(data) {
@@ -1944,6 +2179,203 @@ class DormAssignmentTool {
             return `"${value.replace(/"/g, '""')}"`;
         }
         return value;
+    }
+
+    // Settings Methods
+    renderSettings() {
+        // Update settings UI with current values
+        document.getElementById('ageGapEnabled').checked = this.settings.warnings.ageGap.enabled;
+        document.getElementById('ageGapThreshold').value = this.settings.warnings.ageGap.threshold;
+        document.getElementById('ageGapValue').textContent = `${this.settings.warnings.ageGap.threshold} years`;
+        document.getElementById('showAgeHistograms').checked = this.settings.display.showAgeHistograms;
+        document.getElementById('genderMismatchWarnings').checked = this.settings.warnings.genderMismatch;
+        document.getElementById('bunkPreferenceWarnings').checked = this.settings.warnings.bunkPreference;
+        document.getElementById('familySeparationWarnings').checked = this.settings.warnings.familySeparation;
+        document.getElementById('adultMinorWarnings').checked = this.settings.warnings.adultMinor;
+        document.getElementById('roomAvailabilityWarnings').checked = this.settings.warnings.roomAvailability;
+        
+        // Update threshold setting visibility based on age gap enabled state
+        const thresholdContainer = document.querySelector('.settings-slider-container');
+        if (this.settings.warnings.ageGap.enabled) {
+            thresholdContainer.style.opacity = '1';
+            thresholdContainer.style.pointerEvents = 'auto';
+        } else {
+            thresholdContainer.style.opacity = '0.5';
+            thresholdContainer.style.pointerEvents = 'none';
+        }
+    }
+    
+    updateSetting(path, value) {
+        // Parse the path and update the setting
+        const pathParts = path.split('.');
+        let current = this.settings;
+        
+        // Navigate to the parent object
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            current = current[pathParts[i]];
+        }
+        
+        // Update the final property
+        current[pathParts[pathParts.length - 1]] = value;
+        
+        // Handle special cases
+        if (path === 'warnings.ageGap.enabled') {
+            const thresholdSetting = document.getElementById('ageGapThresholdSetting');
+            if (value) {
+                thresholdSetting.classList.remove('disabled-setting');
+            } else {
+                thresholdSetting.classList.add('disabled-setting');
+            }
+        }
+        
+        // Re-render affected components
+        this.applySettingsChanges();
+        
+        // Save to localStorage
+        this.saveSettingsToLocalStorage();
+    }
+    
+    updateAgeGapThreshold(value) {
+        this.settings.warnings.ageGap.threshold = value;
+        document.getElementById('ageGapValue').textContent = `${value} years`;
+        
+        // Apply changes and save
+        this.applySettingsChanges();
+        this.saveSettingsToLocalStorage();
+    }
+    
+    applySettingsChanges() {
+        // Re-render components that depend on settings
+        if (this.currentTab === 'assignment') {
+            this.renderGuestsTable();
+            this.renderRooms();
+        }
+    }
+    
+    resetSettings() {
+        if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+            this.settings = this.getDefaultSettings();
+            this.renderSettings();
+            this.applySettingsChanges();
+            this.saveSettingsToLocalStorage();
+            this.showStatus('Settings reset to defaults', 'success');
+        }
+    }
+    
+    exportSettings() {
+        try {
+            const settingsJson = JSON.stringify(this.settings, null, 2);
+            const blob = new Blob([settingsJson], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `monastery_settings_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            this.showStatus('Settings exported successfully', 'success');
+        } catch (error) {
+            this.showStatus('Error exporting settings: ' + error.message, 'error');
+        }
+    }
+    
+    importSettingsClick() {
+        document.getElementById('settingsFile').click();
+    }
+    
+    importSettings(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        if (!file.name.toLowerCase().endsWith('.json')) {
+            this.showStatus('Please select a JSON file', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedSettings = JSON.parse(e.target.result);
+                
+                // Validate settings structure
+                if (this.validateSettingsStructure(importedSettings)) {
+                    this.settings = { ...this.getDefaultSettings(), ...importedSettings };
+                    this.renderSettings();
+                    this.applySettingsChanges();
+                    this.saveSettingsToLocalStorage();
+                    this.showStatus('Settings imported successfully', 'success');
+                } else {
+                    this.showStatus('Invalid settings file format', 'error');
+                }
+            } catch (error) {
+                this.showStatus('Error importing settings: ' + error.message, 'error');
+            }
+        };
+        
+        reader.onerror = () => {
+            this.showStatus('Error reading file', 'error');
+        };
+        
+        reader.readAsText(file);
+        
+        // Reset file input
+        event.target.value = '';
+    }
+    
+    validateSettingsStructure(settings) {
+        // Check if the imported settings have the required structure
+        if (!settings || typeof settings !== 'object') return false;
+        if (!settings.warnings || typeof settings.warnings !== 'object') return false;
+        if (!settings.display || typeof settings.display !== 'object') return false;
+        
+        // Check for required warning settings
+        const requiredWarnings = ['ageGap', 'genderMismatch', 'bunkPreference', 'familySeparation', 'adultMinor', 'roomAvailability'];
+        for (const warning of requiredWarnings) {
+            if (warning === 'ageGap') {
+                if (!settings.warnings.ageGap || 
+                    typeof settings.warnings.ageGap.enabled !== 'boolean' ||
+                    typeof settings.warnings.ageGap.threshold !== 'number') {
+                    return false;
+                }
+            } else {
+                if (typeof settings.warnings[warning] !== 'boolean') {
+                    return false;
+                }
+            }
+        }
+        
+        // Check display settings
+        if (typeof settings.display.showAgeHistograms !== 'boolean') {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    saveSettingsToLocalStorage() {
+        try {
+            localStorage.setItem('monasterySettings', JSON.stringify(this.settings));
+        } catch (error) {
+            console.error('Error saving settings to localStorage:', error);
+        }
+    }
+    
+    loadSettingsFromLocalStorage() {
+        try {
+            const saved = localStorage.getItem('monasterySettings');
+            if (saved) {
+                const savedSettings = JSON.parse(saved);
+                if (this.validateSettingsStructure(savedSettings)) {
+                    // Merge saved settings with defaults to handle version upgrades
+                    this.settings = { ...this.getDefaultSettings(), ...savedSettings };
+                } else {
+                    console.warn('Invalid settings structure in localStorage, using defaults');
+                    this.settings = this.getDefaultSettings();
+                }
+            }
+        } catch (error) {
+            console.error('Error loading settings from localStorage:', error);
+            this.settings = this.getDefaultSettings();
+        }
     }
 }
 
