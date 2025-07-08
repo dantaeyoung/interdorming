@@ -28,14 +28,9 @@ Object.assign(DormAssignmentTool.prototype, {
     getDefaultSettings() {
         return {
             warnings: {
-                ageGap: {
-                    enabled: true,
-                    threshold: 20
-                },
                 genderMismatch: true,
                 bunkPreference: true,
                 familySeparation: true,
-                adultMinor: true,
                 roomAvailability: true
             },
             display: {
@@ -64,14 +59,9 @@ Object.assign(DormAssignmentTool.prototype, {
             // Merge saved settings with defaults to ensure all required fields exist
             const mergedSettings = {
                 warnings: {
-                    ageGap: {
-                        enabled: this.settings.warnings.ageGap.enabled,
-                        threshold: this.settings.warnings.ageGap.threshold
-                    },
                     genderMismatch: this.settings.warnings.genderMismatch,
                     bunkPreference: this.settings.warnings.bunkPreference,
                     familySeparation: this.settings.warnings.familySeparation,
-                    adultMinor: this.settings.warnings.adultMinor,
                     roomAvailability: this.settings.warnings.roomAvailability
                 },
                 display: {
@@ -82,16 +72,6 @@ Object.assign(DormAssignmentTool.prototype, {
             
             // Apply saved settings where valid
             if (savedSettings.warnings) {
-                if (savedSettings.warnings.ageGap) {
-                    if (typeof savedSettings.warnings.ageGap.enabled === 'boolean') {
-                        mergedSettings.warnings.ageGap.enabled = savedSettings.warnings.ageGap.enabled;
-                    }
-                    if (typeof savedSettings.warnings.ageGap.threshold === 'number' && 
-                        savedSettings.warnings.ageGap.threshold >= 0 && 
-                        savedSettings.warnings.ageGap.threshold <= 50) {
-                        mergedSettings.warnings.ageGap.threshold = savedSettings.warnings.ageGap.threshold;
-                    }
-                }
                 if (typeof savedSettings.warnings.genderMismatch === 'boolean') {
                     mergedSettings.warnings.genderMismatch = savedSettings.warnings.genderMismatch;
                 }
@@ -100,9 +80,6 @@ Object.assign(DormAssignmentTool.prototype, {
                 }
                 if (typeof savedSettings.warnings.familySeparation === 'boolean') {
                     mergedSettings.warnings.familySeparation = savedSettings.warnings.familySeparation;
-                }
-                if (typeof savedSettings.warnings.adultMinor === 'boolean') {
-                    mergedSettings.warnings.adultMinor = savedSettings.warnings.adultMinor;
                 }
                 if (typeof savedSettings.warnings.roomAvailability === 'boolean') {
                     mergedSettings.warnings.roomAvailability = savedSettings.warnings.roomAvailability;
@@ -140,16 +117,6 @@ Object.assign(DormAssignmentTool.prototype, {
             const updatedSettings = JSON.parse(JSON.stringify(this.settings));
             
             if (newSettings.warnings) {
-                if (newSettings.warnings.ageGap) {
-                    if (typeof newSettings.warnings.ageGap.enabled === 'boolean') {
-                        updatedSettings.warnings.ageGap.enabled = newSettings.warnings.ageGap.enabled;
-                    }
-                    if (typeof newSettings.warnings.ageGap.threshold === 'number' && 
-                        newSettings.warnings.ageGap.threshold >= 0 && 
-                        newSettings.warnings.ageGap.threshold <= 50) {
-                        updatedSettings.warnings.ageGap.threshold = newSettings.warnings.ageGap.threshold;
-                    }
-                }
                 if (typeof newSettings.warnings.genderMismatch === 'boolean') {
                     updatedSettings.warnings.genderMismatch = newSettings.warnings.genderMismatch;
                 }
@@ -158,9 +125,6 @@ Object.assign(DormAssignmentTool.prototype, {
                 }
                 if (typeof newSettings.warnings.familySeparation === 'boolean') {
                     updatedSettings.warnings.familySeparation = newSettings.warnings.familySeparation;
-                }
-                if (typeof newSettings.warnings.adultMinor === 'boolean') {
-                    updatedSettings.warnings.adultMinor = newSettings.warnings.adultMinor;
                 }
                 if (typeof newSettings.warnings.roomAvailability === 'boolean') {
                     updatedSettings.warnings.roomAvailability = newSettings.warnings.roomAvailability;
@@ -201,18 +165,10 @@ Object.assign(DormAssignmentTool.prototype, {
         if (!settings.display || typeof settings.display !== 'object') return false;
         
         // Check for required warning settings
-        const requiredWarnings = ['ageGap', 'genderMismatch', 'bunkPreference', 'familySeparation', 'adultMinor', 'roomAvailability'];
+        const requiredWarnings = ['genderMismatch', 'bunkPreference', 'familySeparation', 'roomAvailability'];
         for (const warning of requiredWarnings) {
-            if (warning === 'ageGap') {
-                if (!settings.warnings.ageGap || 
-                    typeof settings.warnings.ageGap.enabled !== 'boolean' ||
-                    typeof settings.warnings.ageGap.threshold !== 'number') {
-                    return false;
-                }
-            } else {
-                if (typeof settings.warnings[warning] !== 'boolean') {
-                    return false;
-                }
+            if (typeof settings.warnings[warning] !== 'boolean') {
+                return false;
             }
         }
         
@@ -233,25 +189,11 @@ Object.assign(DormAssignmentTool.prototype, {
      */
     renderSettings() {
         // Update settings UI with current values
-        document.getElementById('ageGapEnabled').checked = this.settings.warnings.ageGap.enabled;
-        document.getElementById('ageGapThreshold').value = this.settings.warnings.ageGap.threshold;
-        document.getElementById('ageGapValue').textContent = `${this.settings.warnings.ageGap.threshold} years`;
         document.getElementById('showAgeHistograms').checked = this.settings.display.showAgeHistograms;
         document.getElementById('genderMismatchWarnings').checked = this.settings.warnings.genderMismatch;
         document.getElementById('bunkPreferenceWarnings').checked = this.settings.warnings.bunkPreference;
         document.getElementById('familySeparationWarnings').checked = this.settings.warnings.familySeparation;
-        document.getElementById('adultMinorWarnings').checked = this.settings.warnings.adultMinor;
         document.getElementById('roomAvailabilityWarnings').checked = this.settings.warnings.roomAvailability;
-        
-        // Update threshold setting visibility based on age gap enabled state
-        const thresholdContainer = document.querySelector('.settings-slider-container');
-        if (this.settings.warnings.ageGap.enabled) {
-            thresholdContainer.style.opacity = '1';
-            thresholdContainer.style.pointerEvents = 'auto';
-        } else {
-            thresholdContainer.style.opacity = '0.5';
-            thresholdContainer.style.pointerEvents = 'none';
-        }
     },
 
     /**
@@ -301,15 +243,7 @@ Object.assign(DormAssignmentTool.prototype, {
         // Update the final property
         current[pathParts[pathParts.length - 1]] = value;
         
-        // Handle special cases
-        if (path === 'warnings.ageGap.enabled') {
-            const thresholdSetting = document.getElementById('ageGapThresholdSetting');
-            if (value) {
-                thresholdSetting.classList.remove('disabled-setting');
-            } else {
-                thresholdSetting.classList.add('disabled-setting');
-            }
-        }
+        // Special case handling removed (age gap settings removed)
         
         // Re-render affected components
         this.applySettingsChanges();
@@ -318,18 +252,7 @@ Object.assign(DormAssignmentTool.prototype, {
         this.saveSettingsToLocalStorage();
     },
 
-    /**
-     * Updates the age gap threshold setting
-     * @param {number} value - New threshold value
-     */
-    updateAgeGapThreshold(value) {
-        this.settings.warnings.ageGap.threshold = value;
-        document.getElementById('ageGapValue').textContent = `${value} years`;
-        
-        // Apply changes and save
-        this.applySettingsChanges();
-        this.saveSettingsToLocalStorage();
-    },
+    // Age gap threshold method removed
 
     // ================================
     // SETTINGS RESET
@@ -342,14 +265,9 @@ Object.assign(DormAssignmentTool.prototype, {
         // Reset all settings to their default values
         this.settings = {
             warnings: {
-                ageGap: {
-                    enabled: true,
-                    threshold: 20
-                },
                 genderMismatch: true,
                 bunkPreference: true,
                 familySeparation: true,
-                adultMinor: true,
                 roomAvailability: true
             },
             display: {

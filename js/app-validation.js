@@ -80,20 +80,7 @@ const AppValidation = {
             
             const maxAgeDiff = Math.max(...ageDifferences);
             
-            // Check age gap warnings with configurable threshold
-            if (this.settings.warnings.ageGap.enabled && maxAgeDiff > this.settings.warnings.ageGap.threshold) {
-                warnings.push(`Large age gap: ${maxAgeDiff} year difference with roommate(s)`);
-            }
-            
-            // Check for adult/minor conflict warnings
-            if (this.settings.warnings.adultMinor) {
-                if (guestAge < 16 && roommates.some(r => parseInt(r.age) >= 18)) {
-                    warnings.push('Minor assigned with adult(s)');
-                }
-                if (guestAge >= 18 && roommates.some(r => parseInt(r.age) < 16)) {
-                    warnings.push('Adult assigned with minor(s)');
-                }
-            }
+            // Age gap and adult/minor warnings removed - keeping age calculations for potential future use
         }
         
         return warnings;
@@ -204,8 +191,7 @@ const AppValidation = {
         
         // Check for serious warnings that should prevent assignment
         const hasSerious = warnings.some(warning => 
-            (this.settings.warnings.genderMismatch && warning.includes('Gender mismatch')) ||
-            (this.settings.warnings.adultMinor && warning.includes('Minor assigned with adult'))
+            (this.settings.warnings.genderMismatch && warning.includes('Gender mismatch'))
         );
         
         return hasSerious;
@@ -223,9 +209,7 @@ const AppValidation = {
             warningsByType: {
                 genderMismatch: 0,
                 bunkPreference: 0,
-                familySeparation: 0,
-                ageGap: 0,
-                adultMinor: 0
+                familySeparation: 0
             },
             criticalIssues: 0,
             affectedGuests: new Set()
@@ -253,11 +237,6 @@ const AppValidation = {
                             summary.warningsByType.bunkPreference++;
                         } else if (warning.includes('separation')) {
                             summary.warningsByType.familySeparation++;
-                        } else if (warning.includes('age')) {
-                            summary.warningsByType.ageGap++;
-                        } else if (warning.includes('Minor') || warning.includes('Adult')) {
-                            summary.warningsByType.adultMinor++;
-                            summary.criticalIssues++;
                         }
                     });
                 }
@@ -285,7 +264,6 @@ const AppValidation = {
             'genderMismatch',
             'bunkPreference', 
             'familySeparation',
-            'adultMinor',
             'roomAvailability'
         ];
         
@@ -296,14 +274,7 @@ const AppValidation = {
             }
         }
         
-        // Check age gap setting structure
-        if (!settings.warnings.ageGap ||
-            typeof settings.warnings.ageGap.enabled !== 'boolean' ||
-            typeof settings.warnings.ageGap.threshold !== 'number' ||
-            settings.warnings.ageGap.threshold < 0 ||
-            settings.warnings.ageGap.threshold > 50) {
-            return false;
-        }
+        // Age gap settings validation removed
         
         return true;
     },

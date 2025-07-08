@@ -18,14 +18,9 @@ class DormAssignmentTool {
         // Initialize settings with defaults - now handled by external settings manager
         this.settings = {
             warnings: {
-                ageGap: {
-                    enabled: true,
-                    threshold: 20
-                },
                 genderMismatch: true,
                 bunkPreference: true,
                 familySeparation: true,
-                adultMinor: true,
                 roomAvailability: true
             },
             display: {
