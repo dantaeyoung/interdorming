@@ -413,29 +413,7 @@ class DormAssignmentTool {
             row.draggable = true;
             row.dataset.guestId = guest.id;
             
-            if (guest.groupName && guest.groupName.trim()) {
-                row.classList.add('group-member');
-                
-                // Add visual connection lines for grouped guests
-                const groupMembers = groupedGuests.filter(g => g.groupName === guest.groupName);
-                if (groupMembers.length > 1) {
-                    const groupIndex = groupMembers.indexOf(guest);
-                    const connectionLine = document.createElement('div');
-                    connectionLine.className = 'group-connection-line';
-                    
-                    if (groupMembers.length === 1) {
-                        connectionLine.classList.add('single');
-                    } else if (groupIndex === 0) {
-                        connectionLine.classList.add('first');
-                    } else if (groupIndex === groupMembers.length - 1) {
-                        connectionLine.classList.add('last');
-                    } else {
-                        connectionLine.classList.add('middle');
-                    }
-                    
-                    row.appendChild(connectionLine);
-                }
-            }
+            // Group member styling temporarily disabled
             
             columns.forEach(col => {
                 const td = document.createElement('td');
