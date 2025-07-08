@@ -305,6 +305,13 @@ body {
     color: #666;
 }
 
+.warning-text {
+    color: #e74c3c;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-top: 0.25rem;
+}
+
 .loading {
     text-align: center;
     padding: 2rem;

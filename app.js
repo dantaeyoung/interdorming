@@ -579,6 +579,18 @@ class DormAssignmentTool {
                         
                         assignedGuest.appendChild(guestName);
                         assignedGuest.appendChild(guestDetails);
+                        
+                        // Add visible warning text in red
+                        if (warnings.length > 0) {
+                            const warningText = document.createElement('div');
+                            warningText.className = 'warning-text';
+                            warningText.style.color = '#e74c3c';
+                            warningText.style.fontSize = '0.8rem';
+                            warningText.style.fontWeight = 'bold';
+                            warningText.style.marginTop = '0.25rem';
+                            warningText.textContent = warnings.join('; ');
+                            assignedGuest.appendChild(warningText);
+                        }
                         bedAssignment.appendChild(assignedGuest);
                         
                         assignedGuest.addEventListener('dragstart', (e) => this.handleDragStart(e));
