@@ -492,6 +492,28 @@ body {
     color: #666;
 }
 
+.dormitory-color-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.dormitory-color-picker label {
+    color: #666;
+    font-weight: 500;
+}
+
+.dormitory-color-picker input[type="color"] {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px;
+}
+
 .dormitory-actions {
     display: flex;
     gap: 0.25rem;

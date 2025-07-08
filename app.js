@@ -41,6 +41,7 @@ class DormAssignmentTool {
             {
                 dormitoryName: "Main Building",
                 active: true,
+                color: "#f8f9fa",
                 rooms: [
                     {
                         roomName: "Men's Dorm A",
@@ -510,6 +511,14 @@ class DormAssignmentTool {
             const roomCard = document.createElement('div');
             roomCard.className = 'room-card';
             
+            // Find the dormitory this room belongs to and apply its color
+            const dormitory = this.dormitories.find(dorm => 
+                dorm.rooms.some(r => r.roomName === room.roomName)
+            );
+            if (dormitory && dormitory.color) {
+                roomCard.style.backgroundColor = dormitory.color;
+            }
+            
             const roomHeader = document.createElement('div');
             roomHeader.className = 'room-header';
             
@@ -975,6 +984,11 @@ class DormAssignmentTool {
                     <h4>${dormitory.dormitoryName}</h4>
                     <span class="room-count">${roomCount} rooms</span>
                 </div>
+                <div class="dormitory-color-picker">
+                    <label for="dormColor${index}">Color:</label>
+                    <input type="color" id="dormColor${index}" value="${dormitory.color || '#f8f9fa'}" 
+                           onchange="app.updateDormitoryColor(${index}, this.value)">
+                </div>
                 <div class="dormitory-actions">
                     <button class="btn btn-small" onclick="app.toggleDormitoryActive(${index})">
                         ${dormitory.active ? 'Deactivate' : 'Activate'}
@@ -1074,12 +1088,21 @@ class DormAssignmentTool {
         this.dormitories.push({
             dormitoryName: name,
             active: true,
+            color: "#f8f9fa",
             rooms: []
         });
         
         this.renderDormitories();
         this.refreshRoomsFromDormitories();
         this.saveToLocalStorage();
+    }
+    
+    updateDormitoryColor(dormitoryIndex, color) {
+        if (dormitoryIndex >= 0 && dormitoryIndex < this.dormitories.length) {
+            this.dormitories[dormitoryIndex].color = color;
+            this.renderRooms(); // Re-render rooms to apply new color
+            this.saveToLocalStorage();
+        }
     }
     
     addRoom() {
