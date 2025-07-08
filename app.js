@@ -401,9 +401,7 @@ class DormAssignmentTool {
         
         table.appendChild(headerRow);
         
-        const groupedGuests = this.groupGuestsByGroupName(sortedGuests);
-        
-        groupedGuests.forEach((guest, index) => {
+        sortedGuests.forEach((guest, index) => {
             const row = document.createElement('tr');
             row.className = 'guest-row';
             row.draggable = true;
