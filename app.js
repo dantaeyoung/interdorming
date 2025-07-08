@@ -15,17 +15,8 @@ class DormAssignmentTool {
         this.bedConfigRoomIndex = null;
         this.selectedBedType = 'single';
         
-        // Initialize settings with defaults
-        this.settings = this.getDefaultSettings();
-        
-        this.initializeRooms();
-        this.bindEvents();
-        this.loadSettingsFromLocalStorage();
-        this.loadFromLocalStorage();
-    }
-
-    getDefaultSettings() {
-        return {
+        // Initialize settings with defaults - now handled by external settings manager
+        this.settings = {
             warnings: {
                 ageGap: {
                     enabled: true,
@@ -42,7 +33,12 @@ class DormAssignmentTool {
             },
             version: "1.0"
         };
+        
+        this.initializeRooms();
+        this.bindEvents();
+        this.loadFromLocalStorage();
     }
+
 
     initializeRooms() {
         // Initialize default dormitory structure
@@ -161,19 +157,8 @@ class DormAssignmentTool {
         document.getElementById('importRoomsBtn').addEventListener('click', () => this.importRoomConfig());
         document.getElementById('roomConfigFile').addEventListener('change', (e) => this.handleRoomConfigUpload(e));
         
-        // Settings tab events
-        document.getElementById('ageGapEnabled').addEventListener('change', (e) => this.updateSetting('warnings.ageGap.enabled', e.target.checked));
-        document.getElementById('ageGapThreshold').addEventListener('input', (e) => this.updateAgeGapThreshold(parseInt(e.target.value)));
-        document.getElementById('showAgeHistograms').addEventListener('change', (e) => this.updateSetting('display.showAgeHistograms', e.target.checked));
-        document.getElementById('genderMismatchWarnings').addEventListener('change', (e) => this.updateSetting('warnings.genderMismatch', e.target.checked));
-        document.getElementById('bunkPreferenceWarnings').addEventListener('change', (e) => this.updateSetting('warnings.bunkPreference', e.target.checked));
-        document.getElementById('familySeparationWarnings').addEventListener('change', (e) => this.updateSetting('warnings.familySeparation', e.target.checked));
-        document.getElementById('adultMinorWarnings').addEventListener('change', (e) => this.updateSetting('warnings.adultMinor', e.target.checked));
-        document.getElementById('roomAvailabilityWarnings').addEventListener('change', (e) => this.updateSetting('warnings.roomAvailability', e.target.checked));
-        document.getElementById('resetSettingsBtn').addEventListener('click', () => this.resetSettings());
-        document.getElementById('exportSettingsBtn').addEventListener('click', () => this.exportSettings());
-        document.getElementById('importSettingsBtn').addEventListener('click', () => this.importSettingsClick());
-        document.getElementById('settingsFile').addEventListener('change', (e) => this.importSettings(e));
+        // Settings tab events - now handled by external settings manager
+        // Event bindings removed since settings are managed externally
         
         // Bed configuration modal events
         document.getElementById('bedConfigModal').addEventListener('click', (e) => {
@@ -210,7 +195,7 @@ class DormAssignmentTool {
         } else if (tabName === 'settings') {
             document.getElementById('settingsTab').classList.add('active');
             document.getElementById('settingsContent').classList.add('active');
-            this.renderSettings();
+            // Settings rendering is now handled by external settings manager
         }
         
         this.currentTab = tabName;
@@ -333,10 +318,10 @@ class DormAssignmentTool {
             }
             
             // Normalize and clean data
-            guest.age = parseInt(guest.age) || 0;
-            guest.gender = guest.gender.trim().toUpperCase().charAt(0); // Normalize to M/F
-            guest.lowerBunk = guest.lowerBunk === 'YES' || guest.lowerBunk === 'yes' || guest.lowerBunk === 'true' || guest.lowerBunk === 'TRUE' || guest.lowerBunk === '1';
-            guest.firstVisit = guest.firstVisit === 'Yes' || guest.firstVisit === 'YES' || guest.firstVisit === 'true' || guest.firstVisit === 'TRUE' || guest.firstVisit === '1';
+            guest.age = this.parseInteger(guest.age);
+            guest.gender = this.normalizeGender(guest.gender);
+            guest.lowerBunk = this.parseBoolean(guest.lowerBunk);
+            guest.firstVisit = this.parseBoolean(guest.firstVisit);
             guest.groupName = guest.groupName || '';
             guest.room = guest.room || '';
             guest.preferredName = guest.preferredName || '';
@@ -360,35 +345,7 @@ class DormAssignmentTool {
         }
     }
 
-    parseCSVRow(row) {
-        const values = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < row.length; i++) {
-            const char = row[i];
-            
-            if (char === '"') {
-                if (!inQuotes) {
-                    inQuotes = true;
-                } else if (i + 1 < row.length && row[i + 1] === '"') {
-                    // Handle escaped quotes
-                    current += '"';
-                    i++; // Skip next quote
-                } else {
-                    inQuotes = false;
-                }
-            } else if (char === ',' && !inQuotes) {
-                values.push(current.trim().replace(/^"|"$/g, '')); // Remove surrounding quotes
-                current = '';
-            } else {
-                current += char;
-            }
-        }
-        
-        values.push(current.trim().replace(/^"|"$/g, '')); // Remove surrounding quotes
-        return values;
-    }
+    // parseCSVRow method is now provided by AppUtils mixin
 
     handleSearch(event) {
         this.searchQuery = event.target.value.toLowerCase();
@@ -485,19 +442,11 @@ class DormAssignmentTool {
                 let value = guest[col.key] || '';
                 
                 if (col.key === 'displayName') {
-                    value = guest.preferredName || guest.firstName;
-                    if (guest.preferredName && guest.preferredName !== guest.firstName) {
-                        value += ` (${guest.firstName})`;
-                    }
+                    value = this.createDisplayName(guest);
                 } else if (col.key === 'lowerBunk') {
                     value = guest.lowerBunk ? 'Lower bunk required' : '';
                 } else if (col.key === 'arrival' || col.key === 'departure') {
-                    if (value) {
-                        const date = new Date(value);
-                        if (!isNaN(date.getTime())) {
-                            value = date.toLocaleDateString();
-                        }
-                    }
+                    value = this.formatDate(value);
                 } else if (col.key === 'warnings') {
                     const warnings = this.getAssignmentWarningsForUnassignedGuest(guest);
                     if (warnings.length > 0) {
@@ -569,22 +518,14 @@ class DormAssignmentTool {
             let bVal = b[this.sortColumn];
             
             if (this.sortColumn === 'displayName') {
-                aVal = (a.preferredName || a.firstName || '').toString().toLowerCase();
-                bVal = (b.preferredName || b.firstName || '').toString().toLowerCase();
-            } else if (this.sortColumn === 'age') {
-                aVal = parseInt(aVal) || 0;
-                bVal = parseInt(bVal) || 0;
+                aVal = this.createDisplayName(a);
+                bVal = this.createDisplayName(b);
             } else if (this.sortColumn === 'lowerBunk') {
                 aVal = a.lowerBunk ? 1 : 0;
                 bVal = b.lowerBunk ? 1 : 0;
-            } else {
-                aVal = (aVal || '').toString().toLowerCase();
-                bVal = (bVal || '').toString().toLowerCase();
             }
             
-            if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
-            if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
-            return 0;
+            return this.compareValues(aVal, bVal, this.sortDirection);
         });
     }
 
@@ -644,7 +585,7 @@ class DormAssignmentTool {
                         
                         const guestName = document.createElement('div');
                         guestName.className = 'guest-name';
-                        const displayName = guest.preferredName || guest.firstName;
+                        const displayName = this.createDisplayName(guest);
                         guestName.textContent = `${displayName} ${guest.lastName}`;
                         
                         const guestDetails = document.createElement('div');
@@ -683,146 +624,9 @@ class DormAssignmentTool {
         });
     }
 
-    getAssignmentWarnings(guest, bed, room) {
-        const warnings = [];
-        
-        // Check gender mismatch warnings
-        if (this.settings.warnings.genderMismatch && guest.gender !== room.roomGender && room.roomGender !== 'Coed') {
-            warnings.push(`Gender mismatch: ${guest.gender} guest in ${room.roomGender} room`);
-        }
-        
-        // Check bunk preference violations
-        if (this.settings.warnings.bunkPreference && guest.lowerBunk && bed.bedType === 'upper') {
-            warnings.push('Upper bunk assigned to guest requiring lower bunk');
-        }
-        
-        // Check for family/group separation warnings
-        if (this.settings.warnings.familySeparation && guest.groupName && guest.groupName.trim()) {
-            const groupMembers = this.guests.filter(g => g.groupName === guest.groupName && g.id !== guest.id);
-            const separatedMembers = groupMembers.filter(member => {
-                const memberBedId = this.assignments.get(member.id);
-                if (!memberBedId) return false; // Not assigned yet
-                
-                const memberRoom = this.rooms.find(r => r.beds.some(b => b.bedId === memberBedId));
-                return memberRoom && memberRoom.roomName !== room.roomName;
-            });
-            
-            if (separatedMembers.length > 0) {
-                warnings.push(`Family/group separation: ${separatedMembers.length} group member(s) in different room(s)`);
-            }
-        }
-        
-        // Check for age grouping warnings
-        const roommates = room.beds
-            .filter(b => b.assignedGuestId && b.assignedGuestId !== guest.id)
-            .map(b => this.guests.find(g => g.id === b.assignedGuestId))
-            .filter(g => g);
-        
-        if (roommates.length > 0) {
-            const guestAge = parseInt(guest.age) || 0;
-            const ageDifferences = roommates.map(roommate => {
-                const roommateAge = parseInt(roommate.age) || 0;
-                return Math.abs(guestAge - roommateAge);
-            });
-            
-            const maxAgeDiff = Math.max(...ageDifferences);
-            
-            // Check age gap warnings with configurable threshold
-            if (this.settings.warnings.ageGap.enabled && maxAgeDiff > this.settings.warnings.ageGap.threshold) {
-                warnings.push(`Large age gap: ${maxAgeDiff} year difference with roommate(s)`);
-            }
-            
-            // Check for adult/minor conflict warnings
-            if (this.settings.warnings.adultMinor) {
-                if (guestAge < 16 && roommates.some(r => parseInt(r.age) >= 18)) {
-                    warnings.push('Minor assigned with adult(s)');
-                }
-                if (guestAge >= 18 && roommates.some(r => parseInt(r.age) < 16)) {
-                    warnings.push('Adult assigned with minor(s)');
-                }
-            }
-        }
-        
-        return warnings;
-    }
+    // getAssignmentWarnings method moved to AppValidation mixin
 
-    getAssignmentWarningsForUnassignedGuest(guest) {
-        const warnings = [];
-        
-        // Check room availability for guest's gender
-        if (this.settings.warnings.roomAvailability) {
-            const compatibleRooms = this.rooms.filter(room => 
-                room.active && (room.roomGender === guest.gender || room.roomGender === 'Coed')
-            );
-            
-            if (compatibleRooms.length === 0) {
-                warnings.push(`No ${guest.gender === 'M' ? 'male' : 'female'} rooms available`);
-                return warnings; // No point checking further if no compatible rooms
-            }
-            
-            // Check for available beds in compatible rooms
-            const availableBeds = compatibleRooms.flatMap(room => 
-                room.beds.filter(bed => !bed.assignedGuestId)
-            );
-            
-            if (availableBeds.length === 0) {
-                warnings.push('No beds available in compatible rooms');
-                return warnings;
-            }
-            
-            // Check for lower bunk requirement
-            if (this.settings.warnings.bunkPreference && guest.lowerBunk) {
-                const availableLowerBunks = availableBeds.filter(bed => 
-                    bed.bedType === 'lower' || bed.bedType === 'single'
-                );
-                if (availableLowerBunks.length === 0) {
-                    warnings.push('No lower bunks available in compatible rooms');
-                }
-            }
-        }
-        
-        // Check for group separation potential
-        if (this.settings.warnings.familySeparation && guest.groupName && guest.groupName.trim()) {
-            const groupMembers = this.guests.filter(g => 
-                g.groupName === guest.groupName && g.id !== guest.id
-            );
-            const assignedGroupMembers = groupMembers.filter(member => 
-                this.assignments.has(member.id)
-            );
-            
-            if (assignedGroupMembers.length > 0) {
-                const groupRooms = new Set();
-                assignedGroupMembers.forEach(member => {
-                    const bedId = this.assignments.get(member.id);
-                    const room = this.rooms.find(r => r.beds.some(b => b.bedId === bedId));
-                    if (room) groupRooms.add(room.roomName);
-                });
-                
-                if (groupRooms.size > 1) {
-                    warnings.push(`Group already split across ${groupRooms.size} rooms`);
-                } else if (groupRooms.size === 1) {
-                    // Check if the group's room has available beds
-                    const groupRoomName = Array.from(groupRooms)[0];
-                    const groupRoom = this.rooms.find(r => r.roomName === groupRoomName);
-                    if (groupRoom) {
-                        const availableBedsInGroupRoom = groupRoom.beds.filter(bed => !bed.assignedGuestId);
-                        if (availableBedsInGroupRoom.length === 0) {
-                            warnings.push('No beds available in group\'s room');
-                        } else if (this.settings.warnings.bunkPreference && guest.lowerBunk) {
-                            const availableLowerBunksInGroupRoom = availableBedsInGroupRoom.filter(bed => 
-                                bed.bedType === 'lower' || bed.bedType === 'single'
-                            );
-                            if (availableLowerBunksInGroupRoom.length === 0) {
-                                warnings.push('No lower bunks available in group\'s room');
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        return warnings;
-    }
+    // getAssignmentWarningsForUnassignedGuest method moved to AppValidation mixin
 
     handleDragStart(e) {
         const guestId = e.target.dataset.guestId;
@@ -845,11 +649,7 @@ class DormAssignmentTool {
                     if (room) {
                         const warnings = this.getAssignmentWarnings(guest, bedObj, room);
                         // Only show as invalid if serious warnings are enabled and present
-                        const hasSerious = warnings.some(w => 
-                            (this.settings.warnings.genderMismatch && w.includes('Gender mismatch')) ||
-                            (this.settings.warnings.adultMinor && w.includes('Minor assigned with adult'))
-                        );
-                        if (hasSerious) {
+                        if (this.hasSeriousValidationIssues(guest, bedObj, room)) {
                             bed.classList.add('invalid');
                         }
                     }
@@ -1051,7 +851,7 @@ class DormAssignmentTool {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `dorm_assignments_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = this.generateTimestampedFilename('dorm_assignments', 'csv');
         a.click();
         window.URL.revokeObjectURL(url);
     }
@@ -1077,298 +877,10 @@ class DormAssignmentTool {
         }
     }
 
-    saveToLocalStorage() {
-        const data = {
-            guests: this.guests,
-            assignments: Array.from(this.assignments.entries()),
-            dormitories: this.dormitories,
-            settings: this.settings,
-            assignmentHistory: this.assignmentHistory.map(state => ({
-                assignments: Array.from(state.assignments.entries()),
-                rooms: state.rooms,
-                dormitories: state.dormitories || null
-            })),
-            version: '2.0' // Version for data migration
-        };
-        localStorage.setItem('dormAssignments', JSON.stringify(data));
-    }
+    // saveToLocalStorage method moved to AppStorage mixin
 
-    loadFromLocalStorage() {
-        const saved = localStorage.getItem('dormAssignments');
-        if (saved) {
-            try {
-                const data = JSON.parse(saved);
-                this.guests = data.guests || [];
-                this.assignments = new Map(data.assignments || []);
-                
-                // Load settings with validation and merging
-                this.loadSettings(data.settings);
-                
-                // Check if we have the new dormitory structure or need to migrate
-                if (data.version === '2.0' && data.dormitories) {
-                    // Load new dormitory structure
-                    this.dormitories = data.dormitories;
-                    
-                    // Load assignment history with dormitory structure
-                    this.assignmentHistory = (data.assignmentHistory || []).map(state => ({
-                        assignments: new Map(state.assignments || []),
-                        rooms: state.rooms,
-                        dormitories: state.dormitories
-                    }));
-                } else {
-                    // Migrate from old structure
-                    this.migrateFromOldStructure(data);
-                }
-                
-                // Regenerate flat rooms array
-                this.rooms = this.getFlatRoomsList();
-                
-                // Restore guest assignments to beds
-                this.assignments.forEach((bedId, guestId) => {
-                    const bed = this.findBed(bedId);
-                    if (bed) {
-                        bed.assignedGuestId = guestId;
-                    }
-                });
-                
-                if (this.guests.length > 0) {
-                    this.renderGuestsTable();
-                    this.renderRooms();
-                    this.updateCounts();
-                    this.updateUndoButton();
-                    document.getElementById('exportBtn').style.display = 'inline-block';
-                    document.getElementById('clearBtn').style.display = 'inline-block';
-                    document.getElementById('undoBtn').style.display = 'inline-block';
-                }
-            } catch (error) {
-                console.error('Error loading saved data:', error);
-                // If loading fails, keep default dormitory structure
-                this.initializeRooms();
-            }
-        }
-    }
-    
-    loadSettings(savedSettings) {
-        // Validate and merge settings with defaults
-        if (!savedSettings || typeof savedSettings !== 'object') {
-            // No saved settings or invalid, use defaults
-            return;
-        }
-        
-        try {
-            // Merge saved settings with defaults to ensure all required fields exist
-            const mergedSettings = {
-                warnings: {
-                    ageGap: {
-                        enabled: this.settings.warnings.ageGap.enabled,
-                        threshold: this.settings.warnings.ageGap.threshold
-                    },
-                    genderMismatch: this.settings.warnings.genderMismatch,
-                    bunkPreference: this.settings.warnings.bunkPreference,
-                    familySeparation: this.settings.warnings.familySeparation,
-                    adultMinor: this.settings.warnings.adultMinor,
-                    roomAvailability: this.settings.warnings.roomAvailability
-                },
-                display: {
-                    showAgeHistograms: this.settings.display.showAgeHistograms
-                },
-                version: this.settings.version
-            };
-            
-            // Apply saved settings where valid
-            if (savedSettings.warnings) {
-                if (savedSettings.warnings.ageGap) {
-                    if (typeof savedSettings.warnings.ageGap.enabled === 'boolean') {
-                        mergedSettings.warnings.ageGap.enabled = savedSettings.warnings.ageGap.enabled;
-                    }
-                    if (typeof savedSettings.warnings.ageGap.threshold === 'number' && 
-                        savedSettings.warnings.ageGap.threshold >= 0 && 
-                        savedSettings.warnings.ageGap.threshold <= 50) {
-                        mergedSettings.warnings.ageGap.threshold = savedSettings.warnings.ageGap.threshold;
-                    }
-                }
-                if (typeof savedSettings.warnings.genderMismatch === 'boolean') {
-                    mergedSettings.warnings.genderMismatch = savedSettings.warnings.genderMismatch;
-                }
-                if (typeof savedSettings.warnings.bunkPreference === 'boolean') {
-                    mergedSettings.warnings.bunkPreference = savedSettings.warnings.bunkPreference;
-                }
-                if (typeof savedSettings.warnings.familySeparation === 'boolean') {
-                    mergedSettings.warnings.familySeparation = savedSettings.warnings.familySeparation;
-                }
-                if (typeof savedSettings.warnings.adultMinor === 'boolean') {
-                    mergedSettings.warnings.adultMinor = savedSettings.warnings.adultMinor;
-                }
-                if (typeof savedSettings.warnings.roomAvailability === 'boolean') {
-                    mergedSettings.warnings.roomAvailability = savedSettings.warnings.roomAvailability;
-                }
-            }
-            
-            if (savedSettings.display) {
-                if (typeof savedSettings.display.showAgeHistograms === 'boolean') {
-                    mergedSettings.display.showAgeHistograms = savedSettings.display.showAgeHistograms;
-                }
-            }
-            
-            // Update the settings object
-            this.settings = mergedSettings;
-            
-        } catch (error) {
-            console.error('Error loading settings, using defaults:', error);
-            // Keep default settings if loading fails
-        }
-    }
-    
-    // Settings management methods
-    updateSettings(newSettings) {
-        // Validate and update settings with immediate effect
-        if (!newSettings || typeof newSettings !== 'object') {
-            return false;
-        }
-        
-        try {
-            // Merge new settings with existing ones
-            const updatedSettings = JSON.parse(JSON.stringify(this.settings));
-            
-            if (newSettings.warnings) {
-                if (newSettings.warnings.ageGap) {
-                    if (typeof newSettings.warnings.ageGap.enabled === 'boolean') {
-                        updatedSettings.warnings.ageGap.enabled = newSettings.warnings.ageGap.enabled;
-                    }
-                    if (typeof newSettings.warnings.ageGap.threshold === 'number' && 
-                        newSettings.warnings.ageGap.threshold >= 0 && 
-                        newSettings.warnings.ageGap.threshold <= 50) {
-                        updatedSettings.warnings.ageGap.threshold = newSettings.warnings.ageGap.threshold;
-                    }
-                }
-                if (typeof newSettings.warnings.genderMismatch === 'boolean') {
-                    updatedSettings.warnings.genderMismatch = newSettings.warnings.genderMismatch;
-                }
-                if (typeof newSettings.warnings.bunkPreference === 'boolean') {
-                    updatedSettings.warnings.bunkPreference = newSettings.warnings.bunkPreference;
-                }
-                if (typeof newSettings.warnings.familySeparation === 'boolean') {
-                    updatedSettings.warnings.familySeparation = newSettings.warnings.familySeparation;
-                }
-                if (typeof newSettings.warnings.adultMinor === 'boolean') {
-                    updatedSettings.warnings.adultMinor = newSettings.warnings.adultMinor;
-                }
-                if (typeof newSettings.warnings.roomAvailability === 'boolean') {
-                    updatedSettings.warnings.roomAvailability = newSettings.warnings.roomAvailability;
-                }
-            }
-            
-            if (newSettings.display) {
-                if (typeof newSettings.display.showAgeHistograms === 'boolean') {
-                    updatedSettings.display.showAgeHistograms = newSettings.display.showAgeHistograms;
-                }
-            }
-            
-            // Apply the updated settings
-            this.settings = updatedSettings;
-            
-            // Refresh the UI to apply changes immediately
-            this.refreshUIAfterSettingsChange();
-            
-            // Save to localStorage
-            this.saveToLocalStorage();
-            
-            return true;
-        } catch (error) {
-            console.error('Error updating settings:', error);
-            return false;
-        }
-    }
-    
-    refreshUIAfterSettingsChange() {
-        // Re-render components that depend on settings
-        if (this.guests.length > 0) {
-            this.renderGuestsTable();
-            this.renderRooms();
-        }
-        
-        // Update any settings-dependent UI elements
-        // (This would include room card histograms when that feature is implemented)
-    }
-    
-    resetSettingsToDefaults() {
-        // Reset all settings to their default values
-        this.settings = {
-            warnings: {
-                ageGap: {
-                    enabled: true,
-                    threshold: 20
-                },
-                genderMismatch: true,
-                bunkPreference: true,
-                familySeparation: true,
-                adultMinor: true,
-                roomAvailability: true
-            },
-            display: {
-                showAgeHistograms: true
-            },
-            version: "1.0"
-        };
-        
-        // Refresh the UI
-        this.refreshUIAfterSettingsChange();
-        
-        // Save to localStorage
-        this.saveToLocalStorage();
-    }
-    
-    migrateFromOldStructure(data) {
-        // Migration logic from old rooms structure to new dormitory structure
-        console.log('Migrating from old data structure to new dormitory structure...');
-        
-        // Check if we have old rooms data to migrate
-        if (data.rooms && Array.isArray(data.rooms)) {
-            // Create a default dormitory to hold migrated rooms
-            const migratedDormitory = {
-                dormitoryName: "Main Building",
-                active: true,
-                rooms: []
-            };
-            
-            // Migrate rooms
-            data.rooms.forEach(room => {
-                const migratedRoom = {
-                    roomName: room.roomName,
-                    roomGender: room.roomGender,
-                    active: room.active !== undefined ? room.active : true,
-                    beds: room.beds || []
-                };
-                
-                // Ensure beds have proper structure
-                migratedRoom.beds = migratedRoom.beds.map((bed, index) => ({
-                    bedId: bed.bedId || `MIG${index + 1}`,
-                    bedType: bed.bedType || 'single',
-                    assignedGuestId: bed.assignedGuestId || null,
-                    position: bed.position || (index + 1)
-                }));
-                
-                migratedDormitory.rooms.push(migratedRoom);
-            });
-            
-            this.dormitories = [migratedDormitory];
-        } else {
-            // No old rooms data, use default structure
-            this.initializeRooms();
-        }
-        
-        // Migrate assignment history (without dormitory structure for old entries)
-        this.assignmentHistory = (data.assignmentHistory || []).map(state => ({
-            assignments: new Map(state.assignments || []),
-            rooms: state.rooms,
-            dormitories: null // Old history doesn't have dormitory structure
-        }));
-        
-        // Save the migrated data immediately
-        this.saveToLocalStorage();
-        
-        console.log('Migration completed successfully');
-    }
+    // loadFromLocalStorage method moved to AppStorage mixin
+    // migrateFromOldStructure method moved to AppStorage mixin
     
     // Room Configuration Methods
     renderDormitories() {
@@ -1638,7 +1150,7 @@ class DormAssignmentTool {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `room_configuration_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = this.generateTimestampedFilename('room_configuration', 'csv');
             a.click();
             window.URL.revokeObjectURL(url);
             
@@ -2037,7 +1549,7 @@ class DormAssignmentTool {
                     </div>
                     ${assignedGuest ? `
                         <div class="bed-guest-info">
-                            <div class="guest-name">${assignedGuest.preferredName || assignedGuest.firstName} ${assignedGuest.lastName}</div>
+                            <div class="guest-name">${this.createDisplayName(assignedGuest)} ${assignedGuest.lastName}</div>
                             <div>${assignedGuest.gender}, Age ${assignedGuest.age}</div>
                             ${assignedGuest.groupName ? `<div>Group: ${assignedGuest.groupName}</div>` : ''}
                         </div>
@@ -2149,235 +1661,15 @@ class DormAssignmentTool {
         this.saveToLocalStorage();
     }
     
-    generateBedId(roomName, bedCount) {
-        // Generate a unique bed ID based on room name and bed count
-        // Extract meaningful letters from room name
-        const words = roomName.split(' ');
-        let roomPrefix = '';
-        
-        if (words.length >= 2) {
-            // Take first letter of each word
-            roomPrefix = words.map(word => word.charAt(0)).join('').toUpperCase();
-        } else {
-            // Take first 2-3 letters of the room name
-            roomPrefix = roomName.substring(0, Math.min(3, roomName.length)).toUpperCase();
-        }
-        
-        const bedNumber = (bedCount + 1).toString().padStart(2, '0');
-        return `${roomPrefix}${bedNumber}`;
-    }
+    // generateBedId method is now provided by AppUtils mixin
     
-    escapeCSVField(field) {
-        // Escape CSV field by wrapping in quotes if it contains comma, quote, or newline
-        if (field == null || field === undefined) {
-            return '';
-        }
-        
-        const value = String(field);
-        if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
-            // Escape quotes by doubling them and wrap in quotes
-            return `"${value.replace(/"/g, '""')}"`;
-        }
-        return value;
-    }
-
-    // Settings Methods
-    renderSettings() {
-        // Update settings UI with current values
-        document.getElementById('ageGapEnabled').checked = this.settings.warnings.ageGap.enabled;
-        document.getElementById('ageGapThreshold').value = this.settings.warnings.ageGap.threshold;
-        document.getElementById('ageGapValue').textContent = `${this.settings.warnings.ageGap.threshold} years`;
-        document.getElementById('showAgeHistograms').checked = this.settings.display.showAgeHistograms;
-        document.getElementById('genderMismatchWarnings').checked = this.settings.warnings.genderMismatch;
-        document.getElementById('bunkPreferenceWarnings').checked = this.settings.warnings.bunkPreference;
-        document.getElementById('familySeparationWarnings').checked = this.settings.warnings.familySeparation;
-        document.getElementById('adultMinorWarnings').checked = this.settings.warnings.adultMinor;
-        document.getElementById('roomAvailabilityWarnings').checked = this.settings.warnings.roomAvailability;
-        
-        // Update threshold setting visibility based on age gap enabled state
-        const thresholdContainer = document.querySelector('.settings-slider-container');
-        if (this.settings.warnings.ageGap.enabled) {
-            thresholdContainer.style.opacity = '1';
-            thresholdContainer.style.pointerEvents = 'auto';
-        } else {
-            thresholdContainer.style.opacity = '0.5';
-            thresholdContainer.style.pointerEvents = 'none';
-        }
-    }
-    
-    updateSetting(path, value) {
-        // Parse the path and update the setting
-        const pathParts = path.split('.');
-        let current = this.settings;
-        
-        // Navigate to the parent object
-        for (let i = 0; i < pathParts.length - 1; i++) {
-            current = current[pathParts[i]];
-        }
-        
-        // Update the final property
-        current[pathParts[pathParts.length - 1]] = value;
-        
-        // Handle special cases
-        if (path === 'warnings.ageGap.enabled') {
-            const thresholdSetting = document.getElementById('ageGapThresholdSetting');
-            if (value) {
-                thresholdSetting.classList.remove('disabled-setting');
-            } else {
-                thresholdSetting.classList.add('disabled-setting');
-            }
-        }
-        
-        // Re-render affected components
-        this.applySettingsChanges();
-        
-        // Save to localStorage
-        this.saveSettingsToLocalStorage();
-    }
-    
-    updateAgeGapThreshold(value) {
-        this.settings.warnings.ageGap.threshold = value;
-        document.getElementById('ageGapValue').textContent = `${value} years`;
-        
-        // Apply changes and save
-        this.applySettingsChanges();
-        this.saveSettingsToLocalStorage();
-    }
-    
-    applySettingsChanges() {
-        // Re-render components that depend on settings
-        if (this.currentTab === 'assignment') {
-            this.renderGuestsTable();
-            this.renderRooms();
-        }
-    }
-    
-    resetSettings() {
-        if (confirm('Reset all settings to defaults? This cannot be undone.')) {
-            this.settings = this.getDefaultSettings();
-            this.renderSettings();
-            this.applySettingsChanges();
-            this.saveSettingsToLocalStorage();
-            this.showStatus('Settings reset to defaults', 'success');
-        }
-    }
-    
-    exportSettings() {
-        try {
-            const settingsJson = JSON.stringify(this.settings, null, 2);
-            const blob = new Blob([settingsJson], { type: 'application/json' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `monastery_settings_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-            this.showStatus('Settings exported successfully', 'success');
-        } catch (error) {
-            this.showStatus('Error exporting settings: ' + error.message, 'error');
-        }
-    }
-    
-    importSettingsClick() {
-        document.getElementById('settingsFile').click();
-    }
-    
-    importSettings(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        if (!file.name.toLowerCase().endsWith('.json')) {
-            this.showStatus('Please select a JSON file', 'error');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const importedSettings = JSON.parse(e.target.result);
-                
-                // Validate settings structure
-                if (this.validateSettingsStructure(importedSettings)) {
-                    this.settings = { ...this.getDefaultSettings(), ...importedSettings };
-                    this.renderSettings();
-                    this.applySettingsChanges();
-                    this.saveSettingsToLocalStorage();
-                    this.showStatus('Settings imported successfully', 'success');
-                } else {
-                    this.showStatus('Invalid settings file format', 'error');
-                }
-            } catch (error) {
-                this.showStatus('Error importing settings: ' + error.message, 'error');
-            }
-        };
-        
-        reader.onerror = () => {
-            this.showStatus('Error reading file', 'error');
-        };
-        
-        reader.readAsText(file);
-        
-        // Reset file input
-        event.target.value = '';
-    }
-    
-    validateSettingsStructure(settings) {
-        // Check if the imported settings have the required structure
-        if (!settings || typeof settings !== 'object') return false;
-        if (!settings.warnings || typeof settings.warnings !== 'object') return false;
-        if (!settings.display || typeof settings.display !== 'object') return false;
-        
-        // Check for required warning settings
-        const requiredWarnings = ['ageGap', 'genderMismatch', 'bunkPreference', 'familySeparation', 'adultMinor', 'roomAvailability'];
-        for (const warning of requiredWarnings) {
-            if (warning === 'ageGap') {
-                if (!settings.warnings.ageGap || 
-                    typeof settings.warnings.ageGap.enabled !== 'boolean' ||
-                    typeof settings.warnings.ageGap.threshold !== 'number') {
-                    return false;
-                }
-            } else {
-                if (typeof settings.warnings[warning] !== 'boolean') {
-                    return false;
-                }
-            }
-        }
-        
-        // Check display settings
-        if (typeof settings.display.showAgeHistograms !== 'boolean') {
-            return false;
-        }
-        
-        return true;
-    }
-    
-    saveSettingsToLocalStorage() {
-        try {
-            localStorage.setItem('monasterySettings', JSON.stringify(this.settings));
-        } catch (error) {
-            console.error('Error saving settings to localStorage:', error);
-        }
-    }
-    
-    loadSettingsFromLocalStorage() {
-        try {
-            const saved = localStorage.getItem('monasterySettings');
-            if (saved) {
-                const savedSettings = JSON.parse(saved);
-                if (this.validateSettingsStructure(savedSettings)) {
-                    // Merge saved settings with defaults to handle version upgrades
-                    this.settings = { ...this.getDefaultSettings(), ...savedSettings };
-                } else {
-                    console.warn('Invalid settings structure in localStorage, using defaults');
-                    this.settings = this.getDefaultSettings();
-                }
-            }
-        } catch (error) {
-            console.error('Error loading settings from localStorage:', error);
-            this.settings = this.getDefaultSettings();
-        }
-    }
+    // escapeCSVField method is now provided by AppUtils mixin
 }
+
+// Apply AppUtils, AppStorage, and AppValidation mixins to DormAssignmentTool
+Object.assign(DormAssignmentTool.prototype, AppUtils);
+Object.assign(DormAssignmentTool.prototype, AppStorage);
+Object.assign(DormAssignmentTool.prototype, AppValidation);
 
 // Make app globally accessible for onclick handlers
 let app;
