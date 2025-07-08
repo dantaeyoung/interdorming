@@ -511,16 +511,17 @@ class DormAssignmentTool {
             const roomCard = document.createElement('div');
             roomCard.className = 'room-card';
             
-            // Find the dormitory this room belongs to and apply its color
+            const roomHeader = document.createElement('div');
+            roomHeader.className = 'room-header';
+            
+            // Find the dormitory this room belongs to and apply its color to header
             const dormitory = this.dormitories.find(dorm => 
                 dorm.rooms.some(r => r.roomName === room.roomName)
             );
             if (dormitory && dormitory.color) {
-                roomCard.style.backgroundColor = dormitory.color;
+                roomHeader.style.backgroundColor = dormitory.color;
+                roomHeader.style.borderColor = dormitory.color;
             }
-            
-            const roomHeader = document.createElement('div');
-            roomHeader.className = 'room-header';
             
             const roomTitle = document.createElement('h3');
             roomTitle.textContent = room.roomName;
@@ -1183,6 +1184,7 @@ class DormAssignmentTool {
             // Create CSV headers
             const headers = [
                 'Dormitory Name',
+                'Dormitory Color',
                 'Room Name',
                 'Room Gender',
                 'Bed ID',
@@ -1200,6 +1202,7 @@ class DormAssignmentTool {
                             room.beds.forEach(bed => {
                                 const row = [
                                     this.escapeCSVField(dormitory.dormitoryName),
+                                    this.escapeCSVField(dormitory.color || '#f8f9fa'),
                                     this.escapeCSVField(room.roomName),
                                     this.escapeCSVField(room.roomGender),
                                     this.escapeCSVField(bed.bedId),
@@ -1213,6 +1216,7 @@ class DormAssignmentTool {
                             // Room with no beds - still include it for import reference
                             const row = [
                                 this.escapeCSVField(dormitory.dormitoryName),
+                                this.escapeCSVField(dormitory.color || '#f8f9fa'),
                                 this.escapeCSVField(room.roomName),
                                 this.escapeCSVField(room.roomGender),
                                 '', // No bed ID
@@ -1311,6 +1315,7 @@ class DormAssignmentTool {
         // Create a mapping of expected fields to actual header variations
         const fieldMappings = {
             dormitoryName: ['Dormitory Name', 'dormitory_name', 'dormitoryName', 'Dormitory'],
+            dormitoryColor: ['Dormitory Color', 'dormitory_color', 'dormitoryColor', 'Color'],
             roomName: ['Room Name', 'room_name', 'roomName', 'Room'],
             roomGender: ['Room Gender', 'room_gender', 'roomGender', 'Gender'],
             bedId: ['Bed ID', 'bed_id', 'bedId', 'BedID'],
@@ -1374,6 +1379,7 @@ class DormAssignmentTool {
                 dormitoryMap.set(rowData.dormitoryName, {
                     dormitoryName: rowData.dormitoryName,
                     active: rowData.active !== 'false',
+                    color: rowData.dormitoryColor || '#f8f9fa',
                     rooms: new Map()
                 });
             }
