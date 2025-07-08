@@ -497,6 +497,19 @@ class DormAssignmentTool {
             } else if (this.sortColumn === 'lowerBunk') {
                 aVal = a.lowerBunk ? 1 : 0;
                 bVal = b.lowerBunk ? 1 : 0;
+            } else if (this.sortColumn === 'age') {
+                aVal = parseInt(a.age) || 0;
+                bVal = parseInt(b.age) || 0;
+            } else if (this.sortColumn === 'warnings') {
+                // Sort by number of warnings
+                const aWarnings = this.getAssignmentWarningsForUnassignedGuest(a);
+                const bWarnings = this.getAssignmentWarningsForUnassignedGuest(b);
+                aVal = aWarnings.length;
+                bVal = bWarnings.length;
+            } else {
+                // Default string handling
+                aVal = (aVal || '').toString().toLowerCase();
+                bVal = (bVal || '').toString().toLowerCase();
             }
             
             return this.compareValues(aVal, bVal, this.sortDirection);
