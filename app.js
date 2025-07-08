@@ -1469,6 +1469,7 @@ class DormAssignmentTool {
         const newDormitories = Array.from(dormitoryMap.values()).map(dormitory => ({
             dormitoryName: dormitory.dormitoryName,
             active: dormitory.active,
+            color: dormitory.color,
             rooms: Array.from(dormitory.rooms.values())
         }));
         
