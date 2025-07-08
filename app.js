@@ -519,10 +519,31 @@ class DormAssignmentTool {
             const roomInfo = document.createElement('div');
             roomInfo.className = 'room-info';
             const occupiedBeds = room.beds.filter(bed => bed.assignedGuestId).length;
-            roomInfo.textContent = `${room.roomGender} • ${occupiedBeds}/${room.beds.length} beds`;
+            
+            // Get age range for assigned guests
+            const assignedGuests = room.beds
+                .filter(bed => bed.assignedGuestId)
+                .map(bed => this.guests.find(g => g.id === bed.assignedGuestId))
+                .filter(guest => guest);
+            
+            let ageRangeText = '';
+            if (assignedGuests.length > 0) {
+                const ages = assignedGuests.map(g => parseInt(g.age) || 0);
+                const minAge = Math.min(...ages);
+                const maxAge = Math.max(...ages);
+                ageRangeText = minAge === maxAge ? `, age ${minAge}` : `, ages ${minAge}-${maxAge}`;
+            }
+            
+            roomInfo.textContent = `${room.roomGender} • ${occupiedBeds}/${room.beds.length} beds${ageRangeText}`;
             
             roomHeader.appendChild(roomTitle);
             roomHeader.appendChild(roomInfo);
+            
+            // Add age histogram if enabled and there are assigned guests
+            let ageHistogram = null;
+            if (this.settings.display.showAgeHistograms && assignedGuests.length > 0) {
+                ageHistogram = this.createAgeHistogram(assignedGuests);
+            }
             
             const bedsContainer = document.createElement('div');
             bedsContainer.className = 'beds-container';
@@ -604,9 +625,58 @@ class DormAssignmentTool {
             });
             
             roomCard.appendChild(roomHeader);
+            if (ageHistogram) {
+                roomCard.appendChild(ageHistogram);
+            }
             roomCard.appendChild(bedsContainer);
             container.appendChild(roomCard);
         });
+    }
+
+    createAgeHistogram(guests) {
+        if (!guests || guests.length === 0) return null;
+        
+        const histogramContainer = document.createElement('div');
+        histogramContainer.className = 'age-histogram';
+        
+        // Get ages and create age ranges
+        const ages = guests.map(g => parseInt(g.age) || 0);
+        const minAge = Math.min(...ages);
+        const maxAge = Math.max(...ages);
+        
+        // Create age buckets (5-year ranges)
+        const buckets = new Map();
+        const bucketSize = 5;
+        
+        for (const age of ages) {
+            const bucketStart = Math.floor(age / bucketSize) * bucketSize;
+            const bucketKey = `${bucketStart}-${bucketStart + bucketSize - 1}`;
+            buckets.set(bucketKey, (buckets.get(bucketKey) || 0) + 1);
+        }
+        
+        const maxCount = Math.max(...buckets.values());
+        
+        // Create histogram bars
+        for (const [range, count] of buckets) {
+            const bar = document.createElement('div');
+            bar.className = 'histogram-bar';
+            
+            const barFill = document.createElement('div');
+            barFill.className = 'histogram-bar-fill';
+            const height = (count / maxCount) * 100;
+            barFill.style.height = `${height}%`;
+            barFill.title = `Ages ${range}: ${count} guest${count !== 1 ? 's' : ''}`;
+            
+            const barLabel = document.createElement('div');
+            barLabel.className = 'histogram-label';
+            barLabel.textContent = range;
+            
+            bar.appendChild(barFill);
+            bar.appendChild(barLabel);
+            histogramContainer.appendChild(bar);
+        }
+        
+        return histogramContainer;
     }
 
     // getAssignmentWarnings method moved to AppValidation mixin
