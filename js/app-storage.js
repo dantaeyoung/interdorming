@@ -386,11 +386,13 @@ const AppStorage = {
         
         // Show action buttons
         const exportBtn = document.getElementById('exportBtn');
-        const clearBtn = document.getElementById('clearBtn');
+        const resetAssignmentsBtn = document.getElementById('resetAssignmentsBtn');
+        const deletePeopleBtn = document.getElementById('deletePeopleBtn');
         const undoBtn = document.getElementById('undoBtn');
         
         if (exportBtn) exportBtn.style.display = 'inline-block';
-        if (clearBtn) clearBtn.style.display = 'inline-block';
+        if (resetAssignmentsBtn) resetAssignmentsBtn.style.display = 'inline-block';
+        if (deletePeopleBtn) deletePeopleBtn.style.display = 'inline-block';
         if (undoBtn) undoBtn.style.display = 'inline-block';
     },
 

@@ -143,7 +143,8 @@ class DormAssignmentTool {
         document.getElementById('csvFile').addEventListener('change', (e) => this.handleCSVUpload(e));
         document.getElementById('searchGuests').addEventListener('input', (e) => this.handleSearch(e));
         document.getElementById('exportBtn').addEventListener('click', () => this.exportCSV());
-        document.getElementById('clearBtn').addEventListener('click', () => this.clearAll());
+        document.getElementById('resetAssignmentsBtn').addEventListener('click', () => this.resetAllAssignments());
+        document.getElementById('deletePeopleBtn').addEventListener('click', () => this.deleteAllPeopleData());
         document.getElementById('undoBtn').addEventListener('click', () => this.undoLastAction());
         
         // Configuration tab events
@@ -218,7 +219,8 @@ class DormAssignmentTool {
                 this.renderRooms();
                 this.updateCounts();
                 document.getElementById('exportBtn').style.display = 'inline-block';
-                document.getElementById('clearBtn').style.display = 'inline-block';
+                document.getElementById('resetAssignmentsBtn').style.display = 'inline-block';
+                document.getElementById('deletePeopleBtn').style.display = 'inline-block';
                 document.getElementById('undoBtn').style.display = 'inline-block';
             } catch (error) {
                 this.showStatus('Error parsing CSV: ' + error.message, 'error');
@@ -948,24 +950,57 @@ class DormAssignmentTool {
         window.URL.revokeObjectURL(url);
     }
 
-    clearAll() {
-        if (confirm('Are you sure you want to clear all assignments? This action cannot be undone.')) {
-            this.guests = [];
+    resetAllAssignments() {
+        if (confirm('Are you sure you want to reset all assignments? This will move all guests back to unassigned status but keep guest data and room configuration.')) {
+            // Clear assignments but keep guests and room configuration
             this.assignments.clear();
             this.assignmentHistory = [];
-            this.initializeRooms();
+            
+            // Clear assigned guest IDs from all beds
+            this.rooms.forEach(room => {
+                room.beds.forEach(bed => {
+                    bed.assignedGuestId = null;
+                });
+            });
+            
             this.renderGuestsTable();
             this.renderRooms();
             this.updateCounts();
             this.updateUndoButton();
             this.saveToLocalStorage();
             
+            this.showStatus('All assignments reset successfully', 'success');
+        }
+    }
+    
+    deleteAllPeopleData() {
+        if (confirm('Are you sure you want to delete all people data? This will remove all guests but keep room configuration. This action cannot be undone.')) {
+            // Clear guests and assignments but keep room configuration
+            this.guests = [];
+            this.assignments.clear();
+            this.assignmentHistory = [];
+            
+            // Clear assigned guest IDs from all beds
+            this.rooms.forEach(room => {
+                room.beds.forEach(bed => {
+                    bed.assignedGuestId = null;
+                });
+            });
+            
+            this.renderGuestsTable();
+            this.renderRooms();
+            this.updateCounts();
+            this.updateUndoButton();
+            this.saveToLocalStorage();
+            
+            // Hide action buttons since no guests exist
             document.getElementById('exportBtn').style.display = 'none';
-            document.getElementById('clearBtn').style.display = 'none';
+            document.getElementById('resetAssignmentsBtn').style.display = 'none';
+            document.getElementById('deletePeopleBtn').style.display = 'none';
             document.getElementById('undoBtn').style.display = 'none';
             document.getElementById('csvFile').value = '';
             
-            this.showStatus('All data cleared successfully', 'success');
+            this.showStatus('All people data deleted successfully', 'success');
         }
     }
 
