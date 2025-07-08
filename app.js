@@ -307,8 +307,8 @@ class DormAssignmentTool {
                 continue;
             }
             
-            if (!guest.gender || !['M', 'F', 'Male', 'Female', 'male', 'female', 'm', 'f'].includes(guest.gender.trim())) {
-                invalidRows.push(`Row ${i + 1}: Invalid gender '${guest.gender}'. Use M, F, Male, or Female`);
+            if (!guest.gender || !['M', 'F', 'Male', 'Female', 'male', 'female', 'm', 'f', 'Non-binary', 'non-binary', 'Other', 'other', 'N', 'n', 'NB', 'nb'].includes(guest.gender.trim())) {
+                invalidRows.push(`Row ${i + 1}: Invalid gender '${guest.gender}'. Use M, F, Male, Female, Non-binary, or Other`);
                 continue;
             }
             

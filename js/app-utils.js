@@ -110,7 +110,7 @@ const AppUtils = {
     /**
      * Normalizes gender values to standardized format
      * @param {string} gender - The gender value to normalize
-     * @returns {string} Normalized gender ('M' or 'F')
+     * @returns {string} Normalized gender ('M', 'F', or 'Non-binary/Other')
      */
     normalizeGender(gender) {
         if (!gender) return '';
@@ -118,6 +118,7 @@ const AppUtils = {
         const normalized = gender.toString().trim().toUpperCase();
         if (['M', 'MALE'].includes(normalized)) return 'M';
         if (['F', 'FEMALE'].includes(normalized)) return 'F';
+        if (['NON-BINARY', 'NONBINARY', 'NON-BINARY/OTHER', 'OTHER', 'N', 'NB'].includes(normalized)) return 'Non-binary/Other';
         
         return normalized.charAt(0); // Return first character if not recognized
     },

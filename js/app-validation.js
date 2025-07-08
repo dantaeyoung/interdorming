@@ -39,8 +39,11 @@ const AppValidation = {
     getAssignmentWarnings(guest, bed, room) {
         const warnings = [];
         
-        // Check gender mismatch warnings
-        if (this.settings.warnings.genderMismatch && guest.gender !== room.roomGender && room.roomGender !== 'Coed') {
+        // Check gender mismatch warnings (non-binary guests don't trigger warnings)
+        if (this.settings.warnings.genderMismatch && 
+            guest.gender !== room.roomGender && 
+            room.roomGender !== 'Coed' &&
+            guest.gender !== 'Non-binary/Other') {
             warnings.push(`Gender mismatch: ${guest.gender} guest in ${room.roomGender} room`);
         }
         
@@ -99,11 +102,14 @@ const AppValidation = {
         // Check room availability for guest's gender
         if (this.settings.warnings.roomAvailability && this.rooms && this.rooms.length > 0) {
             const compatibleRooms = this.rooms.filter(room => 
-                room.active && (room.roomGender === guest.gender || room.roomGender === 'Coed')
+                room.active && (room.roomGender === guest.gender || room.roomGender === 'Coed' || guest.gender === 'Non-binary/Other')
             );
             
             if (compatibleRooms.length === 0) {
-                warnings.push(`No ${guest.gender === 'M' ? 'male' : 'female'} rooms available`);
+                const genderText = guest.gender === 'M' ? 'male' : 
+                                 guest.gender === 'F' ? 'female' : 
+                                 'non-binary/other';
+                warnings.push(`No ${genderText} rooms available`);
                 return warnings; // No point checking further if no compatible rooms
             }
             
