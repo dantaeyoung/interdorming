@@ -639,33 +639,49 @@ class DormAssignmentTool {
         const histogramContainer = document.createElement('div');
         histogramContainer.className = 'age-histogram';
         
-        // Get ages and create age ranges
+        // Get ages and find the overall max age across all guests (for consistent buckets)
         const ages = guests.map(g => parseInt(g.age) || 0);
-        const minAge = Math.min(...ages);
-        const maxAge = Math.max(...ages);
+        const maxAgeInRoom = Math.max(...ages);
         
-        // Create age buckets (5-year ranges)
-        const buckets = new Map();
+        // Find max age across ALL guests for consistent bucket range
+        const allAges = this.guests.map(g => parseInt(g.age) || 0);
+        const globalMaxAge = Math.max(...allAges);
+        
+        // Create age buckets (5-year ranges) from 0 to max age
         const bucketSize = 5;
+        const maxBucketStart = Math.floor(globalMaxAge / bucketSize) * bucketSize;
         
+        // Initialize all buckets with 0 count
+        const buckets = new Map();
+        for (let bucketStart = 0; bucketStart <= maxBucketStart; bucketStart += bucketSize) {
+            const bucketKey = `${bucketStart}-${bucketStart + bucketSize - 1}`;
+            buckets.set(bucketKey, 0);
+        }
+        
+        // Count guests in each bucket for this room
         for (const age of ages) {
             const bucketStart = Math.floor(age / bucketSize) * bucketSize;
             const bucketKey = `${bucketStart}-${bucketStart + bucketSize - 1}`;
-            buckets.set(bucketKey, (buckets.get(bucketKey) || 0) + 1);
+            buckets.set(bucketKey, buckets.get(bucketKey) + 1);
         }
         
         const maxCount = Math.max(...buckets.values());
         
-        // Create histogram bars
+        // Create histogram bars for all buckets
         for (const [range, count] of buckets) {
             const bar = document.createElement('div');
             bar.className = 'histogram-bar';
             
             const barFill = document.createElement('div');
             barFill.className = 'histogram-bar-fill';
-            const height = (count / maxCount) * 100;
+            const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
             barFill.style.height = `${height}%`;
-            barFill.title = `Ages ${range}: ${count} guest${count !== 1 ? 's' : ''}`;
+            barFill.title = count > 0 ? `Ages ${range}: ${count} guest${count !== 1 ? 's' : ''}` : `Ages ${range}: 0 guests`;
+            
+            // Style empty buckets differently
+            if (count === 0) {
+                barFill.style.opacity = '0.1';
+            }
             
             const barLabel = document.createElement('div');
             barLabel.className = 'histogram-label';
