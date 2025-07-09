@@ -586,18 +586,40 @@ body {
 }
 
 .gender-badge.male {
-    background-color: #3498db;
+    background-color: #59C2AA;
     color: white;
 }
 
 .gender-badge.female {
-    background-color: #e74c3c;
+    background-color: #8017E9;
     color: white;
 }
 
 .gender-badge.coed {
-    background-color: #9b59b6;
+    background-color: #E48431;
     color: white;
+}
+
+.gender-badge.nonbinary {
+    background-color: #E48431;
+    color: white;
+}
+
+/* Gender letter styling for guest table */
+.gender-letter {
+    font-weight: bold;
+}
+
+.gender-letter.male {
+    color: #59C2AA;
+}
+
+.gender-letter.female {
+    color: #8017E9;
+}
+
+.gender-letter.nonbinary {
+    color: #E48431;
 }
 
 .room-config-actions {

@@ -417,6 +417,25 @@ class DormAssignmentTool {
                 
                 if (col.key === 'displayName') {
                     value = this.createDisplayName(guest);
+                } else if (col.key === 'gender') {
+                    value = guest.gender || '';
+                    if (value) {
+                        const span = document.createElement('span');
+                        span.className = 'gender-letter';
+                        span.textContent = value;
+                        
+                        // Add color class based on gender
+                        if (value === 'M') {
+                            span.classList.add('male');
+                        } else if (value === 'F') {
+                            span.classList.add('female');
+                        } else {
+                            span.classList.add('nonbinary');
+                        }
+                        
+                        td.appendChild(span);
+                        return; // Skip setting textContent
+                    }
                 } else if (col.key === 'lowerBunk') {
                     value = guest.lowerBunk ? 'Lower bunk required' : '';
                 } else if (col.key === 'arrival' || col.key === 'departure') {
@@ -557,7 +576,25 @@ class DormAssignmentTool {
                 ageRangeText = minAge === maxAge ? `, age ${minAge}` : `, ages ${minAge}-${maxAge}`;
             }
             
-            roomInfo.textContent = `${room.roomGender} • ${occupiedBeds}/${room.beds.length} beds${ageRangeText}`;
+            // Create gender badge
+            const genderBadge = document.createElement('span');
+            genderBadge.className = 'gender-badge';
+            genderBadge.textContent = room.roomGender;
+            
+            // Add color class based on gender
+            if (room.roomGender === 'M') {
+                genderBadge.classList.add('male');
+            } else if (room.roomGender === 'F') {
+                genderBadge.classList.add('female');
+            } else if (room.roomGender === 'Coed') {
+                genderBadge.classList.add('coed');
+            } else {
+                genderBadge.classList.add('nonbinary');
+            }
+            
+            roomInfo.innerHTML = '';
+            roomInfo.appendChild(genderBadge);
+            roomInfo.appendChild(document.createTextNode(` • ${occupiedBeds}/${room.beds.length} beds${ageRangeText}`));
             
             roomHeader.appendChild(roomTitle);
             roomHeader.appendChild(roomInfo);
@@ -607,14 +644,30 @@ class DormAssignmentTool {
                         
                         const guestDetails = document.createElement('div');
                         guestDetails.className = 'guest-details';
-                        let details = `${guest.gender}, Age ${guest.age}`;
+                        
+                        // Create gender with color coding
+                        const genderSpan = document.createElement('span');
+                        genderSpan.className = 'gender-letter';
+                        genderSpan.textContent = guest.gender;
+                        
+                        if (guest.gender === 'M') {
+                            genderSpan.classList.add('male');
+                        } else if (guest.gender === 'F') {
+                            genderSpan.classList.add('female');
+                        } else {
+                            genderSpan.classList.add('nonbinary');
+                        }
+                        
+                        guestDetails.appendChild(genderSpan);
+                        
+                        let additionalDetails = `, Age ${guest.age}`;
                         if (guest.lowerBunk) {
-                            details += ', Lower bunk required';
+                            additionalDetails += ', Lower bunk required';
                         }
                         if (guest.groupName) {
-                            details += `, Group: ${guest.groupName}`;
+                            additionalDetails += `, Group: ${guest.groupName}`;
                         }
-                        guestDetails.textContent = details;
+                        guestDetails.appendChild(document.createTextNode(additionalDetails));
                         
                         assignedGuest.appendChild(guestName);
                         assignedGuest.appendChild(guestDetails);
@@ -1097,7 +1150,8 @@ class DormAssignmentTool {
             
             // Gender badge class
             const genderClass = room.roomGender === 'M' ? 'male' : 
-                               room.roomGender === 'F' ? 'female' : 'coed';
+                               room.roomGender === 'F' ? 'female' : 
+                               room.roomGender === 'Coed' ? 'coed' : 'nonbinary';
             
             roomCard.innerHTML = `
                 <div class="room-config-header">
