@@ -434,7 +434,8 @@ class DormAssignmentTool {
                         }
                         
                         td.appendChild(span);
-                        return; // Skip setting textContent
+                        row.appendChild(td);
+                        return; // Skip setting textContent and adding td again
                     }
                 } else if (col.key === 'lowerBunk') {
                     value = guest.lowerBunk ? 'Lower bunk required' : '';
