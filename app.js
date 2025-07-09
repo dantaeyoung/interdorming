@@ -421,7 +421,7 @@ class DormAssignmentTool {
                     value = guest.gender || '';
                     if (value) {
                         const span = document.createElement('span');
-                        span.className = 'gender-letter';
+                        span.className = 'gender-badge';
                         span.textContent = value;
                         
                         // Add color class based on gender
