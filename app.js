@@ -154,8 +154,22 @@ class DormAssignmentTool {
         document.getElementById('importRoomsBtn').addEventListener('click', () => this.importRoomConfig());
         document.getElementById('roomConfigFile').addEventListener('change', (e) => this.handleRoomConfigUpload(e));
         
-        // Settings tab events - now handled by external settings manager
-        // Event bindings removed since settings are managed externally
+        // Settings tab events
+        document.getElementById('showAgeHistograms').addEventListener('change', (e) => {
+            this.updateSettings({ display: { showAgeHistograms: e.target.checked } });
+        });
+        document.getElementById('genderMismatchWarnings').addEventListener('change', (e) => {
+            this.updateSettings({ warnings: { genderMismatch: e.target.checked } });
+        });
+        document.getElementById('bunkPreferenceWarnings').addEventListener('change', (e) => {
+            this.updateSettings({ warnings: { bunkPreference: e.target.checked } });
+        });
+        document.getElementById('familySeparationWarnings').addEventListener('change', (e) => {
+            this.updateSettings({ warnings: { familySeparation: e.target.checked } });
+        });
+        document.getElementById('roomAvailabilityWarnings').addEventListener('change', (e) => {
+            this.updateSettings({ warnings: { roomAvailability: e.target.checked } });
+        });
         
         // Bed configuration modal events
         document.getElementById('bedConfigModal').addEventListener('click', (e) => {
@@ -192,7 +206,7 @@ class DormAssignmentTool {
         } else if (tabName === 'settings') {
             document.getElementById('settingsTab').classList.add('active');
             document.getElementById('settingsContent').classList.add('active');
-            // Settings rendering is now handled by external settings manager
+            this.renderSettings();
         }
         
         this.currentTab = tabName;
@@ -758,6 +772,9 @@ class DormAssignmentTool {
             // Style empty buckets differently
             if (count === 0) {
                 barFill.style.opacity = '0.1';
+                barFill.style.minHeight = '2px';
+            } else {
+                barFill.style.minHeight = '0';
             }
             
             const barLabel = document.createElement('div');
