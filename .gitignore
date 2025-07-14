@@ -115,3 +115,9 @@ yarn.lock
 # Local development files
 local/
 temp/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
