@@ -187,8 +187,8 @@ class DormAssignmentTool {
     }
     
     switchTab(tabName) {
-        // Update tab buttons
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        // Update menu items
+        document.querySelectorAll('[role="menu-item"]').forEach(item => item.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         
         if (tabName === 'assignment') {

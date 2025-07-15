@@ -7,58 +7,68 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="header">
-        <h1>Blue Cliff Monastery Dorm Assignment Tool</h1>
-        <p>Drag and drop guests to assign them to dormitory beds</p>
-        
-        <div class="tab-container">
-            <button class="tab-button active" id="assignmentTab">Guest Assignment</button>
-            <button class="tab-button" id="configurationTab">Room Configuration</button>
-            <button class="tab-button" id="settingsTab">Settings</button>
+    <div class="window">
+        <div class="title-bar">
+            <button class="close hidden">
+                <span>Close</span>
+            </button>
+            <h1 class="title">Blue Cliff Monastery Dorm Assignment Tool</h1>
+            <button class="resize hidden">
+                <span>Resize</span>
+            </button>
         </div>
-    </div>
-
-    <!-- Guest Assignment Tab Content -->
-    <div id="assignmentContent" class="tab-content active">
-        <div class="controls">
-            <div class="file-upload">
-                <label for="csvFile">Upload CSV File</label>
-                <input type="file" id="csvFile" accept=".csv" />
-            </div>
-            <div class="status-message" id="statusMessage"></div>
-            <div style="margin-left: auto;">
-                <button class="btn btn-secondary" id="undoBtn" style="display: none;" disabled>Undo</button>
-                <button class="btn btn-secondary" id="exportBtn" style="display: none;">Export CSV</button>
-                <button class="btn btn-secondary" id="resetAssignmentsBtn" style="display: none;">Reset All Assignments</button>
-                <button class="btn btn-secondary btn-danger" id="deletePeopleBtn" style="display: none;">Delete All People Data</button>
-            </div>
+        <div class="separator">
+            <ul role="menu-bar">
+                <li role="menu-item" id="assignmentTab" class="active">
+                    Guest Assignment
+                </li>
+                <li role="menu-item" id="configurationTab">
+                    Room Configuration
+                </li>
+                <li role="menu-item" id="settingsTab">
+                    Settings
+                </li>
+            </ul>
         </div>
 
-        <div class="main-container">
-            <div class="left-panel">
-                <div class="panel-header">
-                    <span>Unassigned Guests</span>
-                    <span id="unassignedCount">(0)</span>
+        <!-- Guest Assignment Tab Content -->
+        <div id="assignmentContent" class="window-pane tab-content active">
+            <div class="details-bar">
+                <div class="field-row">
+                    <label for="csvFile">Upload CSV File</label>
+                    <input type="file" id="csvFile" accept=".csv" />
                 </div>
-                <div class="panel-content">
-                    <div class="search-filter">
-                        <input type="text" id="searchGuests" placeholder="Search guests by name, group, or other details..." />
+                <div class="field-row">
+                    <button class="btn" id="undoBtn" style="display: none;" disabled>Undo</button>
+                    <button class="btn" id="exportBtn" style="display: none;">Export CSV</button>
+                    <button class="btn" id="resetAssignmentsBtn" style="display: none;">Reset All Assignments</button>
+                    <button class="btn" id="deletePeopleBtn" style="display: none;">Delete All People Data</button>
+                </div>
+            </div>
+            <div id="statusMessage" class="status-message"></div>
+
+            <div class="main-container" style="display: flex; gap: 1rem;">
+                <div class="standard-dialog" style="flex: 1;">
+                    <div class="details-bar">
+                        <span>Unassigned Guests</span>
+                        <span id="unassignedCount">(0)</span>
                     </div>
-                    <div id="guestsContainer">
+                    <div class="field-row">
+                        <input type="text" id="searchGuests" placeholder="Search guests..." />
+                    </div>
+                    <div id="guestsContainer" style="min-height: 300px; overflow-y: auto;">
                         <div class="empty-state">
                             <p>Upload a CSV file to begin assigning guests to dormitory beds.</p>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="right-panel">
-                <div class="panel-header">
-                    <span>Room Assignments</span>
-                    <span id="assignedCount">(0)</span>
-                </div>
-                <div class="panel-content">
-                    <div id="roomsContainer">
+                <div class="standard-dialog" style="flex: 1;">
+                    <div class="details-bar">
+                        <span>Room Assignments</span>
+                        <span id="assignedCount">(0)</span>
+                    </div>
+                    <div id="roomsContainer" style="min-height: 300px; overflow-y: auto;">
                         <div class="empty-state">
                             <p>Room layout will appear here once guest data is loaded.</p>
                         </div>
@@ -66,40 +76,36 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Room Configuration Tab Content -->
-    <div id="configurationContent" class="tab-content">
-        <div class="controls">
-            <div style="margin-left: auto;">
-                <button class="btn btn-secondary" id="exportRoomsBtn">Export Room Config</button>
-                <button class="btn btn-secondary" id="importRoomsBtn">Import Room Config</button>
-                <input type="file" id="roomConfigFile" accept=".csv" style="display: none;" />
-            </div>
-        </div>
-
-        <div class="main-container">
-            <div class="left-panel">
-                <div class="panel-header">
-                    <span>Dormitories</span>
-                    <button class="btn" id="addDormitoryBtn" style="margin-left: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">+ Add</button>
+        <!-- Room Configuration Tab Content -->
+        <div id="configurationContent" class="window-pane tab-content">
+            <div class="details-bar">
+                <div class="field-row">
+                    <button class="btn" id="exportRoomsBtn">Export Room Config</button>
+                    <button class="btn" id="importRoomsBtn">Import Room Config</button>
+                    <input type="file" id="roomConfigFile" accept=".csv" style="display: none;" />
                 </div>
-                <div class="panel-content">
-                    <div id="dormitoriesContainer">
+            </div>
+
+            <div class="main-container" style="display: flex; gap: 1rem;">
+                <div class="standard-dialog" style="flex: 1;">
+                    <div class="details-bar">
+                        <span>Dormitories</span>
+                        <button class="btn" id="addDormitoryBtn">+ Add</button>
+                    </div>
+                    <div id="dormitoriesContainer" style="min-height: 300px; overflow-y: auto;">
                         <div class="empty-state">
                             <p>No dormitories configured. Click "Add" to create your first dormitory.</p>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="right-panel">
-                <div class="panel-header">
-                    <span id="selectedDormitoryName">Select a Dormitory</span>
-                    <button class="btn" id="addRoomBtn" style="margin-left: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem; display: none;">+ Add Room</button>
-                </div>
-                <div class="panel-content">
-                    <div id="roomConfigContainer">
+                <div class="standard-dialog" style="flex: 1;">
+                    <div class="details-bar">
+                        <span id="selectedDormitoryName">Select a Dormitory</span>
+                        <button class="btn" id="addRoomBtn" style="display: none;">+ Add Room</button>
+                    </div>
+                    <div id="roomConfigContainer" style="min-height: 300px; overflow-y: auto;">
                         <div class="empty-state">
                             <p>Select a dormitory to configure its rooms.</p>
                         </div>
@@ -107,105 +113,95 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Settings Tab Content -->
-    <div id="settingsContent" class="tab-content">
-        <div class="controls">
-            <div style="margin-left: auto;">
-                <button class="btn btn-secondary" id="resetSettingsBtn">Reset to Defaults</button>
-                <button class="btn btn-secondary" id="importSettingsBtn">Import Settings</button>
-                <button class="btn btn-secondary" id="exportSettingsBtn">Export Settings</button>
-                <input type="file" id="settingsFile" accept=".json" style="display: none;" />
+        <!-- Settings Tab Content -->
+        <div id="settingsContent" class="window-pane tab-content">
+            <div class="details-bar">
+                <div class="field-row">
+                    <button class="btn" id="resetSettingsBtn">Reset to Defaults</button>
+                    <button class="btn" id="importSettingsBtn">Import Settings</button>
+                    <button class="btn" id="exportSettingsBtn">Export Settings</button>
+                    <input type="file" id="settingsFile" accept=".json" style="display: none;" />
+                </div>
             </div>
-        </div>
 
-        <div class="main-container">
-            <div class="settings-container">
+            <div class="standard-dialog">
                 <!-- Display Settings Section -->
-                <div class="settings-section">
-                    <h3>Display Settings</h3>
-                    <div class="settings-group">
-                        <label class="settings-checkbox">
-                            <input type="checkbox" id="showAgeHistograms" checked>
-                            <span>Show age histograms on room cards</span>
-                        </label>
-                    </div>
+                <h2>Display Settings</h2>
+                <div class="field-row">
+                    <input type="checkbox" id="showAgeHistograms" checked>
+                    <label for="showAgeHistograms">Show age histograms on room cards</label>
                 </div>
 
                 <!-- Assignment Warnings Section -->
-                <div class="settings-section">
-                    <h3>Assignment Validation</h3>
-                    <div class="settings-group">
-                        <label class="settings-checkbox">
-                            <input type="checkbox" id="genderMismatchWarnings" checked>
-                            <span>Gender mismatch warnings</span>
-                        </label>
-                        
-                        <label class="settings-checkbox">
-                            <input type="checkbox" id="bunkPreferenceWarnings" checked>
-                            <span>Bunk preference violations</span>
-                        </label>
-                        
-                        <label class="settings-checkbox">
-                            <input type="checkbox" id="familySeparationWarnings" checked>
-                            <span>Family/group separation warnings</span>
-                        </label>
-                        
-                        
-                        <label class="settings-checkbox">
-                            <input type="checkbox" id="roomAvailabilityWarnings" checked>
-                            <span>Room availability warnings</span>
-                        </label>
-                    </div>
+                <h2>Assignment Validation</h2>
+                <div class="field-row">
+                    <input type="checkbox" id="genderMismatchWarnings" checked>
+                    <label for="genderMismatchWarnings">Gender mismatch warnings</label>
+                </div>
+                
+                <div class="field-row">
+                    <input type="checkbox" id="bunkPreferenceWarnings" checked>
+                    <label for="bunkPreferenceWarnings">Bunk preference violations</label>
+                </div>
+                
+                <div class="field-row">
+                    <input type="checkbox" id="familySeparationWarnings" checked>
+                    <label for="familySeparationWarnings">Family/group separation warnings</label>
+                </div>
+                
+                <div class="field-row">
+                    <input type="checkbox" id="roomAvailabilityWarnings" checked>
+                    <label for="roomAvailabilityWarnings">Room availability warnings</label>
                 </div>
             </div>
         </div>
+
+
     </div>
 
-
     <!-- Bed Configuration Modal -->
-    <div id="bedConfigModal" class="bed-config-modal">
-        <div class="bed-config-content">
-            <div class="bed-config-header">
-                <h2 id="bedConfigTitle">Configure Beds</h2>
-                <button class="bed-config-close" onclick="app.closeBedConfiguration()">×</button>
+    <div id="bedConfigModal" class="modal-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000;">
+        <div class="modal-contents">
+            <div class="title-bar">
+                <button class="close hidden"></button>
+                <h1 class="title" id="bedConfigTitle">Configure Beds</h1>
+                <button class="close" onclick="app.closeBedConfiguration()">
+                    <span>Close</span>
+                </button>
             </div>
             
-            <div id="bedConfigInfo" class="bed-config-info">
-                <h3 id="bedConfigRoomName">Room Name</h3>
-                <p id="bedConfigRoomDetails">Room details will appear here</p>
+            <div class="details-bar">
+                <h2 id="bedConfigRoomName">Room Name</h2>
+                <span id="bedConfigRoomDetails">Room details will appear here</span>
             </div>
 
-            <div class="bed-config-actions">
+            <div class="field-row">
                 <button class="btn" onclick="app.showAddBedInterface()">+ Add Bed</button>
-                <button class="btn btn-secondary" onclick="app.closeBedConfiguration()">Close</button>
+                <button class="btn" onclick="app.closeBedConfiguration()">Close</button>
             </div>
 
-            <div id="addBedInterface" class="bed-config-section" style="display: none;">
-                <h4>Add New Bed</h4>
-                <div class="bed-type-selector">
+            <div id="addBedInterface" style="display: none;">
+                <h2>Add New Bed</h2>
+                <div class="field-row bed-type-selector">
                     <div class="bed-type-option selected" data-type="single">
-                        <div class="bed-icon single"></div>
-                        <div>Single</div>
+                        <span>Single</span>
                     </div>
                     <div class="bed-type-option" data-type="lower">
-                        <div class="bed-icon lower"></div>
-                        <div>Lower Bunk</div>
+                        <span>Lower Bunk</span>
                     </div>
                     <div class="bed-type-option" data-type="upper">
-                        <div class="bed-icon upper"></div>
-                        <div>Upper Bunk</div>
+                        <span>Upper Bunk</span>
                     </div>
                 </div>
-                <div style="display: flex; gap: 0.5rem;">
+                <div class="field-row">
                     <button class="btn" onclick="app.addBedToCurrent()">Add Bed</button>
-                    <button class="btn btn-secondary" onclick="app.hideAddBedInterface()">Cancel</button>
+                    <button class="btn" onclick="app.hideAddBedInterface()">Cancel</button>
                 </div>
             </div>
 
-            <div class="bed-config-section">
-                <h4>Beds in This Room</h4>
+            <div>
+                <h2>Beds in This Room</h2>
                 <div id="bedConfigGrid" class="bed-grid">
                     <!-- Bed cards will be populated here -->
                 </div>
