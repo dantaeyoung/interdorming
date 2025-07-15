@@ -187,8 +187,8 @@ class DormAssignmentTool {
     }
     
     switchTab(tabName) {
-        // Update menu items
-        document.querySelectorAll('[role="menu-item"]').forEach(item => item.classList.remove('active'));
+        // Update tab buttons
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         
         if (tabName === 'assignment') {
@@ -385,7 +385,7 @@ class DormAssignmentTool {
         const sortedGuests = this.sortGuests(filteredGuests);
         
         const table = document.createElement('table');
-        table.className = 'guests-table';
+        table.className = 'table';
         
         const headerRow = document.createElement('tr');
         const columns = [
@@ -435,16 +435,16 @@ class DormAssignmentTool {
                     value = guest.gender || '';
                     if (value) {
                         const span = document.createElement('span');
-                        span.className = 'gender-badge';
+                        span.className = 'badge';
                         span.textContent = value;
                         
                         // Add color class based on gender
                         if (value === 'M') {
-                            span.classList.add('male');
+                            span.classList.add('badge-gender-m');
                         } else if (value === 'F') {
-                            span.classList.add('female');
+                            span.classList.add('badge-gender-f');
                         } else {
-                            span.classList.add('nonbinary');
+                            span.classList.add('badge-gender-coed');
                         }
                         
                         td.appendChild(span);
@@ -593,18 +593,16 @@ class DormAssignmentTool {
             
             // Create gender badge
             const genderBadge = document.createElement('span');
-            genderBadge.className = 'gender-badge';
+            genderBadge.className = 'badge';
             genderBadge.textContent = room.roomGender;
             
             // Add color class based on gender
             if (room.roomGender === 'M') {
-                genderBadge.classList.add('male');
+                genderBadge.classList.add('badge-gender-m');
             } else if (room.roomGender === 'F') {
-                genderBadge.classList.add('female');
-            } else if (room.roomGender === 'Coed') {
-                genderBadge.classList.add('coed');
+                genderBadge.classList.add('badge-gender-f');
             } else {
-                genderBadge.classList.add('nonbinary');
+                genderBadge.classList.add('badge-gender-coed');
             }
             
             roomInfo.innerHTML = '';
@@ -662,15 +660,15 @@ class DormAssignmentTool {
                         
                         // Create gender with color coding
                         const genderSpan = document.createElement('span');
-                        genderSpan.className = 'gender-letter';
+                        genderSpan.className = 'badge';
                         genderSpan.textContent = guest.gender;
                         
                         if (guest.gender === 'M') {
-                            genderSpan.classList.add('male');
+                            genderSpan.classList.add('badge-gender-m');
                         } else if (guest.gender === 'F') {
-                            genderSpan.classList.add('female');
+                            genderSpan.classList.add('badge-gender-f');
                         } else {
-                            genderSpan.classList.add('nonbinary');
+                            genderSpan.classList.add('badge-gender-coed');
                         }
                         
                         guestDetails.appendChild(genderSpan);
@@ -1179,7 +1177,7 @@ class DormAssignmentTool {
                     </span>
                 </div>
                 <div class="room-config-info">
-                    <span class="gender-badge ${genderClass}">${room.roomGender}</span>
+                    <span class="badge badge-gender-${room.roomGender === 'M' ? 'm' : room.roomGender === 'F' ? 'f' : 'coed'}">${room.roomGender}</span>
                     <span class="room-config-detail">${bedCount} beds</span>
                     <span class="room-config-detail">${occupiedBeds} occupied</span>
                 </div>
