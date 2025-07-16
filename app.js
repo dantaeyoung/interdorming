@@ -14,6 +14,7 @@ class DormAssignmentTool {
         this.bedConfigDormitoryIndex = null;
         this.bedConfigRoomIndex = null;
         this.selectedBedType = 'single';
+        this.pickedUpGuestId = null; // Track picked up guest
         
         // Initialize settings with defaults from constants
         this.settings = { ...APP_CONSTANTS.DEFAULT_SETTINGS };
@@ -623,10 +624,20 @@ class DormAssignmentTool {
                 const bedAssignment = document.createElement('div');
                 bedAssignment.className = 'bed-assignment';
                 
+                // Add pickup/drop button
+                const actionButton = document.createElement('button');
+                actionButton.className = 'btn btn-tiny';
+                
                 if (bed.assignedGuestId) {
                     const guest = this.guests.find(g => g.id === bed.assignedGuestId);
                     if (guest) {
                         bedRow.classList.add('occupied');
+                        
+                        // Setup pickup button
+                        actionButton.textContent = '↑';
+                        actionButton.title = 'Pick up guest';
+                        actionButton.classList.add('btn-pickup');
+                        actionButton.addEventListener('click', () => this.pickupGuest(guest.id));
                         
                         const warnings = this.getAssignmentWarnings(guest, bed, room);
                         if (warnings.length > 0) {
@@ -636,6 +647,9 @@ class DormAssignmentTool {
                         
                         const assignedGuest = document.createElement('div');
                         assignedGuest.className = 'assigned-guest';
+                        if (this.pickedUpGuestId === guest.id) {
+                            assignedGuest.classList.add('picked-up');
+                        }
                         assignedGuest.draggable = true;
                         assignedGuest.dataset.guestId = guest.id;
                         
@@ -700,11 +714,19 @@ class DormAssignmentTool {
                         assignedGuest.addEventListener('dragend', (e) => this.handleDragEnd(e));
                     }
                 } else {
+                    // Empty bed - setup drop button
+                    actionButton.textContent = '↓';
+                    actionButton.title = 'Drop guest here';
+                    actionButton.classList.add('btn-drop');
+                    actionButton.style.display = this.pickedUpGuestId ? 'inline-flex' : 'none';
+                    actionButton.addEventListener('click', () => this.dropGuest(bed.bedId));
+                    
                     bedAssignment.textContent = 'Empty';
                 }
                 
                 bedRow.appendChild(bedLabel);
                 bedRow.appendChild(bedAssignment);
+                bedRow.appendChild(actionButton);
                 bedsContainer.appendChild(bedRow);
                 
                 bedRow.addEventListener('dragover', (e) => this.handleDragOver(e));
@@ -1874,6 +1896,63 @@ class DormAssignmentTool {
         this.renderDormitories();
         this.refreshRoomsFromDormitories();
         this.saveToLocalStorage();
+    }
+    
+    // Pickup and Drop functionality
+    pickupGuest(guestId) {
+        this.pickedUpGuestId = guestId;
+        
+        // Update UI to show picked up state
+        this.renderRooms(); // Re-render to show drop buttons and highlight picked guest
+    }
+    
+    dropGuest(bedId) {
+        if (!this.pickedUpGuestId) return;
+        
+        // Find the bed and assign the guest
+        const targetBed = this.findBedById(bedId);
+        if (!targetBed) return;
+        
+        // Find and clear the original bed assignment
+        const currentBedId = this.assignments.get(this.pickedUpGuestId);
+        if (currentBedId) {
+            const currentBed = this.findBedById(currentBedId);
+            if (currentBed) {
+                currentBed.assignedGuestId = null;
+            }
+        }
+        
+        // Remove guest from current assignment
+        this.assignments.delete(this.pickedUpGuestId);
+        
+        // Assign to new bed
+        this.assignments.set(this.pickedUpGuestId, bedId);
+        targetBed.assignedGuestId = this.pickedUpGuestId;
+        
+        // Clear pickup state
+        this.pickedUpGuestId = null;
+        
+        // Update history and save
+        this.saveToHistory();
+        this.saveToLocalStorage();
+        
+        // Update UI
+        this.renderGuestsTable();
+        this.renderRooms();
+        this.updateCounts();
+    }
+    
+    findBedById(bedId) {
+        for (const dormitory of this.dormitories) {
+            for (const room of dormitory.rooms) {
+                for (const bed of room.beds) {
+                    if (bed.bedId === bedId) {
+                        return bed;
+                    }
+                }
+            }
+        }
+        return null;
     }
     
     // generateBedId method is now provided by AppUtils mixin
