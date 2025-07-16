@@ -609,9 +609,10 @@ body {
   border-radius: var(--border-radius);
   font-size: var(--font-size-xs);
   font-weight: 500;
-  white-space: nowrap;
+  white-space: pre-line; /* Allow line breaks */
   z-index: 10;
   box-shadow: var(--shadow);
+  line-height: 1.2;
 }
 
 /* Modal */

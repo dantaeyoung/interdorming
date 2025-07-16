@@ -689,7 +689,9 @@ class DormAssignmentTool {
                         if (warnings.length > 0) {
                             const floatingWarning = document.createElement('div');
                             floatingWarning.className = 'floating-warning';
-                            floatingWarning.textContent = warnings.join(', ');
+                            // Format each warning with bullet points on separate lines
+                            const formattedWarnings = warnings.map(warning => `• ${warning}`).join('\n');
+                            floatingWarning.textContent = formattedWarnings;
                             assignedGuest.appendChild(floatingWarning);
                         }
                         bedAssignment.appendChild(assignedGuest);
