@@ -633,11 +633,20 @@ class DormAssignmentTool {
                     if (guest) {
                         bedRow.classList.add('occupied');
                         
-                        // Setup pickup button
-                        actionButton.textContent = '↑';
-                        actionButton.title = 'Pick up guest';
-                        actionButton.classList.add('btn-pickup');
-                        actionButton.addEventListener('click', () => this.pickupGuest(guest.id));
+                        // Setup pickup/swap button
+                        if (this.pickedUpGuestId && this.pickedUpGuestId !== guest.id) {
+                            // Show swap button when another guest is picked up
+                            actionButton.textContent = '↔';
+                            actionButton.title = 'Swap with picked up guest';
+                            actionButton.classList.add('btn-swap');
+                            actionButton.addEventListener('click', () => this.swapGuests(guest.id));
+                        } else {
+                            // Normal pickup button
+                            actionButton.textContent = '↑';
+                            actionButton.title = 'Pick up guest';
+                            actionButton.classList.add('btn-pickup');
+                            actionButton.addEventListener('click', () => this.pickupGuest(guest.id));
+                        }
                         
                         const warnings = this.getAssignmentWarnings(guest, bed, room);
                         if (warnings.length > 0) {
@@ -1927,6 +1936,42 @@ class DormAssignmentTool {
         
         // Assign to new bed
         this.assignments.set(this.pickedUpGuestId, bedId);
+        targetBed.assignedGuestId = this.pickedUpGuestId;
+        
+        // Clear pickup state
+        this.pickedUpGuestId = null;
+        
+        // Update history and save
+        this.saveToHistory();
+        this.saveToLocalStorage();
+        
+        // Update UI
+        this.renderGuestsTable();
+        this.renderRooms();
+        this.updateCounts();
+    }
+    
+    swapGuests(targetGuestId) {
+        if (!this.pickedUpGuestId || this.pickedUpGuestId === targetGuestId) return;
+        
+        // Get bed assignments for both guests
+        const pickedUpBedId = this.assignments.get(this.pickedUpGuestId);
+        const targetBedId = this.assignments.get(targetGuestId);
+        
+        if (!pickedUpBedId || !targetBedId) return;
+        
+        // Find the actual bed objects
+        const pickedUpBed = this.findBedById(pickedUpBedId);
+        const targetBed = this.findBedById(targetBedId);
+        
+        if (!pickedUpBed || !targetBed) return;
+        
+        // Swap assignments in the Map
+        this.assignments.set(this.pickedUpGuestId, targetBedId);
+        this.assignments.set(targetGuestId, pickedUpBedId);
+        
+        // Swap assignments in bed objects
+        pickedUpBed.assignedGuestId = targetGuestId;
         targetBed.assignedGuestId = this.pickedUpGuestId;
         
         // Clear pickup state

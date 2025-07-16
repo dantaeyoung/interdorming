@@ -219,6 +219,17 @@ body {
   border-color: #38a169;
 }
 
+.btn-swap {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+.btn-swap:hover {
+  background: #3182ce;
+  border-color: #3182ce;
+}
+
 .btn:hover {
   background: var(--secondary-bg);
   border-color: var(--text-secondary);
@@ -654,8 +665,9 @@ body {
 
 .floating-warning {
   position: absolute;
-  top: -8px; /* Float above the row */
-  right: 0;
+  top: -16px; /* Float further above the row */
+  left: 60px; /* Start after the bed label */
+  right: 0; /* Extend to the right edge */
   background: var(--error-color);
   color: white;
   padding: var(--space-1) var(--space-2);
