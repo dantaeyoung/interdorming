@@ -7,7 +7,7 @@ class DormAssignmentTool {
         this.sortDirection = 'asc';
         this.searchQuery = '';
         this.assignmentHistory = [];
-        this.maxHistorySize = 10;
+        this.maxHistorySize = APP_CONSTANTS.HISTORY_SIZE;
         this.currentTab = 'assignment';
         this.dormitories = [];
         this.selectedDormitory = null;
@@ -15,19 +15,8 @@ class DormAssignmentTool {
         this.bedConfigRoomIndex = null;
         this.selectedBedType = 'single';
         
-        // Initialize settings with defaults - now handled by external settings manager
-        this.settings = {
-            warnings: {
-                genderMismatch: true,
-                bunkPreference: true,
-                familySeparation: true,
-                roomAvailability: true
-            },
-            display: {
-                showAgeHistograms: true
-            },
-            version: "1.0"
-        };
+        // Initialize settings with defaults from constants
+        this.settings = { ...APP_CONSTANTS.DEFAULT_SETTINGS };
         
         this.initializeRooms();
         this.bindEvents();
@@ -369,7 +358,7 @@ class DormAssignmentTool {
         const unassignedGuests = this.guests.filter(guest => !this.assignments.has(guest.id));
         
         if (unassignedGuests.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>All guests have been assigned to rooms.</p></div>';
+            container.innerHTML = `<div class="empty-state"><p>${APP_CONSTANTS.MESSAGES.ALL_ASSIGNED}</p></div>`;
             return;
         }
 

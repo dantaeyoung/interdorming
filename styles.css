@@ -703,6 +703,22 @@ body {
   min-width: auto;
 }
 
+/* Room Configuration Details */
+.room-config-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.room-config-detail {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  padding: var(--space-1) var(--space-2);
+  background: var(--accent-bg);
+  border-radius: var(--border-radius);
+}
+
 /* Bed Grid */
 .bed-grid {
   display: grid;
