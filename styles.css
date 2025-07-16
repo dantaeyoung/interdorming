@@ -133,8 +133,10 @@ body {
 .tab.active {
   color: var(--text-primary);
   background: var(--primary-bg);
+  border-top: var(--border-width) solid var(--accent-color);
+  border-left: var(--border-width) solid var(--accent-color);
+  border-right: var(--border-width) solid var(--accent-color);
   border-bottom: var(--border-width) solid var(--primary-bg);
-  border-color: var(--accent-color);
   font-weight: 600;
   opacity: 1;
   box-shadow: var(--shadow);
