@@ -665,19 +665,19 @@ body {
 
 .floating-warning {
   position: absolute;
-  top: -16px; /* Float further above the row */
-  left: 60px; /* Start after the bed label */
+  top: -14px; /* Float above the row */
+  left: 200px; /* Start after guest info area */
   right: 0; /* Extend to the right edge */
   background: var(--error-color);
   color: white;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--border-radius);
+  padding: 2px 6px; /* Minimal padding */
+  border-radius: 3px;
   font-size: var(--font-size-xs);
   font-weight: 500;
   white-space: pre-line; /* Allow line breaks */
   z-index: 10;
   box-shadow: var(--shadow);
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 /* Modal */
