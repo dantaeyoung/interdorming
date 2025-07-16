@@ -86,12 +86,15 @@ body {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  display: inline;
+  margin-right: var(--space-3);
 }
 
 .header p {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   margin: 0;
+  display: inline;
 }
 
 /* Tabs */
@@ -108,24 +111,33 @@ body {
 }
 
 .tab {
-  padding: var(--space-2) 0;
+  padding: var(--space-2) var(--space-4);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--text-secondary);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  background: var(--accent-bg);
+  border: var(--border-width) solid var(--border-color);
+  border-bottom: none;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
   cursor: pointer;
   transition: all 0.2s ease;
+  margin-right: var(--space-1);
+  opacity: 0.7;
 }
 
 .tab:hover {
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  opacity: 0.9;
 }
 
 .tab.active {
-  color: var(--accent-color);
-  border-bottom-color: var(--accent-color);
+  color: var(--text-primary);
+  background: var(--primary-bg);
+  border-bottom: var(--border-width) solid var(--primary-bg);
+  border-color: var(--accent-color);
+  font-weight: 600;
+  opacity: 1;
+  box-shadow: var(--shadow);
 }
 
 /* Tab Content */
@@ -272,7 +284,7 @@ body {
 }
 
 .card-header {
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-2) var(--space-3);
   border-bottom: var(--border-width) solid var(--border-color);
   background: var(--secondary-bg);
   display: flex;
