@@ -44,12 +44,12 @@ const AppValidation = {
             guest.gender !== room.roomGender && 
             room.roomGender !== 'Coed' &&
             guest.gender !== 'Non-binary/Other') {
-            warnings.push(`Gender mismatch: ${guest.gender} guest in ${room.roomGender} room`);
+            warnings.push(`${guest.gender} guest in ${room.roomGender} room`);
         }
         
         // Check bunk preference violations
         if (this.settings.warnings.bunkPreference && guest.lowerBunk && bed.bedType === 'upper') {
-            warnings.push('Upper bunk assigned to guest requiring lower bunk');
+            warnings.push('Needs Lower Bunk');
         }
         
         // Check for family/group separation warnings
@@ -64,7 +64,7 @@ const AppValidation = {
             });
             
             if (separatedMembers.length > 0) {
-                warnings.push(`Family/group separation: ${separatedMembers.length} group member(s) in different room(s)`);
+                warnings.push(`${separatedMembers.length} group member(s) in other room(s)`);
             }
         }
         

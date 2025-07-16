@@ -674,8 +674,7 @@ class DormAssignmentTool {
                         // Add compact indicators
                         if (guest.lowerBunk) {
                             const lowerSpan = document.createElement('span');
-                            lowerSpan.textContent = '🛏️';
-                            lowerSpan.title = 'Lower bunk required';
+                            lowerSpan.textContent = '🛏️ Lower Bunk';
                             guestDetails.appendChild(lowerSpan);
                         }
                         
@@ -690,14 +689,12 @@ class DormAssignmentTool {
                         guestInfo.appendChild(guestDetails);
                         assignedGuest.appendChild(guestInfo);
                         
-                        // Add compact warning indicator
+                        // Add warning text
                         if (warnings.length > 0) {
-                            const warningIcon = document.createElement('span');
-                            warningIcon.textContent = '⚠️';
-                            warningIcon.title = warnings.join('; ');
-                            warningIcon.style.fontSize = '1.2rem';
-                            warningIcon.style.flexShrink = '0';
-                            assignedGuest.appendChild(warningIcon);
+                            const warningText = document.createElement('div');
+                            warningText.className = 'warning-text';
+                            warningText.textContent = warnings.join('; ');
+                            guestInfo.appendChild(warningText);
                         }
                         bedAssignment.appendChild(assignedGuest);
                         
