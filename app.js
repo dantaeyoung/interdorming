@@ -639,62 +639,58 @@ class DormAssignmentTool {
                         assignedGuest.draggable = true;
                         assignedGuest.dataset.guestId = guest.id;
                         
-                        const guestInfo = document.createElement('div');
-                        guestInfo.style.flex = '1';
-                        guestInfo.style.minWidth = '0'; // Prevent overflow
-                        
-                        const guestName = document.createElement('div');
-                        guestName.className = 'guest-name';
+                        // Create single line with all info
                         const displayName = this.createDisplayName(guest);
-                        guestName.textContent = `${displayName} ${guest.lastName}`;
+                        const guestName = `${displayName} ${guest.lastName}`;
                         
-                        const guestDetails = document.createElement('div');
-                        guestDetails.className = 'guest-details';
+                        // Build single line text with all info
+                        let guestText = guestName;
                         
-                        // Create gender badge
-                        const genderSpan = document.createElement('span');
-                        genderSpan.className = 'badge';
-                        genderSpan.textContent = guest.gender;
+                        // Add combined age+gender badge
+                        const ageGenderSpan = document.createElement('span');
+                        ageGenderSpan.className = 'badge';
+                        ageGenderSpan.textContent = `${guest.age}${guest.gender}`;
                         
                         if (guest.gender === 'M') {
-                            genderSpan.classList.add('badge-gender-m');
+                            ageGenderSpan.classList.add('badge-gender-m');
                         } else if (guest.gender === 'F') {
-                            genderSpan.classList.add('badge-gender-f');
+                            ageGenderSpan.classList.add('badge-gender-f');
                         } else {
-                            genderSpan.classList.add('badge-gender-coed');
+                            ageGenderSpan.classList.add('badge-gender-coed');
                         }
                         
-                        guestDetails.appendChild(genderSpan);
+                        assignedGuest.appendChild(ageGenderSpan);
                         
-                        // Create age span
-                        const ageSpan = document.createElement('span');
-                        ageSpan.textContent = `Age ${guest.age}`;
-                        guestDetails.appendChild(ageSpan);
+                        // Add rest of info as text with spacing
+                        let infoText = '';
                         
-                        // Add compact indicators
                         if (guest.lowerBunk) {
-                            const lowerSpan = document.createElement('span');
-                            lowerSpan.textContent = '🛏️ Lower Bunk';
-                            guestDetails.appendChild(lowerSpan);
+                            infoText += '  🛏️';
                         }
                         
                         if (guest.groupName) {
-                            const groupSpan = document.createElement('span');
-                            groupSpan.textContent = `👥 ${guest.groupName}`;
-                            groupSpan.title = `Group: ${guest.groupName}`;
-                            guestDetails.appendChild(groupSpan);
+                            infoText += `  👥${guest.groupName}`;
                         }
                         
-                        guestInfo.appendChild(guestName);
-                        guestInfo.appendChild(guestDetails);
-                        assignedGuest.appendChild(guestInfo);
+                        const nameSpan = document.createElement('span');
+                        nameSpan.style.fontWeight = '600';
+                        nameSpan.style.marginRight = 'var(--space-2)';
+                        nameSpan.textContent = guestName;
                         
-                        // Add warning text
+                        const infoSpan = document.createElement('span');
+                        infoSpan.style.fontSize = 'var(--font-size-sm)';
+                        infoSpan.style.color = 'var(--text-secondary)';
+                        infoSpan.textContent = infoText;
+                        
+                        assignedGuest.appendChild(nameSpan);
+                        assignedGuest.appendChild(infoSpan);
+                        
+                        // Add floating warning if needed
                         if (warnings.length > 0) {
-                            const warningText = document.createElement('div');
-                            warningText.className = 'warning-text';
-                            warningText.textContent = warnings.join('; ');
-                            guestInfo.appendChild(warningText);
+                            const floatingWarning = document.createElement('div');
+                            floatingWarning.className = 'floating-warning';
+                            floatingWarning.textContent = warnings.join(', ');
+                            assignedGuest.appendChild(floatingWarning);
                         }
                         bedAssignment.appendChild(assignedGuest);
                         

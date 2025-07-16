@@ -362,13 +362,13 @@ body {
 .room-card {
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--border-radius-lg);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
   background: var(--primary-bg);
   overflow: hidden;
 }
 
 .room-header {
-  padding: var(--space-3);
+  padding: var(--space-2);
   border-bottom: var(--border-width) solid var(--border-color);
   background: var(--secondary-bg);
   display: flex;
@@ -391,15 +391,16 @@ body {
 }
 
 .beds-container {
-  padding: var(--space-3);
+  padding: var(--space-2);
 }
 
 .bed-row {
   display: flex;
   align-items: center;
-  padding: var(--space-2) 0;
+  padding: var(--space-1) 0;
   border-bottom: var(--border-width) solid var(--border-color);
-  min-height: 40px;
+  height: 28px; /* Fixed height instead of min-height */
+  position: relative; /* For floating warnings */
 }
 
 .bed-row:last-child {
@@ -407,7 +408,7 @@ body {
 }
 
 .bed-label {
-  min-width: 80px;
+  min-width: 60px;
   font-weight: 500;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
@@ -422,12 +423,15 @@ body {
   background: var(--accent-bg);
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--border-radius);
-  padding: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   cursor: grab;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  height: 22px; /* Fixed height to fit in bed row */
+  overflow: visible; /* Allow warnings to overflow */
+  position: relative; /* For floating warnings */
 }
 
 .assigned-guest:hover {
@@ -593,6 +597,21 @@ body {
   font-size: var(--font-size-xs);
   font-weight: 500;
   margin-top: var(--space-1);
+}
+
+.floating-warning {
+  position: absolute;
+  top: -8px; /* Float above the row */
+  right: 0;
+  background: var(--error-color);
+  color: white;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: var(--shadow);
 }
 
 /* Modal */
