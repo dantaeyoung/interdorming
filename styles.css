@@ -77,38 +77,39 @@ body {
 .header {
   background: var(--primary-bg);
   border-bottom: var(--border-width) solid var(--border-color);
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-1) var(--space-3);
   flex-shrink: 0;
 }
 
 .header h1 {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: var(--space-2);
+  margin: 0;
 }
 
 .header p {
   color: var(--text-secondary);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
+  margin: 0;
 }
 
 /* Tabs */
 .tabs {
   background: var(--primary-bg);
   border-bottom: var(--border-width) solid var(--border-color);
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-3);
   flex-shrink: 0;
 }
 
 .tab-list {
   display: flex;
-  gap: var(--space-8);
+  gap: var(--space-4);
 }
 
 .tab {
-  padding: var(--space-4) 0;
-  font-size: var(--font-size-base);
+  padding: var(--space-2) 0;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--text-secondary);
   background: none;
@@ -144,7 +145,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-6);
+  padding: var(--space-2);
   flex-shrink: 0;
 }
 
@@ -152,7 +153,7 @@ body {
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 /* Buttons */
@@ -160,8 +161,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
   font-weight: 500;
   background: var(--primary-bg);
   color: var(--text-primary);
@@ -206,22 +207,22 @@ body {
 
 /* Forms */
 .form-group {
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-2);
   flex-shrink: 0;
 }
 
 .form-label {
   display: block;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--text-primary);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .form-input {
   width: 100%;
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-base);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--border-radius);
   background: var(--primary-bg);
