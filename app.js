@@ -639,6 +639,10 @@ class DormAssignmentTool {
                         assignedGuest.draggable = true;
                         assignedGuest.dataset.guestId = guest.id;
                         
+                        const guestInfo = document.createElement('div');
+                        guestInfo.style.flex = '1';
+                        guestInfo.style.minWidth = '0'; // Prevent overflow
+                        
                         const guestName = document.createElement('div');
                         guestName.className = 'guest-name';
                         const displayName = this.createDisplayName(guest);
@@ -647,7 +651,7 @@ class DormAssignmentTool {
                         const guestDetails = document.createElement('div');
                         guestDetails.className = 'guest-details';
                         
-                        // Create gender with color coding
+                        // Create gender badge
                         const genderSpan = document.createElement('span');
                         genderSpan.className = 'badge';
                         genderSpan.textContent = guest.gender;
@@ -662,28 +666,38 @@ class DormAssignmentTool {
                         
                         guestDetails.appendChild(genderSpan);
                         
-                        let additionalDetails = `, Age ${guest.age}`;
+                        // Create age span
+                        const ageSpan = document.createElement('span');
+                        ageSpan.textContent = `Age ${guest.age}`;
+                        guestDetails.appendChild(ageSpan);
+                        
+                        // Add compact indicators
                         if (guest.lowerBunk) {
-                            additionalDetails += ', Lower bunk required';
+                            const lowerSpan = document.createElement('span');
+                            lowerSpan.textContent = '🛏️';
+                            lowerSpan.title = 'Lower bunk required';
+                            guestDetails.appendChild(lowerSpan);
                         }
+                        
                         if (guest.groupName) {
-                            additionalDetails += `, Group: ${guest.groupName}`;
+                            const groupSpan = document.createElement('span');
+                            groupSpan.textContent = `👥 ${guest.groupName}`;
+                            groupSpan.title = `Group: ${guest.groupName}`;
+                            guestDetails.appendChild(groupSpan);
                         }
-                        guestDetails.appendChild(document.createTextNode(additionalDetails));
                         
-                        assignedGuest.appendChild(guestName);
-                        assignedGuest.appendChild(guestDetails);
+                        guestInfo.appendChild(guestName);
+                        guestInfo.appendChild(guestDetails);
+                        assignedGuest.appendChild(guestInfo);
                         
-                        // Add visible warning text in red
+                        // Add compact warning indicator
                         if (warnings.length > 0) {
-                            const warningText = document.createElement('div');
-                            warningText.className = 'warning-text';
-                            warningText.style.color = '#e74c3c';
-                            warningText.style.fontSize = '0.8rem';
-                            warningText.style.fontWeight = 'bold';
-                            warningText.style.marginTop = '0.25rem';
-                            warningText.textContent = warnings.join('; ');
-                            assignedGuest.appendChild(warningText);
+                            const warningIcon = document.createElement('span');
+                            warningIcon.textContent = '⚠️';
+                            warningIcon.title = warnings.join('; ');
+                            warningIcon.style.fontSize = '1.2rem';
+                            warningIcon.style.flexShrink = '0';
+                            assignedGuest.appendChild(warningIcon);
                         }
                         bedAssignment.appendChild(assignedGuest);
                         
