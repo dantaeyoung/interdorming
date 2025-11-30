@@ -2244,4 +2244,39 @@ let app;
 
 document.addEventListener('DOMContentLoaded', () => {
     app = new DormAssignmentTool();
+
+    // Auto-load test CSV if URL parameter is present
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('autoload') || urlParams.has('test')) {
+        autoLoadTestData();
+    }
 });
+
+// Auto-load test_guests.csv for development/testing
+async function autoLoadTestData() {
+    try {
+        const response = await fetch('test_guests.csv');
+        if (!response.ok) {
+            console.warn('test_guests.csv not found - skipping auto-load');
+            return;
+        }
+
+        const csvText = await response.text();
+        app.parseCSV(csvText);
+        app.renderGuestsTable();
+        app.renderRooms();
+        app.updateCounts();
+
+        // Show action buttons
+        document.getElementById('exportBtn').style.display = 'inline-block';
+        document.getElementById('resetAssignmentsBtn').style.display = 'inline-block';
+        document.getElementById('deletePeopleBtn').style.display = 'inline-block';
+        document.getElementById('undoBtn').style.display = 'inline-block';
+
+        app.showStatus('Test data auto-loaded successfully!', 'success');
+        console.log('Auto-loaded test_guests.csv');
+    } catch (error) {
+        console.error('Error auto-loading test data:', error);
+        app.showStatus('Failed to auto-load test data: ' + error.message, 'error');
+    }
+}
