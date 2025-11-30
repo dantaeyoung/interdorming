@@ -472,6 +472,12 @@ class DormAssignmentTool {
         // Add drag and drop handlers to the guests container for unassigning
         container.addEventListener('dragover', (e) => this.handleDragOver(e));
         container.addEventListener('drop', (e) => this.handleDrop(e));
+        
+        // Add global group connection lines after guest table is rendered
+        setTimeout(() => this.addGlobalGroupLines(), 50);
+        
+        // Update lines on scroll/resize
+        this.setupGlobalLineUpdates();
     }
 
     groupGuestsByGroupName(guests) {
@@ -747,8 +753,13 @@ class DormAssignmentTool {
                 roomCard.appendChild(ageHistogram);
             }
             roomCard.appendChild(bedsContainer);
+            
+            // Group lines will be added globally after all rooms are rendered
             container.appendChild(roomCard);
         });
+        
+        // Add global group connection lines after all rooms are rendered
+        setTimeout(() => this.addGlobalGroupLines(), 50);
     }
 
     createAgeHistogram(guests) {
@@ -1998,6 +2009,224 @@ class DormAssignmentTool {
             }
         }
         return null;
+    }
+    
+    addGlobalGroupLines() {
+        try {
+            // Remove any existing global group lines and SVG
+            const existingSvg = document.getElementById('global-group-lines-svg');
+            if (existingSvg) {
+                existingSvg.remove();
+            }
+            
+            // Find all guests with group names (assigned and unassigned)
+            const groupMap = {};
+            
+            // Add unassigned guests
+            const unassignedGuests = this.guests.filter(guest => !this.assignments.has(guest.id));
+            unassignedGuests.forEach(guest => {
+                if (guest.groupName && guest.groupName.trim()) {
+                    const groupName = guest.groupName.trim();
+                    if (!groupMap[groupName]) {
+                        groupMap[groupName] = [];
+                    }
+                    groupMap[groupName].push({
+                        guest,
+                        location: 'unassigned',
+                        element: this.findGuestRowElement(guest.id)
+                    });
+                }
+            });
+            
+            // Add assigned guests
+            this.assignments.forEach((bedId, guestId) => {
+                const guest = this.guests.find(g => g.id === guestId);
+                if (guest && guest.groupName && guest.groupName.trim()) {
+                    const groupName = guest.groupName.trim();
+                    if (!groupMap[groupName]) {
+                        groupMap[groupName] = [];
+                    }
+                    groupMap[groupName].push({
+                        guest,
+                        location: 'assigned',
+                        bedId,
+                        element: this.findBedRowElement(bedId)
+                    });
+                }
+            });
+            
+            // Draw lines for groups with multiple members
+            Object.entries(groupMap).forEach(([groupName, members]) => {
+                if (members.length > 1) {
+                    this.drawGlobalGroupConnections(members);
+                }
+            });
+            
+            console.log('Global group lines added for', Object.keys(groupMap).length, 'groups');
+            console.log('Group map:', groupMap);
+        } catch (error) {
+            console.error('Error adding global group lines:', error);
+        }
+    }
+    
+    findGuestRowElement(guestId) {
+        // Find the table row for an unassigned guest
+        const guestsTable = document.querySelector('#guestsContainer table');
+        if (!guestsTable) return null;
+        
+        const rows = guestsTable.querySelectorAll('tr[data-guest-id]');
+        for (const row of rows) {
+            if (row.dataset.guestId === guestId) {
+                return row;
+            }
+        }
+        return null;
+    }
+    
+    findBedRowElement(bedId) {
+        // Find the bed row element for an assigned guest
+        const bedRows = document.querySelectorAll('.bed-row');
+        for (const row of bedRows) {
+            const bedLabel = row.querySelector('.bed-label');
+            if (bedLabel && bedLabel.textContent.includes(bedId)) {
+                return row;
+            }
+        }
+        return null;
+    }
+    
+    drawGlobalGroupConnections(members) {
+        // Create SVG overlay for global lines
+        let svg = document.getElementById('global-group-lines-svg');
+        if (!svg) {
+            svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.id = 'global-group-lines-svg';
+            svg.style.position = 'fixed';
+            svg.style.top = '0';
+            svg.style.left = '0';
+            svg.style.width = '100%';
+            svg.style.height = '100%';
+            svg.style.pointerEvents = 'none';
+            svg.style.zIndex = '1000'; // Higher z-index to make sure it's visible
+            svg.style.border = '2px solid red'; // Temporary debug border
+            document.body.appendChild(svg);
+        }
+        
+        // Calculate positions and draw lines
+        const positions = members
+            .map(member => {
+                if (!member.element) return null;
+                const rect = member.element.getBoundingClientRect();
+                return {
+                    x: rect.left + 180, // Near age badge area
+                    y: rect.top + (rect.height / 2),
+                    member
+                };
+            })
+            .filter(pos => pos !== null);
+        
+        if (positions.length < 2) {
+            console.log('Not enough positions for group lines:', positions.length);
+            return;
+        }
+        
+        console.log('Drawing lines between positions:', positions);
+        
+        // Draw connecting lines
+        for (let i = 0; i < positions.length - 1; i++) {
+            const start = positions[i];
+            const end = positions[i + 1];
+            
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', start.x);
+            line.setAttribute('y1', start.y);
+            line.setAttribute('x2', end.x);
+            line.setAttribute('y2', end.y);
+            line.setAttribute('stroke', '#ff0000'); // Bright red for debugging
+            line.setAttribute('stroke-width', '5'); // Much thicker
+            line.setAttribute('opacity', '1'); // Fully opaque
+            line.setAttribute('class', 'global-group-line');
+            
+            svg.appendChild(line);
+        }
+        
+        // Add indicators at each position
+        positions.forEach(pos => {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', pos.x);
+            circle.setAttribute('cy', pos.y);
+            circle.setAttribute('r', '10'); // Much bigger
+            circle.setAttribute('fill', '#ff0000'); // Bright red
+            circle.setAttribute('opacity', '1'); // Fully opaque
+            circle.setAttribute('class', 'global-group-line');
+            
+            svg.appendChild(circle);
+        });
+    }
+    
+    drawGroupConnections(overlay, groupMembers) {
+        // Sort members by bed index for consistent line drawing
+        groupMembers.sort((a, b) => a.bedIndex - b.bedIndex);
+        
+        // Simple approach: use fixed row height and position calculation
+        const rowHeight = 28; // Fixed bed row height from CSS
+        const x = 180; // Position near the age badge area
+        
+        // Calculate positions based on bed index
+        const positions = groupMembers.map(member => {
+            const y = (member.bedIndex * rowHeight) + (rowHeight / 2);
+            return { x, y, member };
+        });
+        
+        // Draw lines connecting consecutive group members
+        for (let i = 0; i < positions.length - 1; i++) {
+            const start = positions[i];
+            const end = positions[i + 1];
+            
+            // Create vertical connector line
+            const line = document.createElement('div');
+            line.className = 'group-line group-line-vertical';
+            
+            const top = Math.min(start.y, end.y);
+            const height = Math.abs(end.y - start.y);
+            
+            line.style.left = `${start.x}px`;
+            line.style.top = `${top}px`;
+            line.style.height = `${height}px`;
+            
+            overlay.appendChild(line);
+        }
+        
+        // Add small horizontal indicators at each member
+        positions.forEach(pos => {
+            const indicator = document.createElement('div');
+            indicator.className = 'group-line group-line-horizontal';
+            indicator.style.left = `${pos.x - 8}px`;
+            indicator.style.top = `${pos.y - 1}px`;
+            indicator.style.width = '16px';
+            overlay.appendChild(indicator);
+        });
+    }
+    
+    setupGlobalLineUpdates() {
+        // Debounced update function
+        if (!this.globalLineUpdateTimeout) {
+            const updateLines = () => {
+                this.addGlobalGroupLines();
+            };
+            
+            // Update on scroll with debouncing
+            window.addEventListener('scroll', () => {
+                clearTimeout(this.globalLineUpdateTimeout);
+                this.globalLineUpdateTimeout = setTimeout(updateLines, 100);
+            });
+            
+            // Update on resize with debouncing
+            window.addEventListener('resize', () => {
+                clearTimeout(this.globalLineUpdateTimeout);
+                this.globalLineUpdateTimeout = setTimeout(updateLines, 100);
+            });
+        }
     }
     
     // generateBedId method is now provided by AppUtils mixin
