@@ -134,6 +134,9 @@ class DormAssignmentTool {
         document.getElementById('csvFile').addEventListener('change', (e) => this.handleCSVUpload(e));
         document.getElementById('loadTestDataBtn').addEventListener('click', () => autoLoadTestData());
         document.getElementById('searchGuests').addEventListener('input', (e) => this.handleSearch(e));
+        document.getElementById('autoPlaceBtn').addEventListener('click', () => this.autoPlaceGuests());
+        document.getElementById('acceptAllBtn').addEventListener('click', () => this.acceptAllSuggestions());
+        document.getElementById('clearSuggestionsBtn').addEventListener('click', () => this.clearSuggestions());
         document.getElementById('exportBtn').addEventListener('click', () => this.exportCSV());
         document.getElementById('resetAssignmentsBtn').addEventListener('click', () => this.resetAllAssignments());
         document.getElementById('deletePeopleBtn').addEventListener('click', () => this.deleteAllPeopleData());
@@ -233,6 +236,7 @@ class DormAssignmentTool {
                 this.renderGuestsTable();
                 this.renderRooms();
                 this.updateCounts();
+                document.getElementById('autoPlaceBtn').style.display = 'inline-block';
                 document.getElementById('exportBtn').style.display = 'inline-block';
                 document.getElementById('resetAssignmentsBtn').style.display = 'inline-block';
                 document.getElementById('deletePeopleBtn').style.display = 'inline-block';
@@ -740,14 +744,105 @@ class DormAssignmentTool {
                         assignedGuest.addEventListener('dragend', (e) => this.handleDragEnd(e));
                     }
                 } else {
-                    // Empty bed - setup drop button
-                    actionButton.textContent = '↓';
-                    actionButton.title = 'Drop guest here';
-                    actionButton.classList.add('btn-drop');
-                    actionButton.style.display = this.pickedUpGuestId ? 'inline-flex' : 'none';
-                    actionButton.addEventListener('click', () => this.dropGuest(bed.bedId));
-                    
-                    bedAssignment.textContent = 'Empty';
+                    // Check if this bed has a suggested assignment
+                    const suggestedGuest = this.getSuggestedGuestForBed(bed.bedId);
+
+                    if (suggestedGuest) {
+                        // Render suggested assignment with transparency
+                        bedRow.classList.add('suggested');
+
+                        const assignedGuest = document.createElement('div');
+                        assignedGuest.className = 'assigned-guest suggested-guest';
+
+                        // Create display
+                        const displayName = this.createDisplayName(suggestedGuest);
+                        const guestName = `${displayName} ${suggestedGuest.lastName}`;
+
+                        // Add suggestion badge
+                        const suggestionBadge = document.createElement('span');
+                        suggestionBadge.className = 'badge badge-suggestion';
+                        suggestionBadge.textContent = '💡 SUGGESTED';
+                        suggestionBadge.style.marginRight = 'var(--space-2)';
+
+                        // Add age/gender badge
+                        const ageGenderSpan = document.createElement('span');
+                        ageGenderSpan.className = 'badge';
+                        ageGenderSpan.textContent = `${suggestedGuest.age}${suggestedGuest.gender}`;
+
+                        if (suggestedGuest.gender === 'M') {
+                            ageGenderSpan.classList.add('badge-gender-m');
+                        } else if (suggestedGuest.gender === 'F') {
+                            ageGenderSpan.classList.add('badge-gender-f');
+                        } else {
+                            ageGenderSpan.classList.add('badge-gender-coed');
+                        }
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.style.fontWeight = '600';
+                        nameSpan.style.marginRight = 'var(--space-2)';
+                        nameSpan.textContent = guestName;
+
+                        let infoText = '';
+                        if (suggestedGuest.lowerBunk) {
+                            infoText += '  🛏️';
+                        }
+                        if (suggestedGuest.groupName) {
+                            infoText += `  👥${suggestedGuest.groupName}`;
+                        }
+
+                        const infoSpan = document.createElement('span');
+                        infoSpan.style.fontSize = 'var(--font-size-sm)';
+                        infoSpan.style.color = 'var(--text-secondary)';
+                        infoSpan.textContent = infoText;
+
+                        assignedGuest.appendChild(suggestionBadge);
+                        assignedGuest.appendChild(ageGenderSpan);
+                        assignedGuest.appendChild(nameSpan);
+                        assignedGuest.appendChild(infoSpan);
+
+                        bedAssignment.appendChild(assignedGuest);
+
+                        // Add accept button (green check)
+                        const acceptBtn = document.createElement('button');
+                        acceptBtn.className = 'btn btn-tiny btn-accept';
+                        acceptBtn.textContent = '✓';
+                        acceptBtn.title = 'Accept this suggestion';
+                        acceptBtn.style.backgroundColor = '#10b981';
+                        acceptBtn.style.color = 'white';
+                        acceptBtn.style.marginLeft = 'var(--space-2)';
+                        acceptBtn.addEventListener('click', () => this.acceptSuggestion(suggestedGuest.id));
+
+                        // Add reject button (red X)
+                        const rejectBtn = document.createElement('button');
+                        rejectBtn.className = 'btn btn-tiny btn-reject';
+                        rejectBtn.textContent = '✕';
+                        rejectBtn.title = 'Reject this suggestion';
+                        rejectBtn.style.backgroundColor = '#ef4444';
+                        rejectBtn.style.color = 'white';
+                        rejectBtn.style.marginLeft = 'var(--space-1)';
+                        rejectBtn.addEventListener('click', () => this.rejectSuggestion(suggestedGuest.id));
+
+                        bedRow.appendChild(bedLabel);
+                        bedRow.appendChild(bedAssignment);
+                        bedRow.appendChild(acceptBtn);
+                        bedRow.appendChild(rejectBtn);
+                        bedsContainer.appendChild(bedRow);
+
+                        bedRow.addEventListener('dragover', (e) => this.handleDragOver(e));
+                        bedRow.addEventListener('drop', (e) => this.handleDrop(e));
+
+                        // Skip the default button/row append logic below
+                        return;
+                    } else {
+                        // Empty bed - setup drop button
+                        actionButton.textContent = '↓';
+                        actionButton.title = 'Drop guest here';
+                        actionButton.classList.add('btn-drop');
+                        actionButton.style.display = this.pickedUpGuestId ? 'inline-flex' : 'none';
+                        actionButton.addEventListener('click', () => this.dropGuest(bed.bedId));
+
+                        bedAssignment.textContent = 'Empty';
+                    }
                 }
                 
                 bedRow.appendChild(bedLabel);
@@ -1000,6 +1095,7 @@ class DormAssignmentTool {
         this.suggestedAssignments.clear();
         this.renderGuestsTable();
         this.renderRooms();
+        this.updateSuggestionButtons();
     }
 
     // ================================
@@ -1072,6 +1168,86 @@ class DormAssignmentTool {
             `Auto-placement complete: ${placedCount} suggestions created (${guestsToPlace.length} guests could not be placed)`,
             placedCount > 0 ? 'success' : 'warning'
         );
+
+        // Show/hide suggestion action buttons
+        this.updateSuggestionButtons();
+    }
+
+    /**
+     * Accept a single suggested assignment
+     */
+    acceptSuggestion(guestId) {
+        const bedId = this.suggestedAssignments.get(guestId);
+        if (!bedId) return;
+
+        // Remove from suggestions
+        this.suggestedAssignments.delete(guestId);
+
+        // Make permanent assignment
+        this.assignGuestToBed(guestId, bedId);
+
+        // Update suggestion buttons
+        this.updateSuggestionButtons();
+    }
+
+    /**
+     * Reject a single suggested assignment
+     */
+    rejectSuggestion(guestId) {
+        this.suggestedAssignments.delete(guestId);
+        this.renderGuestsTable();
+        this.renderRooms();
+
+        // Update suggestion buttons
+        this.updateSuggestionButtons();
+    }
+
+    /**
+     * Accept all suggested assignments at once
+     */
+    acceptAllSuggestions() {
+        const suggestions = Array.from(this.suggestedAssignments.entries());
+
+        if (suggestions.length === 0) {
+            this.showStatus('No suggestions to accept', 'info');
+            return;
+        }
+
+        // Save to history before batch operation
+        this.saveToHistory();
+
+        for (const [guestId, bedId] of suggestions) {
+            // Make assignment without saving to history each time
+            const bed = this.findBed(bedId);
+            if (bed) {
+                bed.assignedGuestId = guestId;
+                this.assignments.set(guestId, bedId);
+            }
+        }
+
+        // Clear all suggestions
+        this.suggestedAssignments.clear();
+
+        // Refresh UI once
+        this.renderGuestsTable();
+        this.renderRooms();
+        this.updateCounts();
+        this.updateUndoButton();
+        this.saveToLocalStorage();
+
+        // Update suggestion buttons
+        this.updateSuggestionButtons();
+
+        this.showStatus(`Accepted ${suggestions.length} suggested assignments`, 'success');
+    }
+
+    /**
+     * Update visibility of suggestion action buttons
+     */
+    updateSuggestionButtons() {
+        const hasSuggestions = this.suggestedAssignments.size > 0;
+        document.getElementById('acceptAllBtn').style.display = hasSuggestions ? 'inline-block' : 'none';
+        document.getElementById('clearSuggestionsBtn').style.display = hasSuggestions ? 'inline-block' : 'none';
     }
 
     /**
@@ -1455,6 +1631,9 @@ class DormAssignmentTool {
             this.saveToLocalStorage();
             
             // Hide action buttons since no guests exist
+            document.getElementById('autoPlaceBtn').style.display = 'none';
+            document.getElementById('acceptAllBtn').style.display = 'none';
+            document.getElementById('clearSuggestionsBtn').style.display = 'none';
             document.getElementById('exportBtn').style.display = 'none';
             document.getElementById('resetAssignmentsBtn').style.display = 'none';
             document.getElementById('deletePeopleBtn').style.display = 'none';
@@ -2635,6 +2814,7 @@ async function autoLoadTestData() {
         app.updateCounts();
 
         // Show action buttons
+        document.getElementById('autoPlaceBtn').style.display = 'inline-block';
         document.getElementById('exportBtn').style.display = 'inline-block';
         document.getElementById('resetAssignmentsBtn').style.display = 'inline-block';
         document.getElementById('deletePeopleBtn').style.display = 'inline-block';
