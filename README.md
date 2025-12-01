@@ -1,4 +1,6 @@
-# Blue Cliff Monastery Dorm Assignment Tool
+# NOTE: Vibecoded
+
+# Interdorming: a Dorm Assignment Tool
 
 A client-side web application for streamlining the assignment of 60-80 retreat guests to dormitory beds at Blue Cliff Monastery. This tool replaces a manual spreadsheet-based workflow used by monastery staff 1-2 times per month.
 
@@ -250,12 +252,13 @@ git add sample_room_config.csv --force
 
 ## Contributing
 
-This is a custom tool for Blue Cliff Monastery. For development guidance, see [`CLAUDE.md`](CLAUDE.md) which contains the development workflow and coding standards.
+This is a custom tool for Blue Cliff Monastery created by Dan Taeyoung, mostly vibecoded with Claude Code.
+For development guidance, see [`CLAUDE.md`](CLAUDE.md) which contains the development workflow and coding standards.
 
 ## License
 
-Copyright © 2024 Blue Cliff Monastery
+Copyright © Dan Taeyoung.
 
 ## Support
 
-For issues, feature requests, or questions, contact the monastery IT coordinator.
+For issues, feature requests, or questions, contact Dan Taeyoung.
