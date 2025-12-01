@@ -1220,8 +1220,8 @@ class DormAssignmentTool {
                 </div>
                 <div class="room-config-info">
                     <span class="badge badge-gender-${room.roomGender === 'M' ? 'm' : room.roomGender === 'F' ? 'f' : 'coed'}">${room.roomGender}</span>
-                    <span class="room-config-detail">${bedCount} beds</span>
-                    <span class="room-config-detail">${occupiedBeds} occupied</span>
+                    <span class="room-config-detail">🛏️ ${bedCount} beds</span>
+                    <span class="room-config-detail">👤 ${occupiedBeds} occupied</span>
                 </div>
                 <div class="room-config-actions">
                     <button class="btn btn-small" onclick="app.openBedConfiguration(${this.selectedDormitory}, ${roomIndex})">Configure Beds</button>
