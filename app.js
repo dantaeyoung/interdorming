@@ -602,11 +602,13 @@ class DormAssignmentTool {
                 ageRangeText = minAge === maxAge ? `, age ${minAge}` : `, ages ${minAge}-${maxAge}`;
             }
             
-            // Create gender badge
+            // Create gender badge (clickable)
             const genderBadge = document.createElement('span');
-            genderBadge.className = 'badge';
+            genderBadge.className = 'badge badge-clickable';
             genderBadge.textContent = room.roomGender;
-            
+            genderBadge.style.cursor = 'pointer';
+            genderBadge.title = 'Click to change room gender';
+
             // Add color class based on gender
             if (room.roomGender === 'M') {
                 genderBadge.classList.add('badge-gender-m');
@@ -615,7 +617,13 @@ class DormAssignmentTool {
             } else {
                 genderBadge.classList.add('badge-gender-coed');
             }
-            
+
+            // Add click handler to change gender
+            genderBadge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.showGenderDropdown(room, genderBadge);
+            });
+
             roomInfo.innerHTML = '';
             roomInfo.appendChild(genderBadge);
             roomInfo.appendChild(document.createTextNode(` • ${occupiedBeds}/${room.beds.length} beds${ageRangeText}`));
@@ -866,6 +874,101 @@ class DormAssignmentTool {
         
         // Add global group connection lines after all rooms are rendered
         setTimeout(() => this.addGlobalGroupLines(), 50);
+    }
+
+    /**
+     * Show a dropdown to change room gender
+     */
+    showGenderDropdown(room, badgeElement) {
+        // Remove any existing dropdown
+        const existingDropdown = document.querySelector('.gender-dropdown');
+        if (existingDropdown) {
+            existingDropdown.remove();
+        }
+
+        // Create select dropdown
+        const select = document.createElement('select');
+        select.className = 'gender-dropdown';
+        select.style.position = 'absolute';
+        select.style.zIndex = '1000';
+        select.style.fontSize = 'var(--font-size-sm)';
+        select.style.padding = 'var(--space-1)';
+        select.style.borderRadius = 'var(--radius-md)';
+        select.style.border = '1px solid var(--border-color)';
+        select.style.backgroundColor = 'white';
+        select.style.cursor = 'pointer';
+
+        // Add options
+        const options = [
+            { value: 'M', label: 'M (Male)' },
+            { value: 'F', label: 'F (Female)' },
+            { value: 'Coed', label: 'Coed' }
+        ];
+
+        options.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.label;
+            if (opt.value === room.roomGender) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+
+        // Position dropdown near the badge
+        const rect = badgeElement.getBoundingClientRect();
+        select.style.left = `${rect.left}px`;
+        select.style.top = `${rect.bottom + 4}px`;
+
+        // Handle selection change
+        select.addEventListener('change', () => {
+            this.updateRoomGender(room, select.value);
+            select.remove();
+        });
+
+        // Close dropdown when clicking outside
+        const closeDropdown = (e) => {
+            if (!select.contains(e.target) && e.target !== badgeElement) {
+                select.remove();
+                document.removeEventListener('click', closeDropdown);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeDropdown), 0);
+
+        // Close on blur
+        select.addEventListener('blur', () => {
+            setTimeout(() => select.remove(), 100);
+        });
+
+        // Add to body and focus
+        document.body.appendChild(select);
+        select.focus();
+    }
+
+    /**
+     * Update room gender in both room config and dormitory structure
+     */
+    updateRoomGender(room, newGender) {
+        // Update in flat rooms array
+        room.roomGender = newGender;
+
+        // Update in dormitory structure
+        for (const dorm of this.dormitories) {
+            const dormRoom = dorm.rooms.find(r => r.roomName === room.roomName);
+            if (dormRoom) {
+                dormRoom.roomGender = newGender;
+                break;
+            }
+        }
+
+        // Save to storage
+        this.saveToLocalStorage();
+
+        // Re-render to show new gender
+        this.renderRooms();
+
+        // Show status message
+        this.showStatus(`Updated ${room.roomName} to ${newGender}`, 'success');
     }
 
     createAgeHistogram(guests) {
@@ -2734,19 +2837,19 @@ class DormAssignmentTool {
                 .map(member => {
                     if (!member.element) return null;
 
-                    // Find the gender/age badge within the element
-                    const badge = member.element.querySelector('.badge');
+                    // Find the assigned guest container or name element within the bed row
+                    const assignedGuest = member.element.querySelector('.assigned-guest');
                     let x, y;
 
-                    if (badge) {
-                        // Use the badge position as the connection point
-                        const badgeRect = badge.getBoundingClientRect();
-                        x = badgeRect.left - containerRect.left + container.scrollLeft + (badgeRect.width / 2);
-                        y = badgeRect.top - containerRect.top + container.scrollTop + (badgeRect.height / 2);
+                    if (assignedGuest) {
+                        // Position line to the left of the name (before the badge)
+                        const rect = assignedGuest.getBoundingClientRect();
+                        x = rect.left - containerRect.left + container.scrollLeft - 10; // 10px to the left
+                        y = rect.top - containerRect.top + container.scrollTop + (rect.height / 2);
                     } else {
-                        // Fallback to row position if no badge found
+                        // Fallback to row position if no assigned guest found (for unassigned guests table)
                         const rect = member.element.getBoundingClientRect();
-                        x = rect.left - containerRect.left + container.scrollLeft + 20;
+                        x = rect.left - containerRect.left + container.scrollLeft + 10;
                         y = rect.top - containerRect.top + container.scrollTop + (rect.height / 2);
                     }
 

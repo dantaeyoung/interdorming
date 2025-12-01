@@ -254,7 +254,9 @@ This is a custom tool for Blue Cliff Monastery. For development guidance, see [`
 
 ## License
 
-Copyright © 2024 Blue Cliff Monastery
+MIT License - see [LICENSE](LICENSE) file for details.
+
+> Mostly vibecoded with Claude; MIT license to keep it sharable.
 
 ## Support
 
