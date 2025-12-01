@@ -36,6 +36,16 @@ Object.assign(DormAssignmentTool.prototype, {
             display: {
                 showAgeHistograms: true
             },
+            autoPlacement: {
+                enabled: true,
+                priorities: [
+                    { name: 'gender', weight: 10, enabled: true, label: 'Gender Matching' },
+                    { name: 'families', weight: 8, enabled: true, label: 'Keep Families Together' },
+                    { name: 'bunkPreference', weight: 6, enabled: true, label: 'Bunk Preferences' },
+                    { name: 'ageCompatibility', weight: 4, enabled: false, label: 'Age Compatibility' }
+                ],
+                allowConstraintRelaxation: true
+            },
             version: "1.0"
         };
     },
@@ -67,6 +77,11 @@ Object.assign(DormAssignmentTool.prototype, {
                 display: {
                     showAgeHistograms: this.settings.display.showAgeHistograms
                 },
+                autoPlacement: {
+                    enabled: this.settings.autoPlacement.enabled,
+                    priorities: JSON.parse(JSON.stringify(this.settings.autoPlacement.priorities)),
+                    allowConstraintRelaxation: this.settings.autoPlacement.allowConstraintRelaxation
+                },
                 version: this.settings.version
             };
             
@@ -91,7 +106,19 @@ Object.assign(DormAssignmentTool.prototype, {
                     mergedSettings.display.showAgeHistograms = savedSettings.display.showAgeHistograms;
                 }
             }
-            
+
+            if (savedSettings.autoPlacement) {
+                if (typeof savedSettings.autoPlacement.enabled === 'boolean') {
+                    mergedSettings.autoPlacement.enabled = savedSettings.autoPlacement.enabled;
+                }
+                if (Array.isArray(savedSettings.autoPlacement.priorities)) {
+                    mergedSettings.autoPlacement.priorities = savedSettings.autoPlacement.priorities;
+                }
+                if (typeof savedSettings.autoPlacement.allowConstraintRelaxation === 'boolean') {
+                    mergedSettings.autoPlacement.allowConstraintRelaxation = savedSettings.autoPlacement.allowConstraintRelaxation;
+                }
+            }
+
             // Update the settings object
             this.settings = mergedSettings;
             
@@ -136,7 +163,19 @@ Object.assign(DormAssignmentTool.prototype, {
                     updatedSettings.display.showAgeHistograms = newSettings.display.showAgeHistograms;
                 }
             }
-            
+
+            if (newSettings.autoPlacement) {
+                if (typeof newSettings.autoPlacement.enabled === 'boolean') {
+                    updatedSettings.autoPlacement.enabled = newSettings.autoPlacement.enabled;
+                }
+                if (Array.isArray(newSettings.autoPlacement.priorities)) {
+                    updatedSettings.autoPlacement.priorities = newSettings.autoPlacement.priorities;
+                }
+                if (typeof newSettings.autoPlacement.allowConstraintRelaxation === 'boolean') {
+                    updatedSettings.autoPlacement.allowConstraintRelaxation = newSettings.autoPlacement.allowConstraintRelaxation;
+                }
+            }
+
             // Apply the updated settings
             this.settings = updatedSettings;
             
@@ -273,12 +312,22 @@ Object.assign(DormAssignmentTool.prototype, {
             display: {
                 showAgeHistograms: true
             },
+            autoPlacement: {
+                enabled: true,
+                priorities: [
+                    { name: 'gender', weight: 10, enabled: true, label: 'Gender Matching' },
+                    { name: 'families', weight: 8, enabled: true, label: 'Keep Families Together' },
+                    { name: 'bunkPreference', weight: 6, enabled: true, label: 'Bunk Preferences' },
+                    { name: 'ageCompatibility', weight: 4, enabled: false, label: 'Age Compatibility' }
+                ],
+                allowConstraintRelaxation: true
+            },
             version: "1.0"
         };
-        
+
         // Refresh the UI
         this.refreshUIAfterSettingsChange();
-        
+
         // Save to localStorage
         this.saveToLocalStorage();
     },

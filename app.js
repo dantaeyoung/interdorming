@@ -3,6 +3,7 @@ class DormAssignmentTool {
         this.guests = [];
         this.rooms = [];
         this.assignments = new Map();
+        this.suggestedAssignments = new Map(); // Auto-placement suggestions
         this.sortColumn = null;
         this.sortDirection = 'asc';
         this.searchQuery = '';
@@ -15,10 +16,10 @@ class DormAssignmentTool {
         this.bedConfigRoomIndex = null;
         this.selectedBedType = 'single';
         this.pickedUpGuestId = null; // Track picked up guest
-        
+
         // Initialize settings with defaults from constants
         this.settings = { ...APP_CONSTANTS.DEFAULT_SETTINGS };
-        
+
         this.initializeRooms();
         this.bindEvents();
         this.loadFromLocalStorage();
@@ -948,7 +949,7 @@ class DormAssignmentTool {
     unassignGuest(guestId) {
         // Save current state for undo
         this.saveToHistory();
-        
+
         const bedId = this.assignments.get(guestId);
         if (bedId) {
             const bed = this.findBed(bedId);
@@ -957,12 +958,40 @@ class DormAssignmentTool {
             }
             this.assignments.delete(guestId);
         }
-        
+
         this.renderGuestsTable();
         this.renderRooms();
         this.updateCounts();
         this.updateUndoButton();
         this.saveToLocalStorage();
+    }
+
+    // Auto-placement helper methods
+    getSuggestedGuestForBed(bedId) {
+        // Find guestId that has this bedId as suggested assignment
+        for (const [guestId, suggestedBedId] of this.suggestedAssignments) {
+            if (suggestedBedId === bedId) {
+                return this.guests.find(g => g.id === guestId);
+            }
+        }
+        return null;
+    }
+
+    isBedSuggested(bedId) {
+        // Check if this bed has a suggested assignment
+        for (const suggestedBedId of this.suggestedAssignments.values()) {
+            if (suggestedBedId === bedId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    clearSuggestions() {
+        // Clear all suggested assignments
+        this.suggestedAssignments.clear();
+        this.renderGuestsTable();
+        this.renderRooms();
     }
 
     updateCounts() {
