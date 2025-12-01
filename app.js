@@ -141,6 +141,7 @@ class DormAssignmentTool {
         // Configuration tab events
         document.getElementById('addDormitoryBtn').addEventListener('click', () => this.addDormitory());
         document.getElementById('addRoomBtn').addEventListener('click', () => this.addRoom());
+        document.getElementById('loadDefaultRoomsBtn').addEventListener('click', () => autoLoadDefaultRooms());
         document.getElementById('exportRoomsBtn').addEventListener('click', () => this.exportRoomConfig());
         document.getElementById('importRoomsBtn').addEventListener('click', () => this.importRoomConfig());
         document.getElementById('roomConfigFile').addEventListener('change', (e) => this.handleRoomConfigUpload(e));
@@ -2294,5 +2295,32 @@ async function autoLoadTestData() {
     } catch (error) {
         console.error('Error auto-loading test data:', error);
         app.showStatus('Failed to auto-load test data: ' + error.message, 'error');
+    }
+}
+
+// Auto-load default_room_config.csv for monastery's default room setup
+async function autoLoadDefaultRooms() {
+    try {
+        const response = await fetch('default_room_config.csv');
+        if (!response.ok) {
+            app.showStatus('Default room configuration file not found', 'error');
+            console.warn('default_room_config.csv not found');
+            return;
+        }
+
+        const csvText = await response.text();
+        app.parseRoomConfigCSV(csvText);
+        app.showStatus('Default room configuration loaded successfully!', 'success');
+
+        // Update all interfaces
+        app.renderDormitories();
+        app.renderRoomConfiguration();
+        app.refreshRoomsFromDormitories();
+        app.renderRooms();
+
+        console.log('Auto-loaded default_room_config.csv');
+    } catch (error) {
+        console.error('Error auto-loading default room configuration:', error);
+        app.showStatus('Failed to auto-load default room configuration: ' + error.message, 'error');
     }
 }
