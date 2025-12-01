@@ -994,6 +994,319 @@ class DormAssignmentTool {
         this.renderRooms();
     }
 
+    // ================================
+    // AUTO-PLACEMENT ALGORITHM
+    // ================================
+
+    /**
+     * Main auto-placement method - assigns unassigned guests to available beds
+     * Uses multi-pass algorithm with progressive constraint relaxation
+     */
+    autoPlaceGuests() {
+        if (!this.settings.autoPlacement.enabled) {
+            this.showStatus('Auto-placement is disabled in settings', 'error');
+            return;
+        }
+
+        // Clear any existing suggestions
+        this.suggestedAssignments.clear();
+
+        // Get unassigned guests
+        const unassignedGuests = this.guests.filter(g => !this.assignments.has(g.id));
+
+        if (unassignedGuests.length === 0) {
+            this.showStatus('All guests are already assigned', 'info');
+            return;
+        }
+
+        // Get available beds
+        const availableBeds = this.getAllAvailableBeds();
+
+        if (availableBeds.length === 0) {
+            this.showStatus('No available beds for placement', 'error');
+            return;
+        }
+
+        // Multi-pass placement with constraint relaxation
+        const passes = [
+            { name: 'strict', allowRelaxation: false },
+            { name: 'relaxed', allowRelaxation: true, relaxBunkPreference: true },
+            { name: 'emergency', allowRelaxation: true, relaxBunkPreference: true, relaxAge: true }
+        ];
+
+        let placedCount = 0;
+        const guestsToPlace = [...unassignedGuests];
+
+        for (const pass of passes) {
+            if (guestsToPlace.length === 0) break;
+
+            const placedInPass = this.placementPass(guestsToPlace, availableBeds, pass);
+            placedCount += placedInPass;
+
+            // Remove placed guests from queue
+            for (let i = guestsToPlace.length - 1; i >= 0; i--) {
+                if (this.suggestedAssignments.has(guestsToPlace[i].id)) {
+                    guestsToPlace.splice(i, 1);
+                }
+            }
+
+            // Stop after strict pass if constraint relaxation is disabled
+            if (!this.settings.autoPlacement.allowConstraintRelaxation && pass.name === 'strict') {
+                break;
+            }
+        }
+
+        // Refresh UI to show suggestions
+        this.renderGuestsTable();
+        this.renderRooms();
+
+        this.showStatus(
+            `Auto-placement complete: ${placedCount} suggestions created (${guestsToPlace.length} guests could not be placed)`,
+            placedCount > 0 ? 'success' : 'warning'
+        );
+    }
+
+    /**
+     * Single placement pass - attempts to place guests with given constraints
+     */
+    placementPass(guests, availableBeds, passConfig) {
+        let placedCount = 0;
+
+        for (const guest of guests) {
+            // Skip if already placed in previous pass
+            if (this.suggestedAssignments.has(guest.id)) continue;
+
+            // Find best bed for this guest
+            let bestBed = null;
+            let bestScore = -Infinity;
+
+            for (const bed of availableBeds) {
+                // Skip if bed is already assigned or suggested
+                if (bed.assignedGuestId) continue;
+                if (this.isBedSuggested(bed.bedId)) continue;
+
+                // Calculate placement score
+                const score = this.calculatePlacementScore(guest, bed, passConfig);
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestBed = bed;
+                }
+            }
+
+            // Assign to best bed if score is acceptable
+            if (bestBed && bestScore > 0) {
+                this.suggestedAssignments.set(guest.id, bestBed.bedId);
+                placedCount++;
+            }
+        }
+
+        return placedCount;
+    }
+
+    /**
+     * Calculate placement score for guest-bed combination
+     */
+    calculatePlacementScore(guest, bed, passConfig) {
+        let score = 0;
+        const priorities = this.settings.autoPlacement.priorities;
+
+        // Find room containing this bed
+        const room = this.findRoomForBed(bed.bedId);
+        if (!room) return -Infinity;
+
+        // Gender matching (highest priority)
+        const genderPriority = priorities.find(p => p.name === 'gender');
+        if (genderPriority?.enabled) {
+            const genderScore = this.scoreGenderMatch(guest, room);
+            if (genderScore < 0) return -Infinity; // Hard constraint
+            score += genderScore * genderPriority.weight;
+        }
+
+        // Family/group grouping
+        const familyPriority = priorities.find(p => p.name === 'families');
+        if (familyPriority?.enabled) {
+            score += this.scoreFamilyGrouping(guest, room, bed) * familyPriority.weight;
+        }
+
+        // Bunk preference
+        const bunkPriority = priorities.find(p => p.name === 'bunkPreference');
+        if (bunkPriority?.enabled && !passConfig.relaxBunkPreference) {
+            score += this.scoreBunkPreference(guest, bed) * bunkPriority.weight;
+        }
+
+        // Age compatibility
+        const agePriority = priorities.find(p => p.name === 'ageCompatibility');
+        if (agePriority?.enabled && !passConfig.relaxAge) {
+            score += this.scoreAgeCompatibility(guest, room) * agePriority.weight;
+        }
+
+        return score;
+    }
+
+    /**
+     * Score gender matching (hard constraint)
+     */
+    scoreGenderMatch(guest, room) {
+        // Coed rooms accept anyone
+        if (room.roomGender === 'Coed') return 1.0;
+
+        // Check guest gender
+        const guestGender = guest.gender?.toUpperCase();
+
+        if (!guestGender) return 0; // Unknown gender gets neutral score
+
+        // Male/Female must match room gender
+        if (room.roomGender === 'M' && guestGender === 'M') return 1.0;
+        if (room.roomGender === 'F' && guestGender === 'F') return 1.0;
+
+        // Gender mismatch is forbidden
+        return -1;
+    }
+
+    /**
+     * Score family/group grouping preference
+     */
+    scoreFamilyGrouping(guest, room, bed) {
+        // No group = neutral
+        if (!guest.groupName) return 0;
+
+        // Count family members already in this room (actual + suggested)
+        let familyInRoom = 0;
+        let familyElsewhere = 0;
+
+        for (const otherGuest of this.guests) {
+            if (otherGuest.id === guest.id) continue;
+            if (otherGuest.groupName !== guest.groupName) continue;
+
+            const assignedBedId = this.assignments.get(otherGuest.id) || this.suggestedAssignments.get(otherGuest.id);
+            if (!assignedBedId) continue;
+
+            const otherBed = this.findBed(assignedBedId);
+            if (!otherBed) continue;
+
+            const otherRoom = this.findRoomForBed(assignedBedId);
+            if (otherRoom?.roomName === room.roomName) {
+                familyInRoom++;
+            } else {
+                familyElsewhere++;
+            }
+        }
+
+        // Prefer rooms where family is already present
+        if (familyInRoom > 0) return 1.0;
+
+        // Penalize if splitting family
+        if (familyElsewhere > 0) return -0.5;
+
+        return 0;
+    }
+
+    /**
+     * Score bunk preference matching
+     */
+    scoreBunkPreference(guest, bed) {
+        // No preference = neutral
+        if (!guest.lowerBunk) return 0;
+
+        const needsLowerBunk = guest.lowerBunk === 'Yes' || guest.lowerBunk === true || guest.lowerBunk === 'TRUE';
+
+        if (!needsLowerBunk) return 0;
+
+        // Reward lower bunk or single bed
+        if (bed.bedType === 'lower' || bed.bedType === 'single') {
+            return 1.0;
+        }
+
+        // Penalize upper bunk
+        if (bed.bedType === 'upper') {
+            return -0.5;
+        }
+
+        return 0;
+    }
+
+    /**
+     * Score age compatibility with roommates
+     */
+    scoreAgeCompatibility(guest, room) {
+        if (!guest.age) return 0;
+
+        const guestAge = parseInt(guest.age);
+        if (isNaN(guestAge)) return 0;
+
+        // Get ages of current and suggested roommates
+        const roommateAges = [];
+
+        for (const bed of room.beds) {
+            const assignedGuestId = bed.assignedGuestId ||
+                (this.suggestedAssignments.has(bed.bedId) ?
+                    [...this.suggestedAssignments.entries()].find(([gId, bId]) => bId === bed.bedId)?.[0] : null);
+
+            if (assignedGuestId) {
+                const roommate = this.guests.find(g => g.id === assignedGuestId);
+                if (roommate?.age) {
+                    const age = parseInt(roommate.age);
+                    if (!isNaN(age)) roommateAges.push(age);
+                }
+            }
+        }
+
+        if (roommateAges.length === 0) return 0;
+
+        // Calculate average age gap
+        const avgAge = roommateAges.reduce((sum, age) => sum + age, 0) / roommateAges.length;
+        const ageGap = Math.abs(guestAge - avgAge);
+
+        // Score based on age gap (smaller gap = better)
+        if (ageGap < 5) return 1.0;
+        if (ageGap < 10) return 0.5;
+        if (ageGap < 20) return 0.0;
+        return -0.3;
+    }
+
+    /**
+     * Get all available beds across all dormitories
+     */
+    getAllAvailableBeds() {
+        const availableBeds = [];
+
+        for (const dormitory of this.dormitories) {
+            if (!dormitory.active) continue;
+
+            for (const room of dormitory.rooms) {
+                if (!room.active) continue;
+
+                for (const bed of room.beds) {
+                    if (!bed.assignedGuestId) {
+                        availableBeds.push({
+                            ...bed,
+                            roomName: room.roomName,
+                            roomGender: room.roomGender,
+                            dormitoryName: dormitory.dormitoryName
+                        });
+                    }
+                }
+            }
+        }
+
+        return availableBeds;
+    }
+
+    /**
+     * Find room containing a specific bed
+     */
+    findRoomForBed(bedId) {
+        for (const dormitory of this.dormitories) {
+            for (const room of dormitory.rooms) {
+                if (room.beds.some(b => b.bedId === bedId)) {
+                    return room;
+                }
+            }
+        }
+        return null;
+    }
+
     updateCounts() {
         const unassignedCount = this.guests.filter(guest => !this.assignments.has(guest.id)).length;
         const assignedCount = this.assignments.size;
