@@ -128,9 +128,10 @@ class DormAssignmentTool {
         document.getElementById('assignmentTab').addEventListener('click', () => this.switchTab('assignment'));
         document.getElementById('configurationTab').addEventListener('click', () => this.switchTab('configuration'));
         document.getElementById('settingsTab').addEventListener('click', () => this.switchTab('settings'));
-        
+
         // Assignment tab events
         document.getElementById('csvFile').addEventListener('change', (e) => this.handleCSVUpload(e));
+        document.getElementById('loadTestDataBtn').addEventListener('click', () => autoLoadTestData());
         document.getElementById('searchGuests').addEventListener('input', (e) => this.handleSearch(e));
         document.getElementById('exportBtn').addEventListener('click', () => this.exportCSV());
         document.getElementById('resetAssignmentsBtn').addEventListener('click', () => this.resetAllAssignments());
@@ -2013,57 +2014,62 @@ class DormAssignmentTool {
     
     addGlobalGroupLines() {
         try {
-            // Remove any existing global group lines and SVG
-            const existingSvg = document.getElementById('global-group-lines-svg');
-            if (existingSvg) {
-                existingSvg.remove();
+            // Remove any existing SVG in guests container
+            const guestsContainer = document.getElementById('guestsContainer');
+            const existingGuestsSvg = guestsContainer.querySelector('.group-lines-svg');
+            if (existingGuestsSvg) {
+                existingGuestsSvg.remove();
             }
-            
-            // Find all guests with group names (assigned and unassigned)
-            const groupMap = {};
-            
-            // Add unassigned guests
+
+            // Remove any existing SVG in rooms container
+            const roomsContainer = document.getElementById('roomsContainer');
+            const existingRoomsSvg = roomsContainer.querySelector('.group-lines-svg');
+            if (existingRoomsSvg) {
+                existingRoomsSvg.remove();
+            }
+
+            // Find all guests with group names (unassigned only for guests container)
+            const unassignedGroupMap = {};
             const unassignedGuests = this.guests.filter(guest => !this.assignments.has(guest.id));
             unassignedGuests.forEach(guest => {
                 if (guest.groupName && guest.groupName.trim()) {
                     const groupName = guest.groupName.trim();
-                    if (!groupMap[groupName]) {
-                        groupMap[groupName] = [];
+                    if (!unassignedGroupMap[groupName]) {
+                        unassignedGroupMap[groupName] = [];
                     }
-                    groupMap[groupName].push({
+                    unassignedGroupMap[groupName].push({
                         guest,
-                        location: 'unassigned',
                         element: this.findGuestRowElement(guest.id)
                     });
                 }
             });
-            
-            // Add assigned guests
+
+            // Draw lines in guests container
+            if (Object.keys(unassignedGroupMap).length > 0) {
+                this.drawGroupLinesInContainer(guestsContainer, unassignedGroupMap);
+            }
+
+            // Find assigned guests with group names for rooms container
+            const assignedGroupMap = {};
             this.assignments.forEach((bedId, guestId) => {
                 const guest = this.guests.find(g => g.id === guestId);
                 if (guest && guest.groupName && guest.groupName.trim()) {
                     const groupName = guest.groupName.trim();
-                    if (!groupMap[groupName]) {
-                        groupMap[groupName] = [];
+                    if (!assignedGroupMap[groupName]) {
+                        assignedGroupMap[groupName] = [];
                     }
-                    groupMap[groupName].push({
+                    assignedGroupMap[groupName].push({
                         guest,
-                        location: 'assigned',
                         bedId,
                         element: this.findBedRowElement(bedId)
                     });
                 }
             });
-            
-            // Draw lines for groups with multiple members
-            Object.entries(groupMap).forEach(([groupName, members]) => {
-                if (members.length > 1) {
-                    this.drawGlobalGroupConnections(members);
-                }
-            });
-            
-            console.log('Global group lines added for', Object.keys(groupMap).length, 'groups');
-            console.log('Group map:', groupMap);
+
+            // Draw lines in rooms container
+            if (Object.keys(assignedGroupMap).length > 0) {
+                this.drawGroupLinesInContainer(roomsContainer, assignedGroupMap);
+            }
         } catch (error) {
             console.error('Error adding global group lines:', error);
         }
@@ -2087,81 +2093,97 @@ class DormAssignmentTool {
         // Find the bed row element for an assigned guest
         const bedRows = document.querySelectorAll('.bed-row');
         for (const row of bedRows) {
-            const bedLabel = row.querySelector('.bed-label');
-            if (bedLabel && bedLabel.textContent.includes(bedId)) {
+            if (row.dataset.bedId === bedId) {
                 return row;
             }
         }
         return null;
     }
     
-    drawGlobalGroupConnections(members) {
-        // Create SVG overlay for global lines
-        let svg = document.getElementById('global-group-lines-svg');
-        if (!svg) {
-            svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.id = 'global-group-lines-svg';
-            svg.style.position = 'fixed';
-            svg.style.top = '0';
-            svg.style.left = '0';
-            svg.style.width = '100%';
-            svg.style.height = '100%';
-            svg.style.pointerEvents = 'none';
-            svg.style.zIndex = '1000'; // Higher z-index to make sure it's visible
-            svg.style.border = '2px solid red'; // Temporary debug border
-            document.body.appendChild(svg);
+    drawGroupLinesInContainer(container, groupMap) {
+        // Create SVG positioned inside the container
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.classList.add('group-lines-svg');
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.pointerEvents = 'none';
+        svg.style.zIndex = '1';
+
+        // Make sure container has relative positioning
+        if (window.getComputedStyle(container).position === 'static') {
+            container.style.position = 'relative';
         }
-        
-        // Calculate positions and draw lines
-        const positions = members
-            .map(member => {
-                if (!member.element) return null;
-                const rect = member.element.getBoundingClientRect();
-                return {
-                    x: rect.left + 180, // Near age badge area
-                    y: rect.top + (rect.height / 2),
-                    member
-                };
-            })
-            .filter(pos => pos !== null);
-        
-        if (positions.length < 2) {
-            console.log('Not enough positions for group lines:', positions.length);
-            return;
-        }
-        
-        console.log('Drawing lines between positions:', positions);
-        
-        // Draw connecting lines
-        for (let i = 0; i < positions.length - 1; i++) {
-            const start = positions[i];
-            const end = positions[i + 1];
-            
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', start.x);
-            line.setAttribute('y1', start.y);
-            line.setAttribute('x2', end.x);
-            line.setAttribute('y2', end.y);
-            line.setAttribute('stroke', '#ff0000'); // Bright red for debugging
-            line.setAttribute('stroke-width', '5'); // Much thicker
-            line.setAttribute('opacity', '1'); // Fully opaque
-            line.setAttribute('class', 'global-group-line');
-            
-            svg.appendChild(line);
-        }
-        
-        // Add indicators at each position
-        positions.forEach(pos => {
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', pos.x);
-            circle.setAttribute('cy', pos.y);
-            circle.setAttribute('r', '10'); // Much bigger
-            circle.setAttribute('fill', '#ff0000'); // Bright red
-            circle.setAttribute('opacity', '1'); // Fully opaque
-            circle.setAttribute('class', 'global-group-line');
-            
-            svg.appendChild(circle);
+
+        // Get container's bounding rect for offset calculation
+        const containerRect = container.getBoundingClientRect();
+
+        // Draw lines for each group
+        Object.entries(groupMap).forEach(([groupName, members]) => {
+            if (members.length < 2) return;
+
+            // Calculate positions relative to container
+            const positions = members
+                .map(member => {
+                    if (!member.element) return null;
+
+                    // Find the gender/age badge within the element
+                    const badge = member.element.querySelector('.badge');
+                    let x, y;
+
+                    if (badge) {
+                        // Use the badge position as the connection point
+                        const badgeRect = badge.getBoundingClientRect();
+                        x = badgeRect.left - containerRect.left + container.scrollLeft + (badgeRect.width / 2);
+                        y = badgeRect.top - containerRect.top + container.scrollTop + (badgeRect.height / 2);
+                    } else {
+                        // Fallback to row position if no badge found
+                        const rect = member.element.getBoundingClientRect();
+                        x = rect.left - containerRect.left + container.scrollLeft + 20;
+                        y = rect.top - containerRect.top + container.scrollTop + (rect.height / 2);
+                    }
+
+                    return { x, y, member };
+                })
+                .filter(pos => pos !== null);
+
+            if (positions.length < 2) return;
+
+            // Draw connecting lines between consecutive members
+            for (let i = 0; i < positions.length - 1; i++) {
+                const start = positions[i];
+                const end = positions[i + 1];
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', start.x);
+                line.setAttribute('y1', start.y);
+                line.setAttribute('x2', end.x);
+                line.setAttribute('y2', end.y);
+                line.setAttribute('stroke', '#dc3545');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('opacity', '0.6');
+                line.setAttribute('class', 'group-connection-line');
+
+                svg.appendChild(line);
+            }
+
+            // Add circle indicators at each position
+            positions.forEach(pos => {
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', pos.x);
+                circle.setAttribute('cy', pos.y);
+                circle.setAttribute('r', '4');
+                circle.setAttribute('fill', '#dc3545');
+                circle.setAttribute('opacity', '0.8');
+                circle.setAttribute('class', 'group-connection-indicator');
+
+                svg.appendChild(circle);
+            });
         });
+
+        container.appendChild(svg);
     }
     
     drawGroupConnections(overlay, groupMembers) {
@@ -2209,18 +2231,12 @@ class DormAssignmentTool {
     }
     
     setupGlobalLineUpdates() {
-        // Debounced update function
+        // Only need to update on resize now, since SVG is inside scrollable containers
         if (!this.globalLineUpdateTimeout) {
             const updateLines = () => {
                 this.addGlobalGroupLines();
             };
-            
-            // Update on scroll with debouncing
-            window.addEventListener('scroll', () => {
-                clearTimeout(this.globalLineUpdateTimeout);
-                this.globalLineUpdateTimeout = setTimeout(updateLines, 100);
-            });
-            
+
             // Update on resize with debouncing
             window.addEventListener('resize', () => {
                 clearTimeout(this.globalLineUpdateTimeout);
