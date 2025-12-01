@@ -108,6 +108,10 @@ $RECYCLE.BIN/
 dist/
 build/
 
+# Vite
+.vite/
+*.local
+
 # Package manager lock files (optional - remove if you want to commit them)
 package-lock.json
 yarn.lock
