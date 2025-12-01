@@ -163,7 +163,15 @@ class DormAssignmentTool {
         document.getElementById('roomAvailabilityWarnings').addEventListener('change', (e) => {
             this.updateSettings({ warnings: { roomAvailability: e.target.checked } });
         });
-        
+        document.getElementById('autoPlacementEnabled').addEventListener('change', (e) => {
+            this.settings.autoPlacement.enabled = e.target.checked;
+            this.saveToLocalStorage();
+        });
+        document.getElementById('allowConstraintRelaxation').addEventListener('change', (e) => {
+            this.settings.autoPlacement.allowConstraintRelaxation = e.target.checked;
+            this.saveToLocalStorage();
+        });
+
         // Bed configuration modal events
         document.getElementById('bedConfigModal').addEventListener('click', (e) => {
             if (e.target.id === 'bedConfigModal') {

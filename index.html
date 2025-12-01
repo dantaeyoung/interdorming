@@ -173,6 +173,24 @@
                         <input type="checkbox" id="roomAvailabilityWarnings" class="checkbox" checked>
                         <label for="roomAvailabilityWarnings" class="checkbox-label">Room availability warnings</label>
                     </div>
+
+                    <!-- Auto-Placement Settings Section -->
+                    <h3>Auto-Placement</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="autoPlacementEnabled" class="checkbox" checked>
+                        <label for="autoPlacementEnabled" class="checkbox-label">Enable auto-placement feature</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="allowConstraintRelaxation" class="checkbox" checked>
+                        <label for="allowConstraintRelaxation" class="checkbox-label">Allow constraint relaxation (progressive passes)</label>
+                    </div>
+
+                    <h4 style="margin-top: 1rem; margin-bottom: 0.5rem;">Placement Priorities</h4>
+                    <p style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">Drag to reorder priorities. Higher priorities have more weight in placement decisions.</p>
+                    <div id="prioritiesList" class="priorities-list">
+                        <!-- Priority items will be rendered here -->
+                    </div>
                 </div>
             </div>
         </div>

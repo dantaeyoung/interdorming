@@ -966,3 +966,99 @@ body {
 .hidden {
   display: none;
 }
+
+/* ================================
+   AUTO-PLACEMENT PRIORITIES LIST
+   ================================ */
+
+.priorities-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--secondary-bg);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.priority-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--primary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.priority-item:hover {
+  border-color: var(--accent-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.priority-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.priority-item.drag-over {
+  border-top: 3px solid var(--accent-color);
+}
+
+.priority-drag-handle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: grab;
+  color: #999;
+  min-width: 20px;
+}
+
+.priority-drag-handle::before {
+  content: '⋮⋮';
+  font-size: 14px;
+  line-height: 1;
+}
+
+.priority-item.dragging .priority-drag-handle {
+  cursor: grabbing;
+}
+
+.priority-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.priority-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.priority-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+}
+
+.priority-weight {
+  font-size: var(--font-size-sm);
+  color: #666;
+  background: var(--secondary-bg);
+  padding: 2px 8px;
+  border-radius: var(--border-radius);
+}
+
+.priority-toggle {
+  margin-left: auto;
+}
+
+.priority-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}

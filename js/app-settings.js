@@ -233,6 +233,125 @@ Object.assign(DormAssignmentTool.prototype, {
         document.getElementById('bunkPreferenceWarnings').checked = this.settings.warnings.bunkPreference;
         document.getElementById('familySeparationWarnings').checked = this.settings.warnings.familySeparation;
         document.getElementById('roomAvailabilityWarnings').checked = this.settings.warnings.roomAvailability;
+
+        // Auto-placement settings
+        document.getElementById('autoPlacementEnabled').checked = this.settings.autoPlacement.enabled;
+        document.getElementById('allowConstraintRelaxation').checked = this.settings.autoPlacement.allowConstraintRelaxation;
+
+        // Render priorities list
+        this.renderPrioritiesList();
+    },
+
+    /**
+     * Renders the draggable priorities list
+     */
+    renderPrioritiesList() {
+        const container = document.getElementById('prioritiesList');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        this.settings.autoPlacement.priorities.forEach((priority, index) => {
+            const item = document.createElement('div');
+            item.className = 'priority-item';
+            item.draggable = true;
+            item.dataset.index = index;
+            item.dataset.priorityName = priority.name;
+
+            item.innerHTML = `
+                <div class="priority-drag-handle"></div>
+                <div class="priority-content">
+                    <div class="priority-header">
+                        <span class="priority-label">${priority.label}</span>
+                        <span class="priority-weight">Weight: ${priority.weight}</span>
+                    </div>
+                </div>
+                <div class="priority-toggle">
+                    <input type="checkbox"
+                           ${priority.enabled ? 'checked' : ''}
+                           data-priority="${priority.name}"
+                           class="priority-checkbox">
+                </div>
+            `;
+
+            container.appendChild(item);
+        });
+
+        // Add drag and drop event listeners
+        this.setupPriorityDragAndDrop();
+
+        // Add checkbox event listeners
+        container.querySelectorAll('.priority-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const priorityName = e.target.dataset.priority;
+                const priority = this.settings.autoPlacement.priorities.find(p => p.name === priorityName);
+                if (priority) {
+                    priority.enabled = e.target.checked;
+                    this.saveToLocalStorage();
+                }
+            });
+        });
+    },
+
+    /**
+     * Sets up drag-and-drop functionality for priority list
+     */
+    setupPriorityDragAndDrop() {
+        const items = document.querySelectorAll('.priority-item');
+        let draggedItem = null;
+
+        items.forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                draggedItem = item;
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', item.innerHTML);
+            });
+
+            item.addEventListener('dragend', (e) => {
+                item.classList.remove('dragging');
+                items.forEach(i => i.classList.remove('drag-over'));
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+
+                if (draggedItem && item !== draggedItem) {
+                    item.classList.add('drag-over');
+                }
+            });
+
+            item.addEventListener('dragleave', (e) => {
+                item.classList.remove('drag-over');
+            });
+
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (draggedItem && item !== draggedItem) {
+                    const fromIndex = parseInt(draggedItem.dataset.index);
+                    const toIndex = parseInt(item.dataset.index);
+
+                    // Reorder priorities array
+                    const priorities = this.settings.autoPlacement.priorities;
+                    const [movedItem] = priorities.splice(fromIndex, 1);
+                    priorities.splice(toIndex, 0, movedItem);
+
+                    // Update weights based on new order (highest first)
+                    priorities.forEach((p, idx) => {
+                        p.weight = 10 - (idx * 2); // 10, 8, 6, 4, etc.
+                    });
+
+                    // Re-render and save
+                    this.renderPrioritiesList();
+                    this.saveToLocalStorage();
+                }
+
+                items.forEach(i => i.classList.remove('drag-over'));
+            });
+        });
     },
 
     /**
