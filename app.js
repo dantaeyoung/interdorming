@@ -2317,6 +2317,9 @@ async function autoLoadDefaultRooms() {
         app.renderRoomConfiguration();
         app.refreshRoomsFromDormitories();
         app.renderRooms();
+        app.renderGuestsTable();
+        app.updateCounts();
+        app.saveToLocalStorage();
 
         console.log('Auto-loaded default_room_config.csv');
     } catch (error) {
