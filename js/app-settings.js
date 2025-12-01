@@ -112,7 +112,24 @@ Object.assign(DormAssignmentTool.prototype, {
                     mergedSettings.autoPlacement.enabled = savedSettings.autoPlacement.enabled;
                 }
                 if (Array.isArray(savedSettings.autoPlacement.priorities)) {
-                    mergedSettings.autoPlacement.priorities = savedSettings.autoPlacement.priorities;
+                    // Merge saved priorities with defaults to ensure new priorities are added
+                    const defaultPriorities = APP_CONSTANTS.DEFAULT_SETTINGS.autoPlacement.priorities;
+                    const savedPriorities = savedSettings.autoPlacement.priorities;
+
+                    // Create a map of saved priorities by name for quick lookup
+                    const savedPriorityMap = new Map(savedPriorities.map(p => [p.name, p]));
+
+                    // Merge: use saved values where available, add new defaults where not
+                    mergedSettings.autoPlacement.priorities = defaultPriorities.map(defaultPriority => {
+                        const savedPriority = savedPriorityMap.get(defaultPriority.name);
+                        if (savedPriority) {
+                            // Keep saved priority's settings
+                            return savedPriority;
+                        } else {
+                            // Add new priority from defaults
+                            return defaultPriority;
+                        }
+                    });
                 }
                 if (typeof savedSettings.autoPlacement.allowConstraintRelaxation === 'boolean') {
                     mergedSettings.autoPlacement.allowConstraintRelaxation = savedSettings.autoPlacement.allowConstraintRelaxation;

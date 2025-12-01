@@ -1316,6 +1316,12 @@ class DormAssignmentTool {
             score += genderScore * genderPriority.weight;
         }
 
+        // Gendered room preference (prefer gendered rooms over co-ed for same-gender groups)
+        const genderedRoomPriority = priorities.find(p => p.name === 'genderedRoomPreference');
+        if (genderedRoomPriority?.enabled) {
+            score += this.scoreGenderedRoomPreference(guest, room) * genderedRoomPriority.weight;
+        }
+
         // Family/group grouping
         const familyPriority = priorities.find(p => p.name === 'families');
         if (familyPriority?.enabled) {
@@ -1355,6 +1361,63 @@ class DormAssignmentTool {
 
         // Gender mismatch is forbidden
         return -1;
+    }
+
+    /**
+     * Score preference for gendered rooms over co-ed when appropriate
+     * Prefers gendered rooms (M/F) over co-ed for same-gender individuals/groups
+     * Prefers co-ed rooms for mixed-gender groups
+     */
+    scoreGenderedRoomPreference(guest, room) {
+        const guestGender = guest.gender?.toUpperCase();
+
+        // Unknown gender = neutral
+        if (!guestGender) return 0;
+
+        // Determine if guest's group (if any) is same-gender or mixed
+        let groupGenders = [guestGender];
+
+        if (guest.groupName) {
+            // Collect genders of all group members
+            for (const otherGuest of this.guests) {
+                if (otherGuest.groupName === guest.groupName && otherGuest.id !== guest.id) {
+                    const otherGender = otherGuest.gender?.toUpperCase();
+                    if (otherGender) {
+                        groupGenders.push(otherGender);
+                    }
+                }
+            }
+        }
+
+        // Check if all group members are same gender
+        const isSameGenderGroup = groupGenders.every(g => g === guestGender);
+        const isMixedGenderGroup = !isSameGenderGroup && groupGenders.length > 1;
+
+        // For same-gender individuals/groups: prefer gendered rooms over co-ed
+        if (isSameGenderGroup) {
+            // Matching gendered room gets highest score
+            if ((room.roomGender === 'M' && guestGender === 'M') ||
+                (room.roomGender === 'F' && guestGender === 'F')) {
+                return 1.0;
+            }
+            // Co-ed room is acceptable but not preferred
+            if (room.roomGender === 'Coed') {
+                return 0.5;
+            }
+            // Wrong gendered room (will be blocked by scoreGenderMatch anyway)
+            return 0;
+        }
+
+        // For mixed-gender groups: prefer co-ed rooms
+        if (isMixedGenderGroup) {
+            if (room.roomGender === 'Coed') {
+                return 1.0;
+            }
+            // Gendered rooms are less preferred for mixed-gender groups
+            return -0.3;
+        }
+
+        return 0;
     }
 
     /**

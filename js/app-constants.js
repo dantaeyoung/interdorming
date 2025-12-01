@@ -57,6 +57,7 @@ const APP_CONSTANTS = {
             enabled: true,
             priorities: [
                 { name: 'gender', weight: 10, enabled: true, label: 'Gender Matching' },
+                { name: 'genderedRoomPreference', weight: 9, enabled: true, label: 'Prefer Gendered Rooms over Co-ed' },
                 { name: 'families', weight: 8, enabled: true, label: 'Keep Families Together' },
                 { name: 'bunkPreference', weight: 6, enabled: true, label: 'Bunk Preferences' },
                 { name: 'ageCompatibility', weight: 4, enabled: false, label: 'Age Compatibility' }
