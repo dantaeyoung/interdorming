@@ -236,7 +236,7 @@ class DormAssignmentTool {
                 this.renderGuestsTable();
                 this.renderRooms();
                 this.updateCounts();
-                document.getElementById('autoPlaceBtn').style.display = 'inline-block';
+                // Auto Place button visibility handled by updateCounts()
                 document.getElementById('exportBtn').style.display = 'inline-block';
                 document.getElementById('resetAssignmentsBtn').style.display = 'inline-block';
                 document.getElementById('deletePeopleBtn').style.display = 'inline-block';
@@ -1251,6 +1251,15 @@ class DormAssignmentTool {
     }
 
     /**
+     * Update visibility of Auto Place button
+     */
+    updateAutoPlaceButton() {
+        const hasUnassignedGuests = this.guests.some(g => !this.assignments.has(g.id));
+        const hasGuests = this.guests.length > 0;
+        document.getElementById('autoPlaceBtn').style.display = (hasGuests && hasUnassignedGuests) ? 'inline-block' : 'none';
+    }
+
+    /**
      * Single placement pass - attempts to place guests with given constraints
      */
     placementPass(guests, availableBeds, passConfig) {
@@ -1494,9 +1503,12 @@ class DormAssignmentTool {
     updateCounts() {
         const unassignedCount = this.guests.filter(guest => !this.assignments.has(guest.id)).length;
         const assignedCount = this.assignments.size;
-        
+
         document.getElementById('unassignedCount').textContent = `(${unassignedCount})`;
         document.getElementById('assignedCount').textContent = `(${assignedCount})`;
+
+        // Update Auto Place button visibility
+        this.updateAutoPlaceButton();
     }
     
     saveToHistory() {
@@ -2813,8 +2825,7 @@ async function autoLoadTestData() {
         app.renderRooms();
         app.updateCounts();
 
-        // Show action buttons
-        document.getElementById('autoPlaceBtn').style.display = 'inline-block';
+        // Show action buttons (Auto Place button visibility handled by updateCounts())
         document.getElementById('exportBtn').style.display = 'inline-block';
         document.getElementById('resetAssignmentsBtn').style.display = 'inline-block';
         document.getElementById('deletePeopleBtn').style.display = 'inline-block';
