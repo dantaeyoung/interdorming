@@ -2,7 +2,7 @@
   <div id="app" class="app-container">
     <!-- Header -->
     <div class="header">
-      <h1>Blue Cliff Monastery Dorm Assignment Tool</h1>
+      <h1>Dorm Assignment Tool</h1>
       <p>Drag and drop guests to assign them to dormitory beds</p>
     </div>
 
