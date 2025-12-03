@@ -206,6 +206,9 @@ export { SortIndicator }
   thead {
     background-color: #f9fafb;
     border-bottom: 2px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 
     th {
       padding: 6px 10px;
@@ -216,6 +219,7 @@ export { SortIndicator }
       cursor: pointer;
       user-select: none;
       white-space: nowrap;
+      background-color: #f9fafb;
 
       &:hover {
         background-color: #f3f4f6;
