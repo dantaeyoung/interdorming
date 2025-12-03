@@ -217,7 +217,10 @@ export { SortIndicator }
 <style scoped lang="scss">
 .guest-list {
   width: 100%;
-  overflow-x: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .guest-list-header {
@@ -268,6 +271,9 @@ export { SortIndicator }
   width: 100%;
   border-collapse: collapse;
   background: white;
+  display: block;
+  overflow-y: auto;
+  flex: 1;
 
   thead {
     background-color: #f9fafb;
@@ -275,6 +281,9 @@ export { SortIndicator }
     position: sticky;
     top: 0;
     z-index: 10;
+    display: table;
+    width: 100%;
+    table-layout: fixed;
 
     th {
       padding: 6px 10px;
@@ -298,6 +307,10 @@ export { SortIndicator }
   }
 
   tbody {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+
     &.drag-over {
       background-color: #f0f9ff;
       outline: 2px dashed #3b82f6;
