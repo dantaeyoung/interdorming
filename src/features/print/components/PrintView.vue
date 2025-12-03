@@ -5,6 +5,37 @@
       <button @click="handlePrint" class="print-button">🖨️ Print</button>
     </div>
 
+    <!-- Column Selection -->
+    <div class="column-selector no-print">
+      <h3>Select Columns to Print</h3>
+      <div class="checkbox-grid">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.guestName" />
+          <span>Guest Name</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.gender" />
+          <span>Gender</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.age" />
+          <span>Age</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.group" />
+          <span>Group</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.lowerBunk" />
+          <span>Lower Bunk</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.bedInfo" />
+          <span>Bed Info</span>
+        </label>
+      </div>
+    </div>
+
     <div class="print-content">
       <!-- Header for printed page -->
       <div class="report-header">
@@ -60,24 +91,24 @@
           <table class="room-table">
             <thead>
               <tr>
-                <th>Bed</th>
-                <th>Guest Name</th>
-                <th>Gender</th>
-                <th>Age</th>
-                <th>Group</th>
-                <th>Lower Bunk?</th>
+                <th v-if="columns.bedInfo">Bed</th>
+                <th v-if="columns.guestName">Guest Name</th>
+                <th v-if="columns.gender">Gender</th>
+                <th v-if="columns.age">Age</th>
+                <th v-if="columns.group">Group</th>
+                <th v-if="columns.lowerBunk">Lower Bunk?</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="bed in room.beds.filter(b => b.active !== false)" :key="bed.bedId">
-                <td class="bed-info">
+                <td v-if="columns.bedInfo" class="bed-info">
                   {{ bed.position }} {{ bed.bedType }}
                 </td>
-                <td class="guest-name">{{ getGuestName(bed.assignedGuestId) }}</td>
-                <td>{{ getGuestField(bed.assignedGuestId, 'gender') }}</td>
-                <td>{{ getGuestField(bed.assignedGuestId, 'age') }}</td>
-                <td>{{ getGuestField(bed.assignedGuestId, 'groupName') }}</td>
-                <td>{{ getGuestField(bed.assignedGuestId, 'lowerBunk') }}</td>
+                <td v-if="columns.guestName" class="guest-name">{{ getGuestName(bed.assignedGuestId) }}</td>
+                <td v-if="columns.gender">{{ getGuestField(bed.assignedGuestId, 'gender') }}</td>
+                <td v-if="columns.age">{{ getGuestField(bed.assignedGuestId, 'age') }}</td>
+                <td v-if="columns.group">{{ getGuestField(bed.assignedGuestId, 'groupName') }}</td>
+                <td v-if="columns.lowerBunk">{{ getGuestField(bed.assignedGuestId, 'lowerBunk') }}</td>
               </tr>
             </tbody>
           </table>
@@ -90,20 +121,20 @@
         <table class="unassigned-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Gender</th>
-              <th>Age</th>
-              <th>Group</th>
-              <th>Lower Bunk?</th>
+              <th v-if="columns.guestName">Name</th>
+              <th v-if="columns.gender">Gender</th>
+              <th v-if="columns.age">Age</th>
+              <th v-if="columns.group">Group</th>
+              <th v-if="columns.lowerBunk">Lower Bunk?</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="guestId in assignmentStore.unassignedGuestIds" :key="guestId">
-              <td class="guest-name">{{ getGuestNameById(guestId) }}</td>
-              <td>{{ getGuestFieldById(guestId, 'gender') }}</td>
-              <td>{{ getGuestFieldById(guestId, 'age') }}</td>
-              <td>{{ getGuestFieldById(guestId, 'groupName') }}</td>
-              <td>{{ getGuestFieldById(guestId, 'lowerBunk') }}</td>
+              <td v-if="columns.guestName" class="guest-name">{{ getGuestNameById(guestId) }}</td>
+              <td v-if="columns.gender">{{ getGuestFieldById(guestId, 'gender') }}</td>
+              <td v-if="columns.age">{{ getGuestFieldById(guestId, 'age') }}</td>
+              <td v-if="columns.group">{{ getGuestFieldById(guestId, 'groupName') }}</td>
+              <td v-if="columns.lowerBunk">{{ getGuestFieldById(guestId, 'lowerBunk') }}</td>
             </tr>
           </tbody>
         </table>
@@ -113,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 import { useUtils } from '@/shared/composables/useUtils'
 import type { Room } from '@/types'
@@ -122,6 +153,16 @@ const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
 const { createDisplayName } = useUtils()
+
+// Column visibility state
+const columns = reactive({
+  bedInfo: true,
+  guestName: true,
+  gender: true,
+  age: true,
+  group: true,
+  lowerBunk: true,
+})
 
 const currentDate = computed(() => {
   return new Date().toLocaleDateString('en-US', {
@@ -210,6 +251,50 @@ function handlePrint() {
 
   &:hover {
     background-color: #2563eb;
+  }
+}
+
+.column-selector {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  h3 {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+
+  span {
+    user-select: none;
+  }
+
+  &:hover {
+    color: #1f2937;
   }
 }
 
