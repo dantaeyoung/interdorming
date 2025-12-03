@@ -12,7 +12,8 @@
         <div class="guest-info">
           <strong class="guest-name">{{ displayName }}</strong>
           <span class="guest-details">
-            {{ assignedGuest.gender }}, {{ assignedGuest.age }}
+            <span class="guest-gender">{{ assignedGuest.gender }}</span>
+            <span class="guest-age">{{ assignedGuest.age }}</span>
             <span v-if="assignedGuest.groupName" class="group-badge">
               {{ assignedGuest.groupName }}
             </span>
@@ -31,7 +32,8 @@
         <div class="guest-info">
           <strong class="guest-name">{{ suggestedDisplayName }}</strong>
           <span class="guest-details">
-            {{ suggestedGuest.gender }}, {{ suggestedGuest.age }}
+            <span class="guest-gender">{{ suggestedGuest.gender }}</span>
+            <span class="guest-age">{{ suggestedGuest.age }}</span>
             <span v-if="suggestedGuest.groupName" class="group-badge">
               {{ suggestedGuest.groupName }}
             </span>
@@ -260,6 +262,18 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   gap: 6px;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.guest-gender {
+  display: inline-block;
+  min-width: 20px;
+  text-align: left;
+}
+
+.guest-age {
+  display: inline-block;
+  min-width: 25px;
+  text-align: right;
 }
 
 .group-badge {
