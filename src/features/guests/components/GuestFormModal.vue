@@ -290,6 +290,12 @@ function resetForm() {
 }
 
 function hasUnsavedChanges(): boolean {
+  // Helper to normalize age for comparison (convert to string)
+  const normalizeAge = (age: string | number | undefined): string => {
+    if (age === undefined || age === null || age === '') return ''
+    return String(age)
+  }
+
   // Check if any field has been modified from initial state
   if (props.guest) {
     // In edit mode, compare with original guest data
@@ -298,7 +304,7 @@ function hasUnsavedChanges(): boolean {
       formData.value.lastName !== (props.guest.lastName || '') ||
       formData.value.preferredName !== (props.guest.preferredName || '') ||
       formData.value.gender !== (props.guest.gender || '') ||
-      formData.value.age !== (props.guest.age || '') ||
+      normalizeAge(formData.value.age) !== normalizeAge(props.guest.age) ||
       formData.value.groupName !== (props.guest.groupName || '') ||
       formData.value.lowerBunk !== (props.guest.lowerBunk || false) ||
       formData.value.arrival !== (props.guest.arrival || '') ||
@@ -319,7 +325,7 @@ function hasUnsavedChanges(): boolean {
       formData.value.lastName !== '' ||
       formData.value.preferredName !== '' ||
       formData.value.gender !== '' ||
-      formData.value.age !== '' ||
+      normalizeAge(formData.value.age) !== '' ||
       formData.value.groupName !== '' ||
       formData.value.lowerBunk !== false ||
       formData.value.arrival !== '' ||
