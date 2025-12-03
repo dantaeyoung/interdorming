@@ -16,10 +16,5 @@ export default defineConfig({
         manualChunks: undefined
       }
     }
-  },
-  server: {
-    headers: {
-      'Content-Type': 'application/javascript; charset=utf-8'
-    }
   }
 })
