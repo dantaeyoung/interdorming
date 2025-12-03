@@ -661,7 +661,8 @@ function handleConfirmDialogCancel() {
 .panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 12px;
+  padding: 0;
+  min-height: 0;
 }
 
 .toolbar {

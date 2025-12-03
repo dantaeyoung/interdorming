@@ -1,5 +1,5 @@
 <template>
-  <div class="guest-list">
+  <div class="guest-list" v-bind="dropzoneProps">
     <div class="guest-list-header">
       <button @click="handleAddGuest" class="btn-add-guest">+ Add Guest</button>
     </div>
@@ -75,7 +75,7 @@
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody v-bind="dropzoneProps">
+      <tbody>
         <GuestRow
           v-for="(guest, index) in guests"
           :key="guest.id"
@@ -227,9 +227,16 @@ export { SortIndicator }
 .guest-list {
   width: 100%;
   height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  &.drag-over {
+    background-color: #f0f9ff;
+    outline: 2px dashed #3b82f6;
+    outline-offset: -2px;
+  }
 }
 
 .guest-list-header {
@@ -359,11 +366,6 @@ export { SortIndicator }
   }
 
   tbody {
-    &.drag-over {
-      background-color: #f0f9ff;
-      outline: 2px dashed #3b82f6;
-      outline-offset: -2px;
-    }
   }
 }
 
