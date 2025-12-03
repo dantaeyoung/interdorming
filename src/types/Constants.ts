@@ -51,6 +51,10 @@ export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
   notes: ['notes', 'NOTES', 'Notes', 'Note'],
   retreat: ['retreat', 'RETREAT', 'Retreat'],
   ratePerNight: ['ratePerNight', 'Rate per night', 'RATE PER NIGHT', 'Rate Per Night', 'rate_per_night'],
+  priceQuoted: ['priceQuoted', 'Price quoted', 'PRICE QUOTED', 'Price Quoted', 'price_quoted'],
+  amountPaid: ['amountPaid', 'Amount paid', 'AMOUNT PAID', 'Amount Paid', 'amount_paid'],
+  firstVisit: ['firstVisit', 'First visit to a TNH monastery', 'FIRST VISIT TO A TNH MONASTERY', 'First Visit', 'first_visit'],
+  roomPreference: ['roomPreference', 'Rm Preference', 'RM PREFERENCE', 'Room Preference', 'room_preference', 'Rm preference'],
 }
 
 /**

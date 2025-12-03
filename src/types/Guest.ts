@@ -20,6 +20,10 @@ export interface Guest {
   notes?: string
   retreat?: string
   ratePerNight?: string
+  priceQuoted?: string
+  amountPaid?: string
+  firstVisit?: string
+  roomPreference?: string
 }
 
 /**

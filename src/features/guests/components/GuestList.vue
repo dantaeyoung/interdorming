@@ -56,6 +56,22 @@
             Rate/Night
             <SortIndicator :active="sortColumn === 'ratePerNight'" :direction="sortDirection" />
           </th>
+          <th @click="handleSort('priceQuoted')">
+            Price Quoted
+            <SortIndicator :active="sortColumn === 'priceQuoted'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('amountPaid')">
+            Amount Paid
+            <SortIndicator :active="sortColumn === 'amountPaid'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('firstVisit')">
+            First Visit
+            <SortIndicator :active="sortColumn === 'firstVisit'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('roomPreference')">
+            Rm Preference
+            <SortIndicator :active="sortColumn === 'roomPreference'" :direction="sortDirection" />
+          </th>
           <th>Warnings</th>
         </tr>
       </thead>

@@ -29,9 +29,18 @@
     <td>{{ guest.arrival || '-' }}</td>
     <td>{{ guest.departure || '-' }}</td>
     <td>{{ guest.indivGrp || '-' }}</td>
-    <td>{{ guest.notes || '-' }}</td>
+    <td class="notes-cell">
+      <span v-if="guest.notes" :title="guest.notes" class="notes-text">
+        {{ truncateNotes(guest.notes) }}
+      </span>
+      <span v-else>-</span>
+    </td>
     <td>{{ guest.retreat || '-' }}</td>
     <td>{{ guest.ratePerNight || '-' }}</td>
+    <td>{{ guest.priceQuoted || '-' }}</td>
+    <td>{{ guest.amountPaid || '-' }}</td>
+    <td>{{ guest.firstVisit || '-' }}</td>
+    <td>{{ guest.roomPreference || '-' }}</td>
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
     </td>
@@ -70,6 +79,11 @@ const hasSuggestion = computed(() => assignmentStore.suggestedAssignments.has(pr
 const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.id))
 
 const draggableProps = useDraggableGuest(props.guest.id)
+
+function truncateNotes(notes: string, maxLength: number = 30): string {
+  if (notes.length <= maxLength) return notes
+  return notes.substring(0, maxLength) + '...'
+}
 </script>
 
 <style scoped lang="scss">
@@ -210,6 +224,19 @@ td {
   &:first-child {
     padding-left: 30px;
     position: relative;
+  }
+}
+
+.notes-cell {
+  max-width: 200px;
+
+  .notes-text {
+    cursor: help;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    display: inline-block;
+    max-width: 100%;
   }
 }
 </style>
