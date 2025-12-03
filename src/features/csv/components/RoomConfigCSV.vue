@@ -1,6 +1,9 @@
 <template>
   <div class="room-config-csv">
     <div class="button-group">
+      <button v-if="showLoadDefault" class="btn btn-secondary" @click="handleLoadDefault">
+        Load Default Rooms
+      </button>
       <button class="btn" @click="handleExport">Export Room Config</button>
       <button class="btn" @click="triggerImport">Import Room Config</button>
       <input
@@ -20,11 +23,20 @@ import { useCSV } from '../composables/useCSV'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import type { Dormitory } from '@/types'
 
+interface Props {
+  showLoadDefault?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  showLoadDefault: false,
+})
+
 const emit = defineEmits<{
   'export-success': []
   'export-error': [error: string]
   'import-success': [dormitories: Dormitory[]]
   'import-error': [error: string]
+  'load-default-rooms': []
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -81,6 +93,10 @@ function handleExport() {
 
 function triggerImport() {
   fileInput.value?.click()
+}
+
+function handleLoadDefault() {
+  emit('load-default-rooms')
 }
 
 async function handleImport(event: Event) {

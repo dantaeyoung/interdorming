@@ -93,7 +93,14 @@
           <h2>Room Configuration</h2>
         </div>
         <div class="toolbar-right">
-          <RoomConfigCSV />
+          <RoomConfigCSV
+            :show-load-default="true"
+            @load-default-rooms="handleLoadDefaultRooms"
+            @import-success="handleRoomImportSuccess"
+            @import-error="handleRoomImportError"
+            @export-success="handleRoomExportSuccess"
+            @export-error="handleRoomExportError"
+          />
         </div>
       </div>
 
@@ -264,6 +271,106 @@ function handleDeleteAll() {
       showStatus('All guest data deleted', 'success')
     }
   )
+}
+
+// Room configuration handlers
+async function handleLoadDefaultRooms() {
+  try {
+    // Fetch default room config from public folder
+    const response = await fetch('/default_room_config.csv')
+    if (!response.ok) {
+      throw new Error('Failed to fetch default room configuration')
+    }
+
+    const csvText = await response.text()
+
+    // Parse CSV using the CSV composable
+    const { useCSV } = await import('@/features/csv/composables/useCSV')
+    const { parseCSVRow } = useCSV()
+
+    // Parse room config
+    const dormitories = parseRoomConfigCSV(csvText, parseCSVRow)
+
+    // Import into store
+    dormitoryStore.importDormitories(dormitories)
+
+    showStatus(`Successfully loaded default room configuration with ${dormitories.length} dormitories`, 'success')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load default room configuration'
+    showStatus(`Error loading default rooms: ${errorMessage}`, 'error')
+  }
+}
+
+function handleRoomImportSuccess(dormitories: any[]) {
+  showStatus(`Successfully imported ${dormitories.length} dormitories`, 'success')
+}
+
+function handleRoomImportError(error: string) {
+  showStatus(`Error importing rooms: ${error}`, 'error')
+}
+
+function handleRoomExportSuccess() {
+  showStatus('Room configuration exported successfully', 'success')
+}
+
+function handleRoomExportError(error: string) {
+  showStatus(`Error exporting rooms: ${error}`, 'error')
+}
+
+// Helper function to parse room config CSV
+function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => string[]): any[] {
+  const lines = csvText.trim().split('\n')
+  if (lines.length < 2) {
+    throw new Error('CSV must have at least a header row and one data row')
+  }
+
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+  const dormitoriesMap = new Map<string, any>()
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVRow(lines[i])
+
+    const dormitoryName = values[headers.indexOf('Dormitory Name')]?.trim()
+    const roomName = values[headers.indexOf('Room Name')]?.trim()
+    const bedId = values[headers.indexOf('Bed ID')]?.trim()
+
+    if (!dormitoryName || !roomName || !bedId) continue
+
+    // Get or create dormitory
+    if (!dormitoriesMap.has(dormitoryName)) {
+      dormitoriesMap.set(dormitoryName, {
+        dormitoryName,
+        active: values[headers.indexOf('Dormitory Active')]?.toLowerCase() !== 'no' && values[headers.indexOf('Active')]?.toLowerCase() !== 'false',
+        color: values[headers.indexOf('Dormitory Color')] || '#f8f9fa',
+        rooms: [],
+      })
+    }
+
+    const dormitory = dormitoriesMap.get(dormitoryName)!
+    let room = dormitory.rooms.find((r: any) => r.roomName === roomName)
+
+    // Create room if doesn't exist
+    if (!room) {
+      room = {
+        roomName,
+        roomGender: (values[headers.indexOf('Room Gender')] || 'M') as any,
+        active: values[headers.indexOf('Room Active')]?.toLowerCase() !== 'no' && values[headers.indexOf('Active')]?.toLowerCase() !== 'false',
+        beds: [],
+      }
+      dormitory.rooms.push(room)
+    }
+
+    // Add bed
+    room.beds.push({
+      bedId,
+      bedType: (values[headers.indexOf('Bed Type')] || 'single') as any,
+      position: parseInt(values[headers.indexOf('Bed Position')] || '1'),
+      assignedGuestId: null,
+      active: values[headers.indexOf('Bed Active')]?.toLowerCase() !== 'no' && values[headers.indexOf('Active')]?.toLowerCase() !== 'false',
+    })
+  }
+
+  return Array.from(dormitoriesMap.values())
 }
 
 // Utility functions
