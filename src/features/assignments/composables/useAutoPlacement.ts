@@ -477,7 +477,73 @@ export function useAutoPlacement() {
     return false
   }
 
+  /**
+   * Auto-place guests in a specific room only
+   * Uses same algorithm but limited to beds in the specified room
+   */
+  function autoPlaceGuestsInRoom(room: Room): Map<string, string> {
+    const suggestedAssignments = new Map<string, string>()
+
+    // Get unassigned guests
+    let unassignedGuests = guestStore.guests.filter(
+      g => !assignmentStore.assignments.has(g.id)
+    )
+
+    if (unassignedGuests.length === 0) {
+      return suggestedAssignments
+    }
+
+    // Get available beds in this room only
+    const availableBeds = room.beds.filter(
+      bed => bed.active !== false && !bed.assignedGuestId
+    )
+
+    if (availableBeds.length === 0) {
+      return suggestedAssignments
+    }
+
+    // Define passes with progressive constraint relaxation
+    const passes: PassConfig[] = [
+      { name: 'strict', allowRelaxation: false },
+      { name: 'relaxed', allowRelaxation: true, relaxBunkPreference: true },
+      { name: 'emergency', allowRelaxation: true, relaxBunkPreference: true, relaxAge: true },
+    ]
+
+    // Execute each pass
+    for (const passConfig of passes) {
+      if (!passConfig.allowRelaxation && !settingsStore.settings.autoPlacement.enabled) {
+        break // Stop if auto-placement disabled
+      }
+
+      if (passConfig.allowRelaxation && !settingsStore.settings.autoPlacement.allowConstraintRelaxation) {
+        break // Stop after first pass if relaxation not allowed
+      }
+
+      const placedCount = placementPass(
+        unassignedGuests,
+        availableBeds,
+        suggestedAssignments,
+        passConfig
+      )
+
+      // Remove placed guests from queue
+      if (placedCount > 0) {
+        unassignedGuests = unassignedGuests.filter(
+          g => !suggestedAssignments.has(g.id)
+        )
+      }
+
+      // Stop if all guests placed or room is full
+      if (unassignedGuests.length === 0 || suggestedAssignments.size >= availableBeds.length) {
+        break
+      }
+    }
+
+    return suggestedAssignments
+  }
+
   return {
     autoPlaceGuests,
+    autoPlaceGuestsInRoom,
   }
 }

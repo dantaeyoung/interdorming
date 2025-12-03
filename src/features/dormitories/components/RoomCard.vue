@@ -7,9 +7,19 @@
           {{ room.roomGender }}
         </span>
       </div>
-      <div class="room-info">
-        {{ occupiedCount }}/{{ room.beds.length }} beds
-        <span v-if="ageRange" class="age-range">{{ ageRange }}</span>
+      <div class="room-actions">
+        <button
+          v-if="hasAvailableBeds"
+          @click="handleAutoPlaceRoom"
+          class="auto-place-btn"
+          title="Auto-place guests in this room only"
+        >
+          Auto-fill
+        </button>
+        <div class="room-info">
+          {{ occupiedCount }}/{{ room.beds.length }} beds
+          <span v-if="ageRange" class="age-range">{{ ageRange }}</span>
+        </div>
       </div>
     </div>
 
@@ -22,6 +32,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
+import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
 import BedSlot from './BedSlot.vue'
 import type { Room } from '@/types'
 
@@ -32,9 +44,15 @@ interface Props {
 const props = defineProps<Props>()
 
 const guestStore = useGuestStore()
+const assignmentStore = useAssignmentStore()
+const { autoPlaceGuestsInRoom } = useAutoPlacement()
 
 const occupiedCount = computed(() => {
   return props.room.beds.filter(bed => bed.assignedGuestId).length
+})
+
+const hasAvailableBeds = computed(() => {
+  return props.room.beds.some(bed => !bed.assignedGuestId && bed.active !== false)
 })
 
 const assignedGuests = computed(() => {
@@ -60,6 +78,15 @@ const ageRange = computed(() => {
   if (minAge === maxAge) return `age ${minAge}`
   return `ages ${minAge}-${maxAge}`
 })
+
+function handleAutoPlaceRoom() {
+  const suggestions = autoPlaceGuestsInRoom(props.room)
+
+  // Add suggestions to the assignment store
+  suggestions.forEach((bedId, guestId) => {
+    assignmentStore.suggestedAssignments.set(guestId, bedId)
+  })
+}
 </script>
 
 <style scoped lang="scss">
@@ -112,6 +139,34 @@ const ageRange = computed(() => {
   &.badge-gender-coed {
     background-color: #f3e8ff;
     color: #6b21a8;
+  }
+}
+
+.room-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auto-place-btn {
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #3b82f6;
+  background: white;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #3b82f6;
+    color: white;
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 }
 
