@@ -40,7 +40,7 @@ const occupiedCount = computed(() => {
 const assignedGuests = computed(() => {
   return props.room.beds
     .filter(bed => bed.assignedGuestId)
-    .map(bed => guestStore.getGuestById.value(bed.assignedGuestId!))
+    .map(bed => guestStore.getGuestById(bed.assignedGuestId!))
     .filter(guest => guest !== undefined)
 })
 

@@ -39,8 +39,8 @@ const hasData = computed(() => guestStore.guests.length > 0)
 function handleExport() {
   try {
     const exportData = guestStore.guests.map(guest => {
-      const bedId = assignmentStore.getAssignmentByGuest.value(guest.id)
-      const room = bedId ? dormitoryStore.getRoomByBedId.value(bedId) : undefined
+      const bedId = assignmentStore.getAssignmentByGuest(guest.id)
+      const room = bedId ? dormitoryStore.getRoomByBedId(bedId) : undefined
 
       return {
         firstName: guest.firstName,

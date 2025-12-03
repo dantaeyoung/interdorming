@@ -47,7 +47,7 @@ const { createDisplayName } = useUtils()
 
 const assignedGuest = computed(() => {
   if (!props.bed.assignedGuestId) return null
-  return guestStore.getGuestById.value(props.bed.assignedGuestId)
+  return guestStore.getGuestById(props.bed.assignedGuestId)
 })
 
 const isOccupied = computed(() => !!assignedGuest.value)
@@ -57,7 +57,7 @@ const displayName = computed(() => {
   return createDisplayName(assignedGuest.value)
 })
 
-const warnings = computed(() => validationStore.getWarningsForBed.value(props.bed.bedId))
+const warnings = computed(() => validationStore.getWarningsForBed(props.bed.bedId))
 
 const hasWarning = computed(() => warnings.value.length > 0)
 

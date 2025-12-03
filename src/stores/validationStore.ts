@@ -19,16 +19,16 @@ export const useValidationStore = defineStore('validation', () => {
       const assignmentStore = useAssignmentStore()
       const dormitoryStore = useDormitoryStore()
 
-      const guestId = assignmentStore.getAssignmentByBed.value(bedId)
+      const guestId = assignmentStore.getAssignmentByBed(bedId)
       if (!guestId) return []
 
-      const guest = guestStore.getGuestById.value(guestId)
+      const guest = guestStore.getGuestById(guestId)
       if (!guest) return []
 
-      const bed = dormitoryStore.getBedById.value(bedId)
+      const bed = dormitoryStore.getBedById(bedId)
       if (!bed) return []
 
-      const room = dormitoryStore.getRoomByBedId.value(bedId)
+      const room = dormitoryStore.getRoomByBedId(bedId)
       if (!room) return []
 
       return getAssignmentWarnings(guest, bed, room)
@@ -41,18 +41,18 @@ export const useValidationStore = defineStore('validation', () => {
       const assignmentStore = useAssignmentStore()
       const dormitoryStore = useDormitoryStore()
 
-      const bedId = assignmentStore.getAssignmentByGuest.value(guestId)
+      const bedId = assignmentStore.getAssignmentByGuest(guestId)
       if (!bedId) {
         return getUnassignedGuestWarnings(guestId)
       }
 
-      const guest = guestStore.getGuestById.value(guestId)
+      const guest = guestStore.getGuestById(guestId)
       if (!guest) return []
 
-      const bed = dormitoryStore.getBedById.value(bedId)
+      const bed = dormitoryStore.getBedById(bedId)
       if (!bed) return []
 
-      const room = dormitoryStore.getRoomByBedId.value(bedId)
+      const room = dormitoryStore.getRoomByBedId(bedId)
       if (!room) return []
 
       return getAssignmentWarnings(guest, bed, room)
@@ -64,7 +64,7 @@ export const useValidationStore = defineStore('validation', () => {
     const assignmentStore = useAssignmentStore()
 
     for (const [guestId, bedId] of assignmentStore.assignments.entries()) {
-      const bedWarnings = getWarningsForBed.value(bedId)
+      const bedWarnings = getWarningsForBed(bedId)
       if (bedWarnings.length > 0) {
         warnings[bedId] = bedWarnings
       }
@@ -122,10 +122,10 @@ export const useValidationStore = defineStore('validation', () => {
       return warnings
     }
 
-    const guest = guestStore.getGuestById.value(guestId)
+    const guest = guestStore.getGuestById(guestId)
     if (!guest) return warnings
 
-    const availableRooms = dormitoryStore.getAllRooms.value
+    const availableRooms = dormitoryStore.getAllRooms
 
     // Check if there are any compatible rooms
     const hasCompatibleRoom = availableRooms.some(room => {
@@ -175,10 +175,10 @@ export const useValidationStore = defineStore('validation', () => {
     )
 
     const separatedMembers = groupMembers.filter(member => {
-      const memberBedId = assignmentStore.getAssignmentByGuest.value(member.id)
+      const memberBedId = assignmentStore.getAssignmentByGuest(member.id)
       if (!memberBedId) return false // Not assigned yet
 
-      const memberRoom = dormitoryStore.getRoomByBedId.value(memberBedId)
+      const memberRoom = dormitoryStore.getRoomByBedId(memberBedId)
       return memberRoom && memberRoom.roomName !== currentRoom.roomName
     })
 

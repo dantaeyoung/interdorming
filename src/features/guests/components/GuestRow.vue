@@ -48,7 +48,7 @@ const displayName = computed(() => createDisplayName(props.guest))
 
 const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.guest.id)
 
-const warnings = computed(() => validationStore.getWarningsForGuest.value(props.guest.id))
+const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.id))
 
 const draggableProps = useDraggableGuest(props.guest.id)
 </script>
@@ -89,7 +89,7 @@ const draggableProps = useDraggableGuest(props.guest.id)
     color: #9f1239;
   }
 
-  &.badge-gender-non-binary/other {
+  &.badge-gender-non-binary\/other {
     background-color: #f3e8ff;
     color: #6b21a8;
   }

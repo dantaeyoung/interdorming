@@ -37,7 +37,7 @@ const dormitoryStore = useDormitoryStore()
 const totalGuests = computed(() => guestStore.guests.length)
 const assignedCount = computed(() => assignmentStore.assignedCount)
 const unassignedCount = computed(() => totalGuests.value - assignedCount.value)
-const totalBeds = computed(() => dormitoryStore.getAllBeds.value.length)
+const totalBeds = computed(() => dormitoryStore.getAllBeds.length)
 const availableBeds = computed(() => totalBeds.value - assignedCount.value)
 </script>
 

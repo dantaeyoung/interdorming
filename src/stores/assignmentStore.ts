@@ -46,6 +46,11 @@ export const useAssignmentStore = defineStore(
 
     const assignedCount = computed(() => assignments.value.size)
 
+    const unassignedCount = computed(() => {
+      const guestStore = useGuestStore()
+      return guestStore.guests.length - assignments.value.size
+    })
+
     const hasSuggestions = computed(() => suggestedAssignments.value.size > 0)
 
     // Actions
@@ -60,14 +65,14 @@ export const useAssignmentStore = defineStore(
       // Unassign from previous bed if assigned
       const existingBedId = assignments.value.get(guestId)
       if (existingBedId) {
-        const existingBed = dormitoryStore.getBedById.value(existingBedId)
+        const existingBed = dormitoryStore.getBedById(existingBedId)
         if (existingBed) {
           existingBed.assignedGuestId = null
         }
       }
 
       // Assign to new bed
-      const bed = dormitoryStore.getBedById.value(bedId)
+      const bed = dormitoryStore.getBedById(bedId)
       if (bed) {
         bed.assignedGuestId = guestId
         assignments.value.set(guestId, bedId)
@@ -84,7 +89,7 @@ export const useAssignmentStore = defineStore(
 
       const bedId = assignments.value.get(guestId)
       if (bedId) {
-        const bed = dormitoryStore.getBedById.value(bedId)
+        const bed = dormitoryStore.getBedById(bedId)
         if (bed) {
           bed.assignedGuestId = null
         }
@@ -103,8 +108,8 @@ export const useAssignmentStore = defineStore(
 
       if (bedId1 && bedId2) {
         // Both assigned - swap
-        const bed1 = dormitoryStore.getBedById.value(bedId1)
-        const bed2 = dormitoryStore.getBedById.value(bedId2)
+        const bed1 = dormitoryStore.getBedById(bedId1)
+        const bed2 = dormitoryStore.getBedById(bedId2)
 
         if (bed1 && bed2) {
           bed1.assignedGuestId = guestId2
@@ -129,7 +134,7 @@ export const useAssignmentStore = defineStore(
       saveToHistory()
 
       // Clear all bed assignments
-      for (const bed of dormitoryStore.getAllBeds.value) {
+      for (const bed of dormitoryStore.getAllBeds) {
         bed.assignedGuestId = null
       }
 
@@ -175,7 +180,7 @@ export const useAssignmentStore = defineStore(
 
       const state: HistoryState = {
         assignments: new Map(assignments.value),
-        rooms: JSON.parse(JSON.stringify(dormitoryStore.getAllRooms.value)),
+        rooms: JSON.parse(JSON.stringify(dormitoryStore.getAllRooms)),
         dormitories: JSON.parse(JSON.stringify(dormitoryStore.dormitories)),
       }
 
@@ -228,6 +233,7 @@ export const useAssignmentStore = defineStore(
       canUndo,
       unassignedGuestIds,
       assignedCount,
+      unassignedCount,
       hasSuggestions,
 
       // Actions
