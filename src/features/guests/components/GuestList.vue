@@ -1,5 +1,9 @@
 <template>
   <div class="guest-list">
+    <div class="guest-list-header">
+      <button @click="handleAddGuest" class="btn-add-guest">+ Add Guest</button>
+    </div>
+
     <div v-if="guests.length === 0" class="empty-state">
       <h3>{{ emptyTitle }}</h3>
       <p>{{ emptyMessage }}</p>
@@ -73,6 +77,7 @@
             <SortIndicator :active="sortColumn === 'roomPreference'" :direction="sortDirection" />
           </th>
           <th>Warnings</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody v-bind="dropzoneProps">
@@ -81,18 +86,22 @@
           :key="guest.id"
           :guest="guest"
           :family-position="getFamilyPosition(guest, index)"
+          @edit="handleEditGuest"
         />
       </tbody>
     </table>
+
+    <GuestFormModal :show="showModal" :guest="editingGuest" @close="handleCloseModal" @submit="handleSubmitGuest" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import GuestRow from './GuestRow.vue'
+import GuestFormModal from './GuestFormModal.vue'
 import type { Guest } from '@/types'
 
 interface Props {
@@ -110,6 +119,10 @@ const props = withDefaults(defineProps<Props>(), {
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const { useDroppableUnassignedArea } = useDragDrop()
+
+// Modal state
+const showModal = ref(false)
+const editingGuest = ref<Guest | undefined>(undefined)
 
 const guests = computed(() => {
   const filtered = guestStore.filteredGuests
@@ -134,6 +147,33 @@ function handleUnassign(guestId: string) {
 }
 
 const dropzoneProps = useDroppableUnassignedArea(handleUnassign)
+
+// Modal handlers
+function handleAddGuest() {
+  editingGuest.value = undefined
+  showModal.value = true
+}
+
+function handleEditGuest(guest: Guest) {
+  editingGuest.value = guest
+  showModal.value = true
+}
+
+function handleCloseModal() {
+  showModal.value = false
+  editingGuest.value = undefined
+}
+
+function handleSubmitGuest(guestData: Partial<Guest>) {
+  if (editingGuest.value) {
+    // Update existing guest
+    guestStore.updateGuest(editingGuest.value.id, guestData)
+  } else {
+    // Add new guest
+    guestStore.addGuest(guestData)
+  }
+  handleCloseModal()
+}
 
 // Family grouping logic
 function getFamilyPosition(guest: Guest, index: number): 'none' | 'first' | 'middle' | 'last' | 'only' {
@@ -178,6 +218,32 @@ export { SortIndicator }
 .guest-list {
   width: 100%;
   overflow-x: auto;
+}
+
+.guest-list-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0;
+}
+
+.btn-add-guest {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #2563eb;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .empty-state {

@@ -44,6 +44,11 @@
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
     </td>
+    <td>
+      <button @click="handleEdit" class="btn-edit" title="Edit guest">
+        ✎
+      </button>
+    </td>
   </tr>
 </template>
 
@@ -61,9 +66,15 @@ interface Props {
   familyPosition?: 'none' | 'first' | 'middle' | 'last' | 'only'
 }
 
+interface Emits {
+  (e: 'edit', guest: Guest): void
+}
+
 const props = withDefaults(defineProps<Props>(), {
   familyPosition: 'none'
 })
+
+const emit = defineEmits<Emits>()
 
 const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
@@ -83,6 +94,10 @@ const draggableProps = useDraggableGuest(props.guest.id)
 function truncateNotes(notes: string, maxLength: number = 30): string {
   if (notes.length <= maxLength) return notes
   return notes.substring(0, maxLength) + '...'
+}
+
+function handleEdit() {
+  emit('edit', props.guest)
 }
 </script>
 
@@ -237,6 +252,27 @@ td {
     overflow: hidden;
     display: inline-block;
     max-width: 100%;
+  }
+}
+
+.btn-edit {
+  padding: 4px 8px;
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #9ca3af;
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 }
 </style>

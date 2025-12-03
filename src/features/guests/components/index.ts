@@ -5,3 +5,4 @@
 export { default as GuestList } from './GuestList.vue'
 export { default as GuestRow } from './GuestRow.vue'
 export { default as GuestSearch } from './GuestSearch.vue'
+export { default as GuestFormModal } from './GuestFormModal.vue'
