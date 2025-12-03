@@ -113,7 +113,16 @@ const draggableProps = computed(() => {
 })
 
 function handleDrop(guestId: string, bedId: string) {
-  assignmentStore.assignGuestToBed(guestId, bedId)
+  // Check if the bed is already occupied
+  const existingGuestId = assignmentStore.getAssignmentByBed.value(bedId)
+
+  if (existingGuestId && existingGuestId !== guestId) {
+    // Bed is occupied by a different guest - swap them
+    assignmentStore.swapGuests(guestId, existingGuestId)
+  } else {
+    // Bed is empty or same guest - just assign
+    assignmentStore.assignGuestToBed(guestId, bedId)
+  }
 }
 
 function acceptSuggestion() {
