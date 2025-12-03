@@ -129,8 +129,12 @@ export const useValidationStore = defineStore('validation', () => {
 
     // Check if there are any compatible rooms
     const hasCompatibleRoom = availableRooms.some(room => {
-      // Check gender compatibility
-      if (room.roomGender !== 'Coed' && room.roomGender !== guest.gender) {
+      // Check gender compatibility (non-binary guests can go in any room)
+      if (
+        guest.gender !== 'Non-binary/Other' &&
+        room.roomGender !== 'Coed' &&
+        room.roomGender !== guest.gender
+      ) {
         return false
       }
       // Check if room has available beds
@@ -145,11 +149,17 @@ export const useValidationStore = defineStore('validation', () => {
     // Check for lower bunk requirement
     if (guest.lowerBunk) {
       const hasLowerBunk = availableRooms.some(room => {
+        // Non-binary guests can use any room
+        const isRoomCompatible =
+          guest.gender === 'Non-binary/Other' ||
+          room.roomGender === 'Coed' ||
+          room.roomGender === guest.gender
+
         return room.beds.some(
           bed =>
             !bed.assignedGuestId &&
             (bed.bedType === 'lower' || bed.bedType === 'single') &&
-            (room.roomGender === 'Coed' || room.roomGender === guest.gender)
+            isRoomCompatible
         )
       })
 
