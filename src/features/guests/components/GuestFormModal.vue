@@ -188,14 +188,27 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
+// We need to manage the modal state internally to prevent it from closing
+// when user cancels the confirmation dialog
+const internalShow = ref(false)
+
 const isOpen = computed({
-  get: () => props.show,
+  get: () => internalShow.value,
   set: (value: boolean) => {
     if (!value) {
       handleClose()
     }
   }
 })
+
+// Sync internal show state with prop
+watch(
+  () => props.show,
+  (newValue) => {
+    internalShow.value = newValue
+  },
+  { immediate: true }
+)
 
 const initialFormData = {
   firstName: '',
@@ -329,10 +342,13 @@ function handleClose() {
       'You have unsaved changes. Are you sure you want to close? Your edits will be lost.'
     )
     if (!confirmed) {
+      // User cancelled - keep modal open by resetting internal state
+      internalShow.value = true
       return
     }
   }
   resetForm()
+  internalShow.value = false
   emit('close')
 }
 
