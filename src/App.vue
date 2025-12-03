@@ -114,10 +114,7 @@
 
     <!-- Settings Tab -->
     <div v-show="activeTab === 'settings'" class="tab-content">
-      <div class="settings-panel">
-        <h2>Settings</h2>
-        <p>Settings configuration coming soon...</p>
-      </div>
+      <SettingsPanel />
     </div>
 
     <!-- Modals & Dialogs -->
@@ -145,6 +142,7 @@ import { GuestList, GuestSearch } from '@/features/guests/components'
 import { RoomList } from '@/features/dormitories/components'
 import { GuestCSVUpload, RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
+import { SettingsPanel } from '@/features/settings/components'
 
 import type { Guest } from '@/types'
 import type { Tab } from '@/shared/components/TabNavigation.vue'
