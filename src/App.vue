@@ -112,6 +112,11 @@
       </div>
     </div>
 
+    <!-- Print Tab -->
+    <div v-show="activeTab === 'print'" class="tab-content">
+      <PrintView />
+    </div>
+
     <!-- Settings Tab -->
     <div v-show="activeTab === 'settings'" class="tab-content">
       <SettingsPanel />
@@ -143,6 +148,7 @@ import { RoomList } from '@/features/dormitories/components'
 import { GuestCSVUpload, RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
+import { PrintView } from '@/features/print/components'
 
 import type { Guest } from '@/types'
 import type { Tab } from '@/shared/components/TabNavigation.vue'
@@ -157,6 +163,7 @@ const activeTab = ref('assignment')
 const tabs: Tab[] = [
   { id: 'assignment', label: 'Guest Assignment' },
   { id: 'configuration', label: 'Room Configuration' },
+  { id: 'print', label: 'Print' },
   { id: 'settings', label: 'Settings' },
 ]
 
