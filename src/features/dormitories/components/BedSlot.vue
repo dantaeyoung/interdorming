@@ -1,10 +1,14 @@
 <template>
   <div :class="['bed-slot', bedTypeClass, { occupied: isOccupied, warning: hasWarning }]" v-bind="dropzoneProps">
     <div class="bed-label">
-      {{ bed.bedType }} {{ bed.position }}
+      {{ bed.position }} {{ bed.bedType }}
     </div>
     <div v-if="assignedGuest" class="bed-assignment">
-      <div class="assigned-guest" :data-guest-id="assignedGuest.id">
+      <div
+        class="assigned-guest"
+        :data-guest-id="assignedGuest.id"
+        v-bind="draggableProps"
+      >
         <div class="guest-info">
           <strong>{{ displayName }}</strong>
           <span class="guest-details">
@@ -42,7 +46,7 @@ const props = defineProps<Props>()
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
-const { useDroppableBed } = useDragDrop()
+const { useDroppableBed, useDraggableGuest } = useDragDrop()
 const { createDisplayName } = useUtils()
 
 const assignedGuest = computed(() => {
@@ -63,6 +67,12 @@ const hasWarning = computed(() => warnings.value.length > 0)
 
 const bedTypeClass = computed(() => `bed-${props.bed.bedType}`)
 
+// Make assigned guest draggable
+const draggableProps = computed(() => {
+  if (!assignedGuest.value) return {}
+  return useDraggableGuest(assignedGuest.value.id)
+})
+
 function handleDrop(guestId: string, bedId: string) {
   assignmentStore.assignGuestToBed(guestId, bedId)
 }
@@ -72,43 +82,17 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
 
 <style scoped lang="scss">
 .bed-slot {
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 4px 8px;
+  padding: 2px 0px;
   min-height: 28px;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  background: white;
+  border-bottom: 1px solid #e5e7eb;
   transition: all 0.2s;
 
-  &.drag-over {
-    border-color: #3b82f6;
-    background-color: #eff6ff;
-    transform: scale(1.01);
-  }
-
-  &.occupied {
-    background-color: #f9fafb;
-    border-color: #d1d5db;
-  }
-
-  &.warning {
-    border-color: #fbbf24;
-    background-color: #fffbeb;
-  }
-
-  &.bed-upper {
-    border-left: 3px solid #3b82f6;
-  }
-
-  &.bed-lower {
-    border-left: 3px solid #10b981;
-  }
-
-  &.bed-single {
-    border-left: 3px solid #8b5cf6;
+  &:last-child {
+    border-bottom: none;
   }
 }
 
@@ -119,6 +103,20 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   text-transform: capitalize;
   min-width: 70px;
   flex-shrink: 0;
+  padding-left: 4px;
+  border-left: 3px solid transparent;
+
+  .bed-slot.bed-upper & {
+    border-left-color: #3b82f6;
+  }
+
+  .bed-slot.bed-lower & {
+    border-left-color: #10b981;
+  }
+
+  .bed-slot.bed-single & {
+    border-left-color: #8b5cf6;
+  }
 }
 
 .bed-assignment {
@@ -126,6 +124,25 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   display: flex;
   align-items: center;
   min-width: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  padding: 3px 8px;
+  background: white;
+  transition: all 0.2s;
+
+  .bed-slot.occupied & {
+    background-color: #f9fafb;
+  }
+
+  .bed-slot.warning & {
+    border-color: #fbbf24;
+    background-color: #fffbeb;
+  }
+
+  .bed-slot.drag-over & {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+  }
 }
 
 .assigned-guest {
@@ -134,6 +151,16 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   gap: 8px;
   flex: 1;
   min-width: 0;
+  cursor: grab;
+  transition: opacity 0.2s;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &.dragging {
+    opacity: 0.5;
+  }
 }
 
 .guest-info {
@@ -175,6 +202,17 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  border: 1px dashed #d1d5db;
+  border-radius: 3px;
+  padding: 3px 8px;
+  background: #fafafa;
+  transition: all 0.2s;
+
+  .bed-slot.drag-over & {
+    border-color: #3b82f6;
+    border-style: solid;
+    background-color: #eff6ff;
+  }
 }
 
 .drop-hint {
