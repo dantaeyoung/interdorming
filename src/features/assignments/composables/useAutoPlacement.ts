@@ -54,11 +54,11 @@ export function useAutoPlacement() {
 
     // Execute each pass
     for (const passConfig of passes) {
-      if (!passConfig.allowRelaxation && !settingsStore.autoPlacement.enabled) {
+      if (!passConfig.allowRelaxation && !settingsStore.settings.autoPlacement.enabled) {
         break // Stop if auto-placement disabled
       }
 
-      if (passConfig.allowRelaxation && !settingsStore.autoPlacement.allowConstraintRelaxation) {
+      if (passConfig.allowRelaxation && !settingsStore.settings.autoPlacement.allowConstraintRelaxation) {
         break // Stop after first pass if relaxation not allowed
       }
 
@@ -139,7 +139,7 @@ export function useAutoPlacement() {
     suggestedAssignments: Map<string, string>
   ): number {
     let score = 0
-    const priorities = settingsStore.autoPlacement.priorities
+    const priorities = settingsStore.settings.autoPlacement.priorities
 
     // Find room containing this bed
     const room = dormitoryStore.getRoomByBedId(bed.bedId)
