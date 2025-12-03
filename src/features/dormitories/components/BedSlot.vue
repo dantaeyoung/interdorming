@@ -72,12 +72,13 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
 
 <style scoped lang="scss">
 .bed-slot {
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-  min-height: 80px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 4px 8px;
+  min-height: 28px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 8px;
   background: white;
   transition: all 0.2s;
@@ -85,7 +86,7 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   &.drag-over {
     border-color: #3b82f6;
     background-color: #eff6ff;
-    transform: scale(1.02);
+    transform: scale(1.01);
   }
 
   &.occupied {
@@ -99,72 +100,85 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   }
 
   &.bed-upper {
-    border-left: 4px solid #3b82f6;
+    border-left: 3px solid #3b82f6;
   }
 
   &.bed-lower {
-    border-left: 4px solid #10b981;
+    border-left: 3px solid #10b981;
   }
 
   &.bed-single {
-    border-left: 4px solid #8b5cf6;
+    border-left: 3px solid #8b5cf6;
   }
 }
 
 .bed-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   color: #6b7280;
   text-transform: capitalize;
+  min-width: 70px;
+  flex-shrink: 0;
 }
 
 .bed-assignment {
   flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .assigned-guest {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .guest-info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
 
   strong {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
 .guest-details {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #6b7280;
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .group-badge {
   background-color: #dbeafe;
   color: #1e40af;
   padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.7rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  white-space: nowrap;
 }
 
 .bed-empty {
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 40px;
+  justify-content: flex-start;
 }
 
 .drop-hint {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #9ca3af;
   font-style: italic;
 }

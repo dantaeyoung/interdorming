@@ -129,9 +129,9 @@ const ageRange = computed(() => {
 }
 
 .beds-grid {
-  padding: 16px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 </style>
