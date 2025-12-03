@@ -5,7 +5,10 @@
   >
     <td>
       <div class="name-cell">
-        {{ displayName }}
+        <div v-if="familyPosition !== 'none'" :class="['family-indicator', `family-${familyPosition}`]">
+          <div class="family-dot"></div>
+        </div>
+        <span class="name-text">{{ displayName }}</span>
         <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
           ✨
         </span>
@@ -42,9 +45,12 @@ import type { Guest } from '@/types'
 
 interface Props {
   guest: Guest
+  familyPosition?: 'none' | 'first' | 'middle' | 'last' | 'only'
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  familyPosition: 'none'
+})
 
 const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
@@ -90,6 +96,60 @@ const draggableProps = useDraggableGuest(props.guest.id)
   display: flex;
   align-items: center;
   gap: 6px;
+  position: relative;
+}
+
+.name-text {
+  flex: 1;
+}
+
+.family-indicator {
+  position: absolute;
+  left: -20px;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    width: 2px;
+    background-color: #ef4444;
+  }
+
+  &.family-first::before {
+    top: 50%;
+    bottom: -1px;
+  }
+
+  &.family-middle::before {
+    top: -1px;
+    bottom: -1px;
+  }
+
+  &.family-last::before {
+    top: -1px;
+    bottom: 50%;
+  }
+
+  &.family-only::before {
+    display: none;
+  }
+}
+
+.family-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #ef4444;
+  position: relative;
+  z-index: 1;
 }
 
 .suggestion-indicator {
@@ -142,5 +202,10 @@ td {
   padding: 6px 10px;
   border-bottom: 1px solid #e5e7eb;
   font-size: 0.85rem;
+
+  &:first-child {
+    padding-left: 30px;
+    position: relative;
+  }
 }
 </style>

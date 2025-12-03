@@ -44,7 +44,12 @@
         </tr>
       </thead>
       <tbody v-bind="dropzoneProps">
-        <GuestRow v-for="guest in guests" :key="guest.id" :guest="guest" />
+        <GuestRow
+          v-for="(guest, index) in guests"
+          :key="guest.id"
+          :guest="guest"
+          :family-position="getFamilyPosition(guest, index)"
+        />
       </tbody>
     </table>
   </div>
@@ -97,6 +102,24 @@ function handleUnassign(guestId: string) {
 }
 
 const dropzoneProps = useDroppableUnassignedArea(handleUnassign)
+
+// Family grouping logic
+function getFamilyPosition(guest: Guest, index: number): 'none' | 'first' | 'middle' | 'last' | 'only' {
+  if (!guest.groupName) return 'none'
+
+  const familyMembers = guests.value.filter(g => g.groupName === guest.groupName)
+  if (familyMembers.length === 1) return 'only'
+
+  const familyIndices = familyMembers.map(member =>
+    guests.value.findIndex(g => g.id === member.id)
+  ).sort((a, b) => a - b)
+
+  const positionInFamily = familyIndices.indexOf(index)
+
+  if (positionInFamily === 0) return 'first'
+  if (positionInFamily === familyIndices.length - 1) return 'last'
+  return 'middle'
+}
 </script>
 
 <script lang="ts">
@@ -164,6 +187,10 @@ export { SortIndicator }
 
       &:hover {
         background-color: #f3f4f6;
+      }
+
+      &:first-child {
+        padding-left: 30px;
       }
     }
   }
