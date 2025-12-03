@@ -10,6 +10,10 @@
       <h3>Select Columns to Print</h3>
       <div class="checkbox-grid">
         <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.bedInfo" />
+          <span>Bed Info</span>
+        </label>
+        <label class="checkbox-label">
           <input type="checkbox" v-model="columns.guestName" />
           <span>Guest Name</span>
         </label>
@@ -30,8 +34,12 @@
           <span>Lower Bunk</span>
         </label>
         <label class="checkbox-label">
-          <input type="checkbox" v-model="columns.bedInfo" />
-          <span>Bed Info</span>
+          <input type="checkbox" v-model="columns.arrival" />
+          <span>Arrival Date</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.departure" />
+          <span>Departure Date</span>
         </label>
       </div>
     </div>
@@ -97,6 +105,8 @@
                 <th v-if="columns.age">Age</th>
                 <th v-if="columns.group">Group</th>
                 <th v-if="columns.lowerBunk">Lower Bunk?</th>
+                <th v-if="columns.arrival">Arrival</th>
+                <th v-if="columns.departure">Departure</th>
               </tr>
             </thead>
             <tbody>
@@ -109,6 +119,8 @@
                 <td v-if="columns.age">{{ getGuestField(bed.assignedGuestId, 'age') }}</td>
                 <td v-if="columns.group">{{ getGuestField(bed.assignedGuestId, 'groupName') }}</td>
                 <td v-if="columns.lowerBunk">{{ getGuestField(bed.assignedGuestId, 'lowerBunk') }}</td>
+                <td v-if="columns.arrival">{{ getGuestField(bed.assignedGuestId, 'arrival') }}</td>
+                <td v-if="columns.departure">{{ getGuestField(bed.assignedGuestId, 'departure') }}</td>
               </tr>
             </tbody>
           </table>
@@ -126,6 +138,8 @@
               <th v-if="columns.age">Age</th>
               <th v-if="columns.group">Group</th>
               <th v-if="columns.lowerBunk">Lower Bunk?</th>
+              <th v-if="columns.arrival">Arrival</th>
+              <th v-if="columns.departure">Departure</th>
             </tr>
           </thead>
           <tbody>
@@ -135,6 +149,8 @@
               <td v-if="columns.age">{{ getGuestFieldById(guestId, 'age') }}</td>
               <td v-if="columns.group">{{ getGuestFieldById(guestId, 'groupName') }}</td>
               <td v-if="columns.lowerBunk">{{ getGuestFieldById(guestId, 'lowerBunk') }}</td>
+              <td v-if="columns.arrival">{{ getGuestFieldById(guestId, 'arrival') }}</td>
+              <td v-if="columns.departure">{{ getGuestFieldById(guestId, 'departure') }}</td>
             </tr>
           </tbody>
         </table>
@@ -162,6 +178,8 @@ const columns = reactive({
   age: true,
   group: true,
   lowerBunk: true,
+  arrival: true,
+  departure: true,
 })
 
 const currentDate = computed(() => {
