@@ -1,9 +1,16 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'has-suggestion': hasSuggestion }]"
     v-bind="draggableProps"
   >
-    <td>{{ displayName }}</td>
+    <td>
+      <div class="name-cell">
+        {{ displayName }}
+        <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
+          ✨
+        </span>
+      </div>
+    </td>
     <td>{{ guest.lastName }}</td>
     <td>
       <span :class="['badge', `badge-gender-${guest.gender.toLowerCase()}`]">
@@ -48,6 +55,8 @@ const displayName = computed(() => createDisplayName(props.guest))
 
 const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.guest.id)
 
+const hasSuggestion = computed(() => assignmentStore.suggestedAssignments.has(props.guest.id))
+
 const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.id))
 
 const draggableProps = useDraggableGuest(props.guest.id)
@@ -67,8 +76,33 @@ const draggableProps = useDraggableGuest(props.guest.id)
     background-color: #fef3c7;
   }
 
+  &.has-suggestion {
+    background-color: #eff6ff;
+    border-left: 3px solid #3b82f6;
+  }
+
   &.dragging {
     opacity: 0.4;
+  }
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.suggestion-indicator {
+  font-size: 0.9rem;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }
 

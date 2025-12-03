@@ -1,5 +1,5 @@
 <template>
-  <div :class="['bed-slot', bedTypeClass, { occupied: isOccupied, warning: hasWarning }]" v-bind="dropzoneProps">
+  <div :class="['bed-slot', bedTypeClass, { occupied: isOccupied, warning: hasWarning, 'has-suggestion': isSuggestion }]" v-bind="dropzoneProps">
     <div class="bed-label">
       {{ bed.position }} {{ bed.bedType }}
     </div>
@@ -19,6 +19,28 @@
           </span>
         </div>
         <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
+      </div>
+    </div>
+    <div v-else-if="suggestedGuest" class="bed-suggestion">
+      <div class="suggested-guest">
+        <div class="guest-info">
+          <strong>{{ suggestedDisplayName }}</strong>
+          <span class="guest-details">
+            {{ suggestedGuest.gender }}, {{ suggestedGuest.age }}
+            <span v-if="suggestedGuest.groupName" class="group-badge">
+              {{ suggestedGuest.groupName }}
+            </span>
+          </span>
+          <span class="suggestion-badge">Suggested</span>
+        </div>
+        <div class="suggestion-actions">
+          <button @click="acceptSuggestion" class="btn-accept" title="Accept suggestion">
+            ✓
+          </button>
+          <button @click="rejectSuggestion" class="btn-reject" title="Reject suggestion">
+            ✗
+          </button>
+        </div>
       </div>
     </div>
     <div v-else class="bed-empty">
@@ -54,11 +76,28 @@ const assignedGuest = computed(() => {
   return guestStore.getGuestById(props.bed.assignedGuestId)
 })
 
+const suggestedGuest = computed(() => {
+  // Check if this bed has a suggested assignment
+  for (const [guestId, bedId] of assignmentStore.suggestedAssignments.entries()) {
+    if (bedId === props.bed.bedId) {
+      return guestStore.getGuestById(guestId)
+    }
+  }
+  return null
+})
+
+const isSuggestion = computed(() => !!suggestedGuest.value)
+
 const isOccupied = computed(() => !!assignedGuest.value)
 
 const displayName = computed(() => {
   if (!assignedGuest.value) return ''
   return createDisplayName(assignedGuest.value)
+})
+
+const suggestedDisplayName = computed(() => {
+  if (!suggestedGuest.value) return ''
+  return createDisplayName(suggestedGuest.value)
 })
 
 const warnings = computed(() => validationStore.getWarningsForBed(props.bed.bedId))
@@ -75,6 +114,18 @@ const draggableProps = computed(() => {
 
 function handleDrop(guestId: string, bedId: string) {
   assignmentStore.assignGuestToBed(guestId, bedId)
+}
+
+function acceptSuggestion() {
+  if (suggestedGuest.value) {
+    assignmentStore.acceptSuggestion(suggestedGuest.value.id)
+  }
+}
+
+function rejectSuggestion() {
+  if (suggestedGuest.value) {
+    assignmentStore.suggestedAssignments.delete(suggestedGuest.value.id)
+  }
 }
 
 const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
@@ -219,5 +270,86 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   font-size: 0.7rem;
   color: #9ca3af;
   font-style: italic;
+}
+
+.bed-suggestion {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid #93c5fd;
+  border-radius: 3px;
+  padding: 3px 8px;
+  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+  opacity: 0.75;
+  transition: all 0.2s;
+
+  &:hover {
+    opacity: 1;
+    border-color: #3b82f6;
+  }
+}
+
+.suggested-guest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-badge {
+  display: inline-block;
+  background-color: #3b82f6;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.suggestion-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.btn-accept,
+.btn-reject {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+.btn-accept {
+  background-color: #10b981;
+  color: white;
+
+  &:hover {
+    background-color: #059669;
+  }
+}
+
+.btn-reject {
+  background-color: #ef4444;
+  color: white;
+
+  &:hover {
+    background-color: #dc2626;
+  }
 }
 </style>
