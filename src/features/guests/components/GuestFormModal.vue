@@ -343,7 +343,9 @@ function hasUnsavedChanges(): boolean {
 }
 
 function handleClose() {
-  if (hasUnsavedChanges()) {
+  const hasChanges = hasUnsavedChanges()
+
+  if (hasChanges) {
     const confirmed = window.confirm(
       'You have unsaved changes. Are you sure you want to close? Your edits will be lost.'
     )
@@ -353,9 +355,15 @@ function handleClose() {
       return
     }
   }
-  resetForm()
+
+  // Close the modal first, then reset form
   internalShow.value = false
   emit('close')
+
+  // Reset form after a short delay to avoid triggering watches while props are still set
+  setTimeout(() => {
+    resetForm()
+  }, 100)
 }
 
 function handleSubmit() {
