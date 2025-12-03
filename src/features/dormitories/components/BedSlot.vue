@@ -114,7 +114,7 @@ const draggableProps = computed(() => {
 
 function handleDrop(guestId: string, bedId: string) {
   // Check if the bed is already occupied
-  const existingGuestId = assignmentStore.getAssignmentByBed.value(bedId)
+  const existingGuestId = props.bed.assignedGuestId
 
   if (existingGuestId && existingGuestId !== guestId) {
     // Bed is occupied by a different guest - swap them
