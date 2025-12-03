@@ -4,12 +4,7 @@
       <button @click="handleAddGuest" class="btn-add-guest">+ Add Guest</button>
     </div>
 
-    <div v-if="guests.length === 0" class="empty-state">
-      <h3>{{ emptyTitle }}</h3>
-      <p>{{ emptyMessage }}</p>
-    </div>
-
-    <table v-else class="table">
+    <table class="table">
       <thead>
         <tr>
           <th @click="handleSort('firstName')">
@@ -88,6 +83,20 @@
           :family-position="getFamilyPosition(guest, index)"
           @edit="handleEditGuest"
         />
+        <tr v-if="guests.length === 0" class="empty-row">
+          <td colspan="17" class="empty-cell">
+            <div class="empty-state-inline">
+              <template v-if="guestStore.guests.length === 0">
+                <strong>{{ emptyTitle }}</strong>
+                <p>{{ emptyMessage }}</p>
+              </template>
+              <template v-else>
+                <strong>All guests assigned</strong>
+                <p>Drag guests here from room assignments to unassign them.</p>
+              </template>
+            </div>
+          </td>
+        </tr>
       </tbody>
     </table>
 
@@ -249,12 +258,24 @@ export { SortIndicator }
   }
 }
 
-.empty-state {
+.empty-row {
+  &:hover {
+    background-color: transparent !important;
+  }
+}
+
+.empty-cell {
+  padding: 0 !important;
+  border: none !important;
+}
+
+.empty-state-inline {
   padding: 60px 20px;
   text-align: center;
   color: #6b7280;
 
-  h3 {
+  strong {
+    display: block;
     margin: 0 0 8px 0;
     font-size: 1.25rem;
     font-weight: 600;
