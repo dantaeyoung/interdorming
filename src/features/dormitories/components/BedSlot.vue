@@ -16,6 +16,11 @@
             <span v-if="assignedGuest.groupName" class="group-badge">
               {{ assignedGuest.groupName }}
             </span>
+            <span v-if="assignedGuest.arrival || assignedGuest.departure" class="date-info">
+              <span v-if="assignedGuest.arrival">{{ assignedGuest.arrival }}</span>
+              <span v-if="assignedGuest.arrival && assignedGuest.departure">→</span>
+              <span v-if="assignedGuest.departure">{{ assignedGuest.departure }}</span>
+            </span>
           </span>
         </div>
         <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
@@ -29,6 +34,11 @@
             {{ suggestedGuest.gender }}, {{ suggestedGuest.age }}
             <span v-if="suggestedGuest.groupName" class="group-badge">
               {{ suggestedGuest.groupName }}
+            </span>
+            <span v-if="suggestedGuest.arrival || suggestedGuest.departure" class="date-info">
+              <span v-if="suggestedGuest.arrival">{{ suggestedGuest.arrival }}</span>
+              <span v-if="suggestedGuest.arrival && suggestedGuest.departure">→</span>
+              <span v-if="suggestedGuest.departure">{{ suggestedGuest.departure }}</span>
             </span>
           </span>
           <span class="suggestion-badge">Suggested</span>
@@ -251,6 +261,15 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
 .group-badge {
   background-color: #dbeafe;
   color: #1e40af;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.date-info {
+  background-color: #f3f4f6;
+  color: #4b5563;
   padding: 2px 6px;
   border-radius: 3px;
   font-size: 0.65rem;
