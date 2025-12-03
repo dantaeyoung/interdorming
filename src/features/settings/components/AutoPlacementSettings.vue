@@ -99,6 +99,13 @@ function handleDrop(event: DragEvent, dropIndex: number) {
   // Insert at new position
   newPriorities.splice(dropIndex, 0, draggedItem)
 
+  // Recalculate weights in descending order
+  // Start with highest weight and decrease by 1 for each subsequent priority
+  const maxWeight = 10
+  newPriorities.forEach((priority, index) => {
+    priority.weight = maxWeight - index
+  })
+
   localPriorities.value = newPriorities
 
   // Update store
