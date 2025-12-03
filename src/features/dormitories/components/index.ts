@@ -1,0 +1,14 @@
+/**
+ * Dormitory feature components export file
+ */
+
+export { default as BedSlot } from './BedSlot.vue'
+export { default as RoomCard } from './RoomCard.vue'
+export { default as DormitorySection } from './DormitorySection.vue'
+export { default as RoomList } from './RoomList.vue'
+
+// Room configuration components
+export { default as ConfigRoomList } from './ConfigRoomList.vue'
+export { default as DormitoryConfigSection } from './DormitoryConfigSection.vue'
+export { default as RoomConfigCard } from './RoomConfigCard.vue'
+export { default as BedConfigItem } from './BedConfigItem.vue'
