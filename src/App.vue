@@ -47,7 +47,7 @@
       <!-- Two-Panel Layout -->
       <div class="layout-grid">
         <!-- Left Panel: Unassigned Guests -->
-        <div class="panel" :style="{ width: leftPanelWidth + '%' }">
+        <div class="panel left-panel" :style="{ width: `calc(${leftPanelWidth}% - 4px)` }">
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">Unassigned Guests</h3>
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Right Panel: Room Assignments -->
-        <div class="panel" :style="{ width: rightPanelWidth + '%' }">
+        <div class="panel right-panel" :style="{ width: `calc(${rightPanelWidth}% - 4px)` }">
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">Room Assignments</h3>
@@ -532,11 +532,14 @@ function handleResize(e: MouseEvent) {
   if (!container) return
 
   const containerRect = container.getBoundingClientRect()
-  const offsetX = e.clientX - containerRect.left
-  const containerWidth = containerRect.width
 
-  // Calculate percentage, constrain between 20% and 80%
-  let percentage = (offsetX / containerWidth) * 100
+  // Mouse position relative to container
+  const mouseX = e.clientX - containerRect.left
+
+  // Calculate percentage based on full container width
+  let percentage = (mouseX / containerRect.width) * 100
+
+  // Constrain between 20% and 80%
   percentage = Math.max(20, Math.min(80, percentage))
 
   leftPanelWidth.value = percentage
