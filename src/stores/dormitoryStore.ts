@@ -75,6 +75,19 @@ export const useDormitoryStore = defineStore(
       }
     })
 
+    const getDormitoryByBedId = computed(() => {
+      return (bedId: string): Dormitory | undefined => {
+        for (const dormitory of dormitories.value) {
+          for (const room of dormitory.rooms) {
+            if (room.beds.some(b => b.bedId === bedId)) {
+              return dormitory
+            }
+          }
+        }
+        return undefined
+      }
+    })
+
     const selectedDormitory = computed(() => {
       if (selectedDormitoryIndex.value !== null && selectedDormitoryIndex.value >= 0) {
         return dormitories.value[selectedDormitoryIndex.value]
@@ -279,6 +292,7 @@ export const useDormitoryStore = defineStore(
       getAllBeds,
       getBedById,
       getRoomByBedId,
+      getDormitoryByBedId,
       selectedDormitory,
 
       // Actions

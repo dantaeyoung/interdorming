@@ -165,13 +165,20 @@ export function useAutoPlacement() {
       score += scoreFamilyGrouping(guest, room, suggestedAssignments) * familyPriority.weight
     }
 
-    // 4. Bunk preference (relaxed in pass 2+)
+    // 4. Minimize buildings (prefer dorms with existing occupancy)
+    const minimizeBuildingsPriority = priorities.find(p => p.name === 'minimizeBuildings')
+    if (minimizeBuildingsPriority?.enabled) {
+      score +=
+        scoreMinimizeBuildings(bed, suggestedAssignments) * minimizeBuildingsPriority.weight
+    }
+
+    // 5. Bunk preference (relaxed in pass 2+)
     const bunkPriority = priorities.find(p => p.name === 'bunkPreference')
     if (bunkPriority?.enabled && !passConfig.relaxBunkPreference) {
       score += scoreBunkPreference(guest, bed) * bunkPriority.weight
     }
 
-    // 5. Age compatibility (relaxed in pass 3)
+    // 6. Age compatibility (relaxed in pass 3)
     const agePriority = priorities.find(p => p.name === 'ageCompatibility')
     if (agePriority?.enabled && !passConfig.relaxAge) {
       score += scoreAgeCompatibility(guest, room, suggestedAssignments) * agePriority.weight
@@ -300,6 +307,55 @@ export function useAutoPlacement() {
     if (familyElsewhere > 0) return -0.5
 
     return 0
+  }
+
+  /**
+   * Score to minimize number of buildings/dorms in use
+   * Prefers beds in dormitories that already have occupancy
+   * This concentrates guests into fewer buildings
+   */
+  function scoreMinimizeBuildings(
+    bed: Bed,
+    suggestedAssignments: Map<string, string>
+  ): number {
+    // Find which dormitory this bed belongs to
+    const dormitory = dormitoryStore.getDormitoryByBedId(bed.bedId)
+    if (!dormitory) return 0
+
+    // Count occupied beds in this dormitory (actual + suggested)
+    let occupiedBeds = 0
+    let totalBeds = 0
+
+    for (const room of dormitory.rooms) {
+      if (!room.active) continue
+
+      for (const dormBed of room.beds) {
+        if (dormBed.active === false) continue
+        totalBeds++
+
+        // Check if bed is occupied (actual assignment or suggestion)
+        if (dormBed.assignedGuestId) {
+          occupiedBeds++
+        } else {
+          // Check suggested assignments
+          for (const suggestedBedId of suggestedAssignments.values()) {
+            if (suggestedBedId === dormBed.bedId) {
+              occupiedBeds++
+              break
+            }
+          }
+        }
+      }
+    }
+
+    if (totalBeds === 0) return 0
+
+    // Calculate occupancy percentage
+    const occupancyRate = occupiedBeds / totalBeds
+
+    // Higher score for dorms with higher occupancy
+    // Empty dorm (0%) gets 0, half-full gets 0.5, full gets 1.0
+    return occupancyRate
   }
 
   /**

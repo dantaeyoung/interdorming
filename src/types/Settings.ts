@@ -58,6 +58,12 @@ export const DEFAULT_SETTINGS: Settings = {
         label: 'Prefer Gendered Rooms over Co-ed',
       },
       { name: 'families', weight: 8, enabled: true, label: 'Keep Families Together' },
+      {
+        name: 'minimizeBuildings',
+        weight: 5,
+        enabled: true,
+        label: 'Fill Up As Few Dorms As Possible',
+      },
       { name: 'bunkPreference', weight: 6, enabled: true, label: 'Bunk Preferences' },
       { name: 'ageCompatibility', weight: 4, enabled: false, label: 'Age Compatibility' },
     ],
