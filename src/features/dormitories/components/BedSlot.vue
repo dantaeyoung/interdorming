@@ -10,17 +10,17 @@
         v-bind="draggableProps"
       >
         <div class="guest-info">
-          <strong>{{ displayName }}</strong>
+          <strong class="guest-name">{{ displayName }}</strong>
           <span class="guest-details">
             {{ assignedGuest.gender }}, {{ assignedGuest.age }}
             <span v-if="assignedGuest.groupName" class="group-badge">
               {{ assignedGuest.groupName }}
             </span>
-            <span v-if="assignedGuest.arrival || assignedGuest.departure" class="date-info">
-              <span v-if="assignedGuest.arrival">{{ assignedGuest.arrival }}</span>
-              <span v-if="assignedGuest.arrival && assignedGuest.departure">→</span>
-              <span v-if="assignedGuest.departure">{{ assignedGuest.departure }}</span>
-            </span>
+          </span>
+          <span v-if="assignedGuest.arrival || assignedGuest.departure" class="date-info">
+            <span v-if="assignedGuest.arrival">{{ assignedGuest.arrival }}</span>
+            <span v-if="assignedGuest.arrival && assignedGuest.departure">→</span>
+            <span v-if="assignedGuest.departure">{{ assignedGuest.departure }}</span>
           </span>
         </div>
         <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
@@ -29,17 +29,17 @@
     <div v-else-if="suggestedGuest" class="bed-suggestion">
       <div class="suggested-guest">
         <div class="guest-info">
-          <strong>{{ suggestedDisplayName }}</strong>
+          <strong class="guest-name">{{ suggestedDisplayName }}</strong>
           <span class="guest-details">
             {{ suggestedGuest.gender }}, {{ suggestedGuest.age }}
             <span v-if="suggestedGuest.groupName" class="group-badge">
               {{ suggestedGuest.groupName }}
             </span>
-            <span v-if="suggestedGuest.arrival || suggestedGuest.departure" class="date-info">
-              <span v-if="suggestedGuest.arrival">{{ suggestedGuest.arrival }}</span>
-              <span v-if="suggestedGuest.arrival && suggestedGuest.departure">→</span>
-              <span v-if="suggestedGuest.departure">{{ suggestedGuest.departure }}</span>
-            </span>
+          </span>
+          <span v-if="suggestedGuest.arrival || suggestedGuest.departure" class="date-info">
+            <span v-if="suggestedGuest.arrival">{{ suggestedGuest.arrival }}</span>
+            <span v-if="suggestedGuest.arrival && suggestedGuest.departure">→</span>
+            <span v-if="suggestedGuest.departure">{{ suggestedGuest.departure }}</span>
           </span>
           <span class="suggestion-badge">Suggested</span>
         </div>
@@ -239,14 +239,17 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   gap: 8px;
   flex: 1;
   min-width: 0;
+}
 
-  strong {
-    font-size: 0.8rem;
-    color: #1f2937;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+.guest-name {
+  font-size: 0.8rem;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 150px;
+  max-width: 150px;
+  flex-shrink: 0;
 }
 
 .guest-details {
@@ -256,6 +259,7 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .group-badge {
@@ -274,6 +278,8 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   border-radius: 3px;
   font-size: 0.65rem;
   white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .bed-empty {
