@@ -41,24 +41,24 @@ function selectTab(tabId: string) {
 .tabs {
   background-color: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .tab-list {
   display: flex;
-  gap: 4px;
-  padding: 0 20px;
+  gap: 2px;
+  padding: 0 12px;
 }
 
 .tab {
   background: none;
   border: none;
-  padding: 12px 24px;
-  font-size: 1rem;
+  padding: 8px 16px;
+  font-size: 0.875rem;
   font-weight: 500;
   color: #6b7280;
   cursor: pointer;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
   transition: all 0.2s;
   position: relative;
 

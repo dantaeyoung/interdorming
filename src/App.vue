@@ -51,10 +51,12 @@
               <span class="card-subtitle">({{ unassignedCount }})</span>
             </div>
             <div class="card-body">
-              <!-- Search -->
-              <GuestSearch />
+              <!-- Search - Fixed at top -->
+              <div class="search-section">
+                <GuestSearch />
+              </div>
 
-              <!-- Guest List -->
+              <!-- Guest List - Scrollable -->
               <div class="panel-content">
                 <GuestList
                   :show-assigned="false"
@@ -104,7 +106,7 @@
         </div>
       </div>
 
-      <div class="configuration-content">
+      <div class="scrollable-content">
         <RoomList
           empty-title="No rooms configured"
           empty-message="Import or create room configuration to begin."
@@ -114,12 +116,16 @@
 
     <!-- Print Tab -->
     <div v-show="activeTab === 'print'" class="tab-content">
-      <PrintView />
+      <div class="scrollable-content">
+        <PrintView />
+      </div>
     </div>
 
     <!-- Settings Tab -->
     <div v-show="activeTab === 'settings'" class="tab-content">
-      <SettingsPanel />
+      <div class="scrollable-content">
+        <SettingsPanel />
+      </div>
     </div>
 
     <!-- Modals & Dialogs -->
@@ -450,48 +456,58 @@ function handleConfirmDialogCancel() {
 
 <style scoped lang="scss">
 .app-container {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: #f3f4f6;
+  overflow: hidden;
 }
 
 .header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 32px 20px;
-  text-align: center;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 
   h1 {
-    margin: 0 0 8px 0;
-    font-size: 2rem;
-    font-weight: 700;
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
   }
 
   p {
-    margin: 0;
-    font-size: 1rem;
-    opacity: 0.95;
+    display: none;
   }
 }
 
 .tab-content {
-  padding: 20px;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .upload-section {
   background: white;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin: 12px 16px 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
 .status-message {
-  padding: 12px 20px;
-  margin-bottom: 20px;
+  padding: 8px 16px;
+  margin: 8px 16px 0;
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 500;
+  flex-shrink: 0;
 
   &.success {
     background-color: #d1fae5;
@@ -515,8 +531,11 @@ function handleConfirmDialogCancel() {
 .layout-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-top: 20px;
+  gap: 16px;
+  padding: 12px 16px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
@@ -524,7 +543,9 @@ function handleConfirmDialogCancel() {
 }
 
 .panel {
-  min-height: 400px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .card {
@@ -540,21 +561,22 @@ function handleConfirmDialogCancel() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 10px 12px;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
   border-radius: 8px 8px 0 0;
+  flex-shrink: 0;
 }
 
 .card-title {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: #111827;
 }
 
 .card-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: #6b7280;
   font-weight: 500;
 }
@@ -566,25 +588,31 @@ function handleConfirmDialogCancel() {
   flex-direction: column;
 }
 
+.search-section {
+  padding: 8px 12px;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
 .panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 8px 12px;
 }
 
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 10px 12px;
   background-color: white;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
 
   h2 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1rem;
     font-weight: 600;
     color: #111827;
   }
@@ -593,34 +621,14 @@ function handleConfirmDialogCancel() {
 .toolbar-left,
 .toolbar-right {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
-.configuration-content {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  min-height: 500px;
-}
-
-.settings-panel {
-  background: white;
-  padding: 32px;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-
-  h2 {
-    margin: 0 0 16px 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #111827;
-  }
-
-  p {
-    margin: 0;
-    color: #6b7280;
-  }
+.scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  background-color: #f3f4f6;
 }
 </style>

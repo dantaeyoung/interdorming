@@ -32,7 +32,14 @@
       "mcp__playwright__browser_evaluate",
       "Bash(default_room_config.csv)",
       "Bash(sample_room_config.csv)",
-      "mcp__playwright__browser_select_option"
+      "mcp__playwright__browser_select_option",
+      "Bash(lsof:*)",
+      "Bash(npm run dev)",
+      "Bash(npm install)",
+      "Bash(xargs kill -9)",
+      "Bash(curl:*)",
+      "Bash(git pull:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

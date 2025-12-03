@@ -94,26 +94,27 @@ const canUndo = computed(() => assignmentStore.canUndo)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 8px 12px;
   background-color: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
-  gap: 16px;
+  gap: 8px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .toolbar-section {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
 }
 
 .btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border-radius: 4px;
   background: white;
   color: #374151;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
