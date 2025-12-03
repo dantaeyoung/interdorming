@@ -192,10 +192,30 @@ const isOpen = computed({
   get: () => props.show,
   set: (value: boolean) => {
     if (!value) {
-      emit('close')
+      handleClose()
     }
   }
 })
+
+const initialFormData = {
+  firstName: '',
+  lastName: '',
+  preferredName: '',
+  gender: '' as Gender | '',
+  age: '' as string | number,
+  groupName: '',
+  lowerBunk: false,
+  arrival: '',
+  departure: '',
+  indivGrp: '',
+  notes: '',
+  retreat: '',
+  ratePerNight: '',
+  priceQuoted: '',
+  amountPaid: '',
+  firstVisit: '',
+  roomPreference: '',
+}
 
 const formData = ref({
   firstName: '',
@@ -253,28 +273,65 @@ watch(
 )
 
 function resetForm() {
-  formData.value = {
-    firstName: '',
-    lastName: '',
-    preferredName: '',
-    gender: '',
-    age: '',
-    groupName: '',
-    lowerBunk: false,
-    arrival: '',
-    departure: '',
-    indivGrp: '',
-    notes: '',
-    retreat: '',
-    ratePerNight: '',
-    priceQuoted: '',
-    amountPaid: '',
-    firstVisit: '',
-    roomPreference: '',
+  formData.value = { ...initialFormData }
+}
+
+function hasUnsavedChanges(): boolean {
+  // Check if any field has been modified from initial state
+  if (props.guest) {
+    // In edit mode, compare with original guest data
+    return (
+      formData.value.firstName !== (props.guest.firstName || '') ||
+      formData.value.lastName !== (props.guest.lastName || '') ||
+      formData.value.preferredName !== (props.guest.preferredName || '') ||
+      formData.value.gender !== (props.guest.gender || '') ||
+      formData.value.age !== (props.guest.age || '') ||
+      formData.value.groupName !== (props.guest.groupName || '') ||
+      formData.value.lowerBunk !== (props.guest.lowerBunk || false) ||
+      formData.value.arrival !== (props.guest.arrival || '') ||
+      formData.value.departure !== (props.guest.departure || '') ||
+      formData.value.indivGrp !== (props.guest.indivGrp || '') ||
+      formData.value.notes !== (props.guest.notes || '') ||
+      formData.value.retreat !== (props.guest.retreat || '') ||
+      formData.value.ratePerNight !== (props.guest.ratePerNight || '') ||
+      formData.value.priceQuoted !== (props.guest.priceQuoted || '') ||
+      formData.value.amountPaid !== (props.guest.amountPaid || '') ||
+      formData.value.firstVisit !== (props.guest.firstVisit || '') ||
+      formData.value.roomPreference !== (props.guest.roomPreference || '')
+    )
+  } else {
+    // In add mode, check if any field has been filled
+    return (
+      formData.value.firstName !== '' ||
+      formData.value.lastName !== '' ||
+      formData.value.preferredName !== '' ||
+      formData.value.gender !== '' ||
+      formData.value.age !== '' ||
+      formData.value.groupName !== '' ||
+      formData.value.lowerBunk !== false ||
+      formData.value.arrival !== '' ||
+      formData.value.departure !== '' ||
+      formData.value.indivGrp !== '' ||
+      formData.value.notes !== '' ||
+      formData.value.retreat !== '' ||
+      formData.value.ratePerNight !== '' ||
+      formData.value.priceQuoted !== '' ||
+      formData.value.amountPaid !== '' ||
+      formData.value.firstVisit !== '' ||
+      formData.value.roomPreference !== ''
+    )
   }
 }
 
 function handleClose() {
+  if (hasUnsavedChanges()) {
+    const confirmed = window.confirm(
+      'You have unsaved changes. Are you sure you want to close? Your edits will be lost.'
+    )
+    if (!confirmed) {
+      return
+    }
+  }
   resetForm()
   emit('close')
 }
