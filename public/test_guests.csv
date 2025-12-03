@@ -1,0 +1,11 @@
+firstName,lastName,gender,age,lowerBunk,groupName,arrival,departure
+John,Smith,M,25,false,,2024-01-15,2024-01-20
+Jane,Doe,F,30,true,,2024-01-15,2024-01-20
+Bob,Johnson,M,45,true,Family1,2024-01-15,2024-01-20
+Alice,Johnson,F,12,false,Family1,2024-01-15,2024-01-20
+Charlie,Wilson,M,65,true,,2024-01-15,2024-01-20
+Diana,Brown,F,28,false,Family2,2024-01-15,2024-01-20
+Eve,Brown,F,8,false,Family2,2024-01-15,2024-01-20
+Frank,Davis,M,35,true,Family3,2024-01-15,2024-01-20
+Grace,Davis,F,33,false,Family3,2024-01-15,2024-01-20
+Henry,Miller,M,19,false,,2024-01-15,2024-01-20
