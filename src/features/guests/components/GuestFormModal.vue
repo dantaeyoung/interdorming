@@ -1,5 +1,5 @@
 <template>
-  <Modal :show="show" @close="handleClose" title="Guest Details">
+  <Modal v-model="isOpen" @close="handleClose" title="Guest Details">
     <form @submit.prevent="handleSubmit" class="guest-form">
       <div class="form-grid">
         <!-- Required Fields -->
@@ -171,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { Modal } from '@/shared/components'
 import type { Guest, Gender } from '@/types'
 
@@ -187,6 +187,15 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const isOpen = computed({
+  get: () => props.show,
+  set: (value: boolean) => {
+    if (!value) {
+      emit('close')
+    }
+  }
+})
 
 const formData = ref({
   firstName: '',
