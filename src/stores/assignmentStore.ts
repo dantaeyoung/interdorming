@@ -214,10 +214,28 @@ export const useAssignmentStore = defineStore(
       assignmentHistory.value = []
     }
 
-    // Auto-placement will be implemented later based on original algorithm
+    // Auto-placement using weighted scoring algorithm
     function autoPlace() {
-      // TODO: Implement auto-placement algorithm from original code
-      console.warn('Auto-placement not yet implemented')
+      // Import the composable dynamically to avoid circular dependencies
+      const { useAutoPlacement } = require('@/features/assignments/composables/useAutoPlacement')
+      const { autoPlaceGuests } = useAutoPlacement()
+
+      // Clear existing suggestions
+      suggestedAssignments.value.clear()
+
+      // Run auto-placement algorithm
+      const suggestions = autoPlaceGuests()
+
+      // Apply new suggestions
+      suggestions.forEach((bedId, guestId) => {
+        suggestedAssignments.value.set(guestId, bedId)
+      })
+
+      // Return placement results
+      return {
+        placedCount: suggestions.size,
+        unplacedCount: unassignedGuestIds.value.length - suggestions.size,
+      }
     }
 
     return {

@@ -226,18 +226,50 @@ async function handleLoadTestData() {
 
 // Assignment toolbar handlers
 function handleAutoPlace() {
-  // TODO: Implement auto-placement logic
-  showStatus('Auto-placement not yet implemented', 'info')
+  try {
+    const result = assignmentStore.autoPlace()
+
+    if (result.placedCount === 0) {
+      showStatus('No placements made. Check settings or room availability.', 'info')
+    } else if (result.unplacedCount === 0) {
+      showStatus(
+        `Auto-placement complete! All ${result.placedCount} guests successfully assigned.`,
+        'success'
+      )
+    } else {
+      showStatus(
+        `Auto-placement complete: ${result.placedCount} guests assigned, ${result.unplacedCount} remaining unplaced.`,
+        'info'
+      )
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Auto-placement failed'
+    showStatus(`Error: ${errorMessage}`, 'error')
+  }
 }
 
 function handleAcceptAll() {
-  // TODO: Implement accept all suggestions
-  showStatus('Accept all not yet implemented', 'info')
+  const suggestionCount = assignmentStore.suggestedAssignments.size
+
+  if (suggestionCount === 0) {
+    showStatus('No suggestions to accept', 'info')
+    return
+  }
+
+  assignmentStore.acceptAllSuggestions()
+  showStatus(`Accepted ${suggestionCount} suggested assignments`, 'success')
 }
 
 function handleClearSuggestions() {
-  // TODO: Implement clear suggestions
-  showStatus('Clear suggestions not yet implemented', 'info')
+  const suggestionCount = assignmentStore.suggestedAssignments.size
+
+  if (suggestionCount === 0) {
+    showStatus('No suggestions to clear', 'info')
+    return
+  }
+
+  assignmentStore.clearSuggestions()
+  showStatus(`Cleared ${suggestionCount} suggested assignments`, 'info')
 }
 
 function handleUndo() {
