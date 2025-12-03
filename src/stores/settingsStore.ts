@@ -14,6 +14,29 @@ export const useSettingsStore = defineStore(
     // State
     const settings = ref<Settings>({ ...DEFAULT_SETTINGS })
 
+    // Merge any new default priorities that don't exist in saved settings
+    function mergePriorities() {
+      const existingPriorityNames = new Set(
+        settings.value.autoPlacement.priorities.map(p => p.name)
+      )
+
+      // Add any missing priorities from defaults
+      for (const defaultPriority of DEFAULT_SETTINGS.autoPlacement.priorities) {
+        if (!existingPriorityNames.has(defaultPriority.name)) {
+          // Find the correct position to insert (maintain order from defaults)
+          const defaultIndex = DEFAULT_SETTINGS.autoPlacement.priorities.findIndex(
+            p => p.name === defaultPriority.name
+          )
+          settings.value.autoPlacement.priorities.splice(defaultIndex, 0, {
+            ...defaultPriority,
+          })
+        }
+      }
+    }
+
+    // Run migration on initialization
+    mergePriorities()
+
     // Actions
     function updateWarningSettings(key: keyof Settings['warnings'], value: boolean) {
       settings.value.warnings[key] = value
