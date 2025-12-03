@@ -47,7 +47,7 @@
       <!-- Two-Panel Layout -->
       <div class="layout-grid">
         <!-- Left Panel: Unassigned Guests -->
-        <div class="panel">
+        <div class="panel" :style="{ width: leftPanelWidth + '%' }">
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">Unassigned Guests</h3>
@@ -71,8 +71,16 @@
           </div>
         </div>
 
+        <!-- Resizable Divider -->
+        <div
+          class="divider"
+          @mousedown="startResize"
+        >
+          <div class="divider-handle"></div>
+        </div>
+
         <!-- Right Panel: Room Assignments -->
-        <div class="panel">
+        <div class="panel" :style="{ width: rightPanelWidth + '%' }">
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">Room Assignments</h3>
@@ -185,6 +193,11 @@ const statusMessageType = ref<'success' | 'error' | 'info'>('info')
 
 // Confirm dialog state
 const showConfirmDialog = ref(false)
+
+// Panel resize state
+const leftPanelWidth = ref(50)
+const rightPanelWidth = computed(() => 100 - leftPanelWidth.value)
+const isResizing = ref(false)
 const confirmDialog = ref({
   title: '',
   message: '',
@@ -503,6 +516,37 @@ function handleConfirmDialogConfirm() {
 function handleConfirmDialogCancel() {
   showConfirmDialog.value = false
 }
+
+// Panel resize handlers
+function startResize(e: MouseEvent) {
+  isResizing.value = true
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResize)
+  e.preventDefault()
+}
+
+function handleResize(e: MouseEvent) {
+  if (!isResizing.value) return
+
+  const container = document.querySelector('.layout-grid') as HTMLElement
+  if (!container) return
+
+  const containerRect = container.getBoundingClientRect()
+  const offsetX = e.clientX - containerRect.left
+  const containerWidth = containerRect.width
+
+  // Calculate percentage, constrain between 20% and 80%
+  let percentage = (offsetX / containerWidth) * 100
+  percentage = Math.max(20, Math.min(80, percentage))
+
+  leftPanelWidth.value = percentage
+}
+
+function stopResize() {
+  isResizing.value = false
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+}
 </script>
 
 <style scoped lang="scss">
@@ -592,16 +636,15 @@ function handleConfirmDialogCancel() {
 }
 
 .layout-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  display: flex;
+  gap: 0;
   padding: 12px 16px;
   flex: 1;
   overflow: hidden;
   min-height: 0;
 
   @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 }
 
@@ -609,6 +652,34 @@ function handleConfirmDialogCancel() {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  flex-shrink: 0;
+}
+
+.divider {
+  width: 8px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  user-select: none;
+
+  &:hover .divider-handle {
+    background-color: #3b82f6;
+  }
+
+  &:active .divider-handle {
+    background-color: #2563eb;
+  }
+}
+
+.divider-handle {
+  width: 4px;
+  height: 60px;
+  background-color: #d1d5db;
+  border-radius: 2px;
+  transition: background-color 0.2s;
 }
 
 .card {
