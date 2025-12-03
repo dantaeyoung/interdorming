@@ -159,6 +159,9 @@ import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/compo
 import { SettingsPanel } from '@/features/settings/components'
 import { PrintView } from '@/features/print/components'
 
+// Composables
+import { useCSV } from '@/features/csv/composables/useCSV'
+
 import type { Guest } from '@/types'
 import type { Tab } from '@/shared/components/TabNavigation.vue'
 
@@ -292,8 +295,53 @@ function handleUndo() {
 }
 
 function handleExport() {
-  // TODO: Implement CSV export
-  showStatus('Export not yet implemented', 'info')
+  try {
+    const { generateCSV, downloadCSV, generateTimestampedFilename } = useCSV()
+
+    const exportData = guestStore.guests.map(guest => {
+      const bedId = assignmentStore.getAssignmentByGuest(guest.id)
+      const room = bedId ? dormitoryStore.getRoomByBedId(bedId) : undefined
+
+      return {
+        firstName: guest.firstName,
+        lastName: guest.lastName,
+        preferredName: guest.preferredName || '',
+        gender: guest.gender,
+        age: guest.age,
+        groupName: guest.groupName || '',
+        lowerBunk: guest.lowerBunk ? 'Yes' : 'No',
+        arrival: guest.arrival || '',
+        departure: guest.departure || '',
+        dormitory: room?.dormitoryName || '',
+        assignedRoom: room?.roomName || '',
+        assignedBed: bedId || '',
+      }
+    })
+
+    const columns = [
+      { key: 'firstName' as const, label: 'First Name' },
+      { key: 'lastName' as const, label: 'Last Name' },
+      { key: 'preferredName' as const, label: 'Preferred Name' },
+      { key: 'gender' as const, label: 'Gender' },
+      { key: 'age' as const, label: 'Age' },
+      { key: 'groupName' as const, label: 'Group Name' },
+      { key: 'lowerBunk' as const, label: 'Lower Bunk' },
+      { key: 'arrival' as const, label: 'Arrival' },
+      { key: 'departure' as const, label: 'Departure' },
+      { key: 'dormitory' as const, label: 'Dormitory' },
+      { key: 'assignedRoom' as const, label: 'Assigned Room' },
+      { key: 'assignedBed' as const, label: 'Assigned Bed' },
+    ]
+
+    const csvContent = generateCSV(exportData, columns)
+    const filename = generateTimestampedFilename('dorm_assignments', '.csv')
+
+    downloadCSV(csvContent, filename)
+    showStatus('CSV exported successfully', 'success')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to export CSV'
+    showStatus(`Error exporting CSV: ${errorMessage}`, 'error')
+  }
 }
 
 function handleResetAssignments() {
