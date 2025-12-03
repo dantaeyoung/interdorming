@@ -271,16 +271,42 @@ export { SortIndicator }
   width: 100%;
   border-collapse: collapse;
   background: white;
+  overflow-x: auto;
   overflow-y: auto;
   flex: 1;
   display: block;
+
+  // Always show scrollbars
+  &::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #c1c1c1;
+    border-radius: 6px;
+
+    &:hover {
+      background-color: #a8a8a8;
+    }
+  }
+
+  // For Firefox
+  scrollbar-width: auto;
+  scrollbar-color: #c1c1c1 #f1f1f1;
 
   thead,
   tbody,
   tr {
     display: table;
-    width: 100%;
-    table-layout: fixed;
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
   }
 
   thead {
