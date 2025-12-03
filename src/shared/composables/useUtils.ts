@@ -24,6 +24,29 @@ export function useUtils() {
   }
 
   /**
+   * Creates a full display name (firstName + lastName)
+   * For room assignments where full name is needed
+   */
+  function createFullName(person: {
+    firstName?: string
+    lastName?: string
+    preferredName?: string
+  }): string {
+    if (!person) return ''
+
+    const first = person.firstName || ''
+    const last = person.lastName || ''
+    const preferred = person.preferredName || ''
+
+    // If there's a preferred name different from first name, show it
+    if (preferred && preferred !== first) {
+      return `${preferred} ${last}`.trim()
+    }
+
+    return `${first} ${last}`.trim()
+  }
+
+  /**
    * Formats a date value for display
    */
   function formatDate(dateValue: string | Date): string {
@@ -105,6 +128,7 @@ export function useUtils() {
 
   return {
     createDisplayName,
+    createFullName,
     formatDate,
     isEmptyOrWhitespace,
     truncateText,

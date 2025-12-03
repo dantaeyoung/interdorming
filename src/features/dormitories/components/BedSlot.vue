@@ -79,7 +79,7 @@ const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
 const { useDroppableBed, useDraggableGuest } = useDragDrop()
-const { createDisplayName } = useUtils()
+const { createFullName } = useUtils()
 
 const assignedGuest = computed(() => {
   if (!props.bed.assignedGuestId) return null
@@ -102,12 +102,12 @@ const isOccupied = computed(() => !!assignedGuest.value)
 
 const displayName = computed(() => {
   if (!assignedGuest.value) return ''
-  return createDisplayName(assignedGuest.value)
+  return createFullName(assignedGuest.value)
 })
 
 const suggestedDisplayName = computed(() => {
   if (!suggestedGuest.value) return ''
-  return createDisplayName(suggestedGuest.value)
+  return createFullName(suggestedGuest.value)
 })
 
 const warnings = computed(() => validationStore.getWarningsForBed(props.bed.bedId))
