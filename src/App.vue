@@ -110,9 +110,9 @@
       </div>
 
       <div class="scrollable-content">
-        <RoomList
+        <ConfigRoomList
           empty-title="No rooms configured"
-          empty-message="Import or create room configuration to begin."
+          empty-message="Add a dormitory to begin configuring rooms and beds."
         />
       </div>
     </div>
@@ -153,7 +153,7 @@ import { TabNavigation, ConfirmDialog } from '@/shared/components'
 
 // Feature components
 import { GuestList, GuestSearch } from '@/features/guests/components'
-import { RoomList } from '@/features/dormitories/components'
+import { RoomList, ConfigRoomList } from '@/features/dormitories/components'
 import { GuestCSVUpload, RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
