@@ -31,37 +31,37 @@ const activeRooms = computed(() => {
   border: 1px solid #e5e7eb;
   border-left: 4px solid #4299e1;
   border-radius: 8px;
-  padding: 20px;
+  padding: 12px;
   background: white;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .dormitory-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 2px solid #e5e7eb;
 
   h3 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 600;
     color: #1f2937;
   }
 }
 
 .room-count {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #6b7280;
   background-color: #f3f4f6;
-  padding: 4px 12px;
-  border-radius: 12px;
+  padding: 3px 10px;
+  border-radius: 10px;
 }
 
 .rooms-container {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 </style>

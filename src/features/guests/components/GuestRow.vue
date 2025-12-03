@@ -139,7 +139,8 @@ const draggableProps = useDraggableGuest(props.guest.id)
 }
 
 td {
-  padding: 12px;
+  padding: 6px 10px;
   border-bottom: 1px solid #e5e7eb;
+  font-size: 0.85rem;
 }
 </style>

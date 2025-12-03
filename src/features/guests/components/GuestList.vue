@@ -153,9 +153,9 @@ export { SortIndicator }
     border-bottom: 2px solid #e5e7eb;
 
     th {
-      padding: 12px;
+      padding: 6px 10px;
       text-align: left;
-      font-size: 0.875rem;
+      font-size: 0.8rem;
       font-weight: 600;
       color: #374151;
       cursor: pointer;

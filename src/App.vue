@@ -11,27 +11,30 @@
 
     <!-- Guest Assignment Tab -->
     <div v-show="activeTab === 'assignment'" class="tab-content">
-      <!-- CSV Upload Section -->
-      <div class="upload-section">
-        <GuestCSVUpload
-          label="Upload CSV File"
-          :show-load-test="true"
-          @upload-success="handleUploadSuccess"
-          @upload-error="handleUploadError"
-          @load-test-data="handleLoadTestData"
-        />
-      </div>
+      <!-- Combined Upload & Toolbar Section -->
+      <div class="combined-toolbar">
+        <div class="toolbar-left-section">
+          <GuestCSVUpload
+            label=""
+            :show-load-test="true"
+            @upload-success="handleUploadSuccess"
+            @upload-error="handleUploadError"
+            @load-test-data="handleLoadTestData"
+          />
+        </div>
 
-      <!-- Assignment Toolbar -->
-      <AssignmentToolbar
-        @auto-place="handleAutoPlace"
-        @accept-all="handleAcceptAll"
-        @clear-suggestions="handleClearSuggestions"
-        @undo="handleUndo"
-        @export="handleExport"
-        @reset-assignments="handleResetAssignments"
-        @delete-all="handleDeleteAll"
-      />
+        <div class="toolbar-right-section">
+          <AssignmentToolbar
+            @auto-place="handleAutoPlace"
+            @accept-all="handleAcceptAll"
+            @clear-suggestions="handleClearSuggestions"
+            @undo="handleUndo"
+            @export="handleExport"
+            @reset-assignments="handleResetAssignments"
+            @delete-all="handleDeleteAll"
+          />
+        </div>
+      </div>
 
       <!-- Assignment Stats -->
       <AssignmentStats />
@@ -492,13 +495,25 @@ function handleConfirmDialogCancel() {
   flex-direction: column;
 }
 
-.upload-section {
-  background: white;
-  padding: 12px 16px;
-  border-radius: 6px;
-  margin: 12px 16px 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.combined-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
+  gap: 12px;
+}
+
+.toolbar-left-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-right-section {
+  flex: 1;
 }
 
 .status-message {

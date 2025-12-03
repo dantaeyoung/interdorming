@@ -44,8 +44,8 @@ const availableBeds = computed(() => totalBeds.value - assignedCount.value)
 <style scoped lang="scss">
 .assignment-stats {
   display: flex;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 4px 12px;
   background-color: white;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
@@ -53,24 +53,24 @@ const availableBeds = computed(() => totalBeds.value - assignedCount.value)
 
 .stat-card {
   flex: 1;
-  padding: 6px 12px;
+  padding: 3px 8px;
   background-color: #f9fafb;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid #e5e7eb;
   text-align: center;
 }
 
 .stat-label {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: #6b7280;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 2px;
+  letter-spacing: 0.03em;
+  margin-bottom: 1px;
 }
 
 .stat-value {
-  font-size: 1.125rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #1f2937;
 

@@ -71,7 +71,7 @@ const ageRange = computed(() => {
 }
 
 .room-header {
-  padding: 16px;
+  padding: 8px 10px;
   background-color: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
@@ -82,11 +82,11 @@ const ageRange = computed(() => {
 .room-title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 
   h4 {
     margin: 0;
-    font-size: 1rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #1f2937;
   }
@@ -94,9 +94,9 @@ const ageRange = computed(() => {
 
 .badge {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
   font-weight: 500;
 
   &.badge-gender-m {
@@ -116,20 +116,20 @@ const ageRange = computed(() => {
 }
 
 .room-info {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: #6b7280;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .age-range {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #9ca3af;
 }
 
 .beds-grid {
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 0px;
