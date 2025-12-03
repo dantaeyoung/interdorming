@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDormitoryStore } from './dormitoryStore'
 import { useGuestStore } from './guestStore'
+import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
 import type { AssignmentMap, HistoryState, SuggestedAssignmentMap } from '@/types'
 import { HISTORY_SIZE } from '@/types'
 
@@ -216,8 +217,6 @@ export const useAssignmentStore = defineStore(
 
     // Auto-placement using weighted scoring algorithm
     function autoPlace() {
-      // Import the composable dynamically to avoid circular dependencies
-      const { useAutoPlacement } = require('@/features/assignments/composables/useAutoPlacement')
       const { autoPlaceGuests } = useAutoPlacement()
 
       // Clear existing suggestions
