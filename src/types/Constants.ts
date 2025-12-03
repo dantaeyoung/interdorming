@@ -47,6 +47,10 @@ export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
   ],
   arrival: ['arrival', 'ARRIVAL', 'Arrival', 'arrival_date'],
   departure: ['departure', 'DEPARTURE', 'Departure', 'departure_date'],
+  indivGrp: ['indivGrp', 'Indiv/Grp?', 'INDIV/GRP?', 'Indiv/Grp', 'indiv_grp'],
+  notes: ['notes', 'NOTES', 'Notes', 'Note'],
+  retreat: ['retreat', 'RETREAT', 'Retreat'],
+  ratePerNight: ['ratePerNight', 'Rate per night', 'RATE PER NIGHT', 'Rate Per Night', 'rate_per_night'],
 }
 
 /**

@@ -28,6 +28,10 @@
     <td>{{ guest.groupName || '-' }}</td>
     <td>{{ guest.arrival || '-' }}</td>
     <td>{{ guest.departure || '-' }}</td>
+    <td>{{ guest.indivGrp || '-' }}</td>
+    <td>{{ guest.notes || '-' }}</td>
+    <td>{{ guest.retreat || '-' }}</td>
+    <td>{{ guest.ratePerNight || '-' }}</td>
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
     </td>

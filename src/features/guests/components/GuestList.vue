@@ -40,6 +40,22 @@
             Departure
             <SortIndicator :active="sortColumn === 'departure'" :direction="sortDirection" />
           </th>
+          <th @click="handleSort('indivGrp')">
+            Indiv/Grp?
+            <SortIndicator :active="sortColumn === 'indivGrp'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('notes')">
+            Notes
+            <SortIndicator :active="sortColumn === 'notes'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('retreat')">
+            Retreat
+            <SortIndicator :active="sortColumn === 'retreat'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('ratePerNight')">
+            Rate/Night
+            <SortIndicator :active="sortColumn === 'ratePerNight'" :direction="sortDirection" />
+          </th>
           <th>Warnings</th>
         </tr>
       </thead>

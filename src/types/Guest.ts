@@ -16,6 +16,10 @@ export interface Guest {
   lowerBunk?: boolean
   arrival?: string
   departure?: string
+  indivGrp?: string
+  notes?: string
+  retreat?: string
+  ratePerNight?: string
 }
 
 /**
