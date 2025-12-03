@@ -304,9 +304,9 @@ export { SortIndicator }
   tbody,
   tr {
     display: table;
-    width: max-content;
-    min-width: 100%;
-    table-layout: auto;
+    width: 100%;
+    min-width: 2000px; // Ensure table is wide enough for all columns
+    table-layout: fixed;
   }
 
   thead {
