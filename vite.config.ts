@@ -9,5 +9,17 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
+  server: {
+    headers: {
+      'Content-Type': 'application/javascript; charset=utf-8'
+    }
   }
 })
