@@ -162,7 +162,7 @@ function handleBlobMouseEnter() {
   if (hasWarnings.value && warningIconRef.value) {
     const rect = warningIconRef.value.getBoundingClientRect()
     warningTooltipPosition.value = {
-      top: `${rect.top + rect.height / 2}px`,
+      top: `${rect.top - 8}px`,
       left: `${rect.right + 4}px`,
     }
     showWarningTooltip.value = true
@@ -343,20 +343,19 @@ function handleBlobMouseLeave() {
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   line-height: 1.4;
-  transform: translateY(-50%);
+  transform: translateY(-100%);
 
-  // Arrow pointing to the left (towards the warning icon)
+  // Arrow pointing down and to the left (towards the warning icon)
   &::before {
     content: '';
     position: absolute;
     left: -6px;
-    top: 50%;
-    transform: translateY(-50%);
+    bottom: -6px;
     width: 0;
     height: 0;
-    border-top: 6px solid transparent;
-    border-bottom: 6px solid transparent;
-    border-right: 6px solid rgba(239, 68, 68, 0.95);
+    border-top: 6px solid rgba(239, 68, 68, 0.95);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
   }
 
   .warning-list {
