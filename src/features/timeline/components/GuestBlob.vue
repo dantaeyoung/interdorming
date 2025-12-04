@@ -1,6 +1,7 @@
 <template>
   <div
     class="guest-blob"
+    :class="{ 'has-warnings': hasWarnings }"
     :style="blobStyle"
     :draggable="true"
     @dragstart="onDragStart"
@@ -14,6 +15,14 @@
       <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
     </div>
     <div class="guest-actions">
+      <button
+        v-if="hasWarnings"
+        class="icon-button warning-icon"
+        :title="warningsText"
+        @click.stop
+      >
+        ⚠️
+      </button>
       <button
         v-if="hasNotes"
         ref="notesButtonRef"
@@ -44,6 +53,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useValidationStore } from '@/stores/validationStore'
 import type { GuestBlobData } from '../types/timeline'
 
 interface Props {
@@ -61,6 +71,19 @@ const emit = defineEmits<{
 const showNotesTooltip = ref(false)
 const tooltipPosition = ref({ top: '0px', left: '0px' })
 const notesButtonRef = ref<HTMLButtonElement | null>(null)
+
+const validationStore = useValidationStore()
+
+const warnings = computed(() => {
+  const bedId = props.guestBlob.bedId
+  return validationStore.getWarningsForBed(bedId)
+})
+
+const hasWarnings = computed(() => warnings.value.length > 0)
+
+const warningsText = computed(() => {
+  return warnings.value.join('\n')
+})
 
 const guestName = computed(() => {
   const guest = props.guestBlob.guest
@@ -151,6 +174,12 @@ function handleNotesMouseEnter(event: MouseEvent) {
   overflow: hidden;
   line-height: 1.2;
 
+  &.has-warnings {
+    background: #fef2f2;
+    border: 2px solid #ef4444;
+    color: #991b1b;
+  }
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
@@ -203,6 +232,10 @@ function handleNotesMouseEnter(event: MouseEvent) {
 
   &.gender-non-binary {
     background-color: #c084fc;
+  }
+
+  .guest-blob.has-warnings & {
+    border: 1px solid #991b1b;
   }
 }
 
