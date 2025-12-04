@@ -2,20 +2,32 @@
   <div class="timeline-view">
     <TimelineHeader />
 
-    <div class="timeline-container">
+    <div class="timeline-container" :style="{ '--column-width': `${columnWidthPx}px` }">
       <table class="timeline-table">
         <thead>
+          <!-- Month row -->
           <tr>
-            <th class="dorm-header"><div class="rotated-text">Dormitory</div></th>
-            <th class="room-header">Room</th>
-            <th class="bed-header">Bed</th>
+            <th class="dorm-header" rowspan="2"><div class="rotated-text">Dormitory</div></th>
+            <th class="room-header" rowspan="2">Room</th>
+            <th class="bed-header" rowspan="2">Bed</th>
+            <th
+              v-for="monthGroup in monthGroups"
+              :key="`${monthGroup.year}-${monthGroup.month}`"
+              :colspan="monthGroup.colspan"
+              class="month-header"
+            >
+              {{ monthGroup.month }}
+            </th>
+          </tr>
+          <!-- Day row -->
+          <tr>
             <th
               v-for="dateCol in dateColumns"
               :key="dateCol.index"
               class="date-header"
               :title="dateCol.fullLabel"
             >
-              {{ dateCol.label }}
+              {{ dateCol.date.getDate() }}
             </th>
           </tr>
         </thead>
@@ -99,7 +111,7 @@ import GuestBlob from './GuestBlob.vue'
 import type { GuestBlobData } from '../types/timeline'
 
 const timelineStore = useTimelineStore()
-const { dateColumns, bedRows, getGuestBlobsForBed } = useTimelineData()
+const { dateColumns, monthGroups, bedRows, getGuestBlobsForBed } = useTimelineData()
 const {
   startDrag,
   endDrag,
@@ -108,6 +120,9 @@ const {
   dropOnBed,
   isDropTarget: checkIsDropTarget,
 } = useTimelineDragDrop()
+
+// Column width in pixels (directly from slider, 10-100px)
+const columnWidthPx = computed(() => timelineStore.columnWidth)
 
 /**
  * Get guest blobs that should be rendered in a specific cell
@@ -265,9 +280,9 @@ function getRoomRowspan(index: number): number {
 
       &.dorm-header {
         padding: 8px 4px;
-        min-width: 40px;
-        max-width: 40px;
         width: 40px;
+        max-width: 40px;
+        min-width: 40px;
         background-color: #e5e7eb;
         position: sticky;
         left: 0;
@@ -277,9 +292,9 @@ function getRoomRowspan(index: number): number {
 
       &.room-header {
         padding: 8px 4px;
-        min-width: 100px;
-        max-width: 100px;
         width: 100px;
+        max-width: 100px;
+        min-width: 100px;
         background-color: #e5e7eb;
         position: sticky;
         left: 40px;
@@ -293,12 +308,30 @@ function getRoomRowspan(index: number): number {
         position: sticky;
         left: 140px;
         z-index: 11;
+        width: 100px;
+        max-width: 100px;
         min-width: 100px;
       }
 
+      &.month-header {
+        background-color: #e5e7eb;
+        text-align: center;
+        padding: 8px 4px;
+        font-weight: 600;
+        border-bottom: 1px solid #d1d5db;
+        border-right: 2px solid #9ca3af;
+
+        &:last-child {
+          border-right: 1px solid #e5e7eb;
+        }
+      }
+
       &.date-header {
-        min-width: 150px;
+        width: var(--column-width, 50px);
+        max-width: var(--column-width, 50px);
         background-color: #f3f4f6;
+        text-align: center;
+        padding: 8px 4px;
       }
 
       &:last-child {
@@ -339,9 +372,9 @@ function getRoomRowspan(index: number): number {
 
       &.dorm-label {
         padding: 2px 6px;
-        min-width: 40px;
-        max-width: 40px;
         width: 40px;
+        max-width: 40px;
+        min-width: 40px;
         font-weight: 600;
         font-size: 0.7rem;
         color: #1f2937;
@@ -360,9 +393,9 @@ function getRoomRowspan(index: number): number {
 
       &.room-label {
         padding: 2px 6px;
-        min-width: 100px;
-        max-width: 100px;
         width: 100px;
+        max-width: 100px;
+        min-width: 100px;
         font-weight: 600;
         font-size: 0.7rem;
         color: #1f2937;
@@ -392,12 +425,15 @@ function getRoomRowspan(index: number): number {
         z-index: 9;
         text-align: left;
         border-right: 2px solid #d1d5db;
+        width: 100px;
+        max-width: 100px;
         min-width: 100px;
         overflow: hidden;
       }
 
       &.guest-cell {
-        min-width: 150px;
+        width: var(--column-width, 50px);
+        max-width: var(--column-width, 50px);
         background-color: white;
         position: relative;
         overflow: visible; // Important: allow guest blobs to span across cells

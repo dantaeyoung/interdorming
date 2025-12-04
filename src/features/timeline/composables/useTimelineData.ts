@@ -55,6 +55,78 @@ export function useTimelineData() {
   })
 
   /**
+   * Group date columns by month for header display
+   * Returns array of { month: string, year: number, startIndex: number, colspan: number }
+   */
+  const monthGroups = computed(() => {
+    const groups: Array<{ month: string; year: number; startIndex: number; colspan: number }> = []
+    const cols = dateColumns.value
+
+    if (cols.length === 0) return groups
+
+    let currentMonth = cols[0].date.getMonth()
+    let currentYear = cols[0].date.getFullYear()
+    let startIndex = 0
+    let count = 0
+
+    cols.forEach((col, idx) => {
+      const month = col.date.getMonth()
+      const year = col.date.getFullYear()
+
+      if (month !== currentMonth || year !== currentYear) {
+        // Save previous month group
+        groups.push({
+          month: getMonthName(currentMonth),
+          year: currentYear,
+          startIndex,
+          colspan: count,
+        })
+
+        // Start new month group
+        currentMonth = month
+        currentYear = year
+        startIndex = idx
+        count = 1
+      } else {
+        count++
+      }
+    })
+
+    // Add last month group
+    if (count > 0) {
+      groups.push({
+        month: getMonthName(currentMonth),
+        year: currentYear,
+        startIndex,
+        colspan: count,
+      })
+    }
+
+    return groups
+  })
+
+  /**
+   * Get month name from month index (0-11)
+   */
+  function getMonthName(monthIndex: number): string {
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ]
+    return monthNames[monthIndex]
+  }
+
+  /**
    * Generate array of bed rows for the timeline table
    */
   const bedRows = computed((): TimelineBedRow[] => {
@@ -222,6 +294,7 @@ export function useTimelineData() {
 
   return {
     dateColumns,
+    monthGroups,
     bedRows,
     guestBlobsByBed,
     totalDays,

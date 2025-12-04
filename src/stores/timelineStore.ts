@@ -25,6 +25,9 @@ export const useTimelineStore = defineStore(
       showUnassignedPanel: false,
     })
 
+    // Column width for zoom control (10-100 scale)
+    const columnWidth = ref(50)
+
     // Getters
     const isDormCollapsed = computed(() => {
       return (dormId: string): boolean => {
@@ -148,6 +151,10 @@ export const useTimelineStore = defineStore(
       config.value.showUnassignedPanel = !config.value.showUnassignedPanel
     }
 
+    function setColumnWidth(width: number) {
+      columnWidth.value = width
+    }
+
     // Initialize date range from guest data on first load
     // Only auto-detect if dates are still at default values (today + 7 days)
     function initializeDateRange() {
@@ -170,6 +177,7 @@ export const useTimelineStore = defineStore(
     return {
       // State
       config,
+      columnWidth,
 
       // Getters
       isDormCollapsed,
@@ -181,12 +189,13 @@ export const useTimelineStore = defineStore(
       autoDetectDateRange,
       toggleDormCollapse,
       toggleUnassignedPanel,
+      setColumnWidth,
     }
   },
   {
     persist: {
       key: 'dormAssignments-timeline',
-      paths: ['config'],
+      paths: ['config', 'columnWidth'],
       serializer: {
         serialize: state => {
           return JSON.stringify({
@@ -196,6 +205,7 @@ export const useTimelineStore = defineStore(
               collapsedDorms: state.config.collapsedDorms,
               showUnassignedPanel: state.config.showUnassignedPanel,
             },
+            columnWidth: state.columnWidth,
           })
         },
         deserialize: str => {
@@ -209,6 +219,7 @@ export const useTimelineStore = defineStore(
               collapsedDorms: parsed.config?.collapsedDorms || [],
               showUnassignedPanel: parsed.config?.showUnassignedPanel || false,
             },
+            columnWidth: parsed.columnWidth || 50,
           }
         },
       },

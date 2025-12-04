@@ -33,6 +33,19 @@
         </div>
         <div class="date-range-info">{{ totalDays }} days</div>
       </div>
+      <div class="zoom-control">
+        <label for="zoom-slider">Zoom:</label>
+        <input
+          id="zoom-slider"
+          type="range"
+          min="10"
+          max="100"
+          step="10"
+          :value="columnWidth"
+          @input="onZoomChange"
+          class="zoom-slider"
+        />
+      </div>
     </div>
 
     <div class="header-controls">
@@ -61,6 +74,8 @@ const { totalDays } = useTimelineData()
 
 const config = computed(() => timelineStore.config)
 
+const columnWidth = computed(() => timelineStore.columnWidth)
+
 const startDateString = computed(() => {
   return formatDateForInput(config.value.dateRangeStart)
 })
@@ -87,7 +102,12 @@ function setPreset(preset: string) {
 
 function onStartDateChange(event: Event) {
   const input = event.target as HTMLInputElement
-  const newDate = new Date(input.value)
+  if (!input.value) return
+
+  // Parse the date string in local time (YYYY-MM-DD format)
+  const [year, month, day] = input.value.split('-').map(Number)
+  const newDate = new Date(year, month - 1, day)
+
   if (!isNaN(newDate.getTime())) {
     timelineStore.setDateRange(newDate, config.value.dateRangeEnd)
   }
@@ -95,7 +115,12 @@ function onStartDateChange(event: Event) {
 
 function onEndDateChange(event: Event) {
   const input = event.target as HTMLInputElement
-  const newDate = new Date(input.value)
+  if (!input.value) return
+
+  // Parse the date string in local time (YYYY-MM-DD format)
+  const [year, month, day] = input.value.split('-').map(Number)
+  const newDate = new Date(year, month - 1, day)
+
   if (!isNaN(newDate.getTime())) {
     timelineStore.setDateRange(config.value.dateRangeStart, newDate)
   }
@@ -106,6 +131,12 @@ function formatDateForInput(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function onZoomChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const width = parseInt(input.value)
+  timelineStore.setColumnWidth(width)
 }
 </script>
 
@@ -234,5 +265,57 @@ function formatDateForInput(date: Date): string {
   padding: 4px 10px;
   background-color: #f9fafb;
   border-radius: 4px;
+}
+
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #374151;
+    white-space: nowrap;
+  }
+}
+
+.zoom-slider {
+  width: 100px;
+  height: 4px;
+  border-radius: 2px;
+  background: #d1d5db;
+  outline: none;
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #2563eb;
+      transform: scale(1.1);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #2563eb;
+      transform: scale(1.1);
+    }
+  }
 }
 </style>

@@ -99,7 +99,7 @@ function onDragEnd(event: DragEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 5;
+  z-index: 1;
   pointer-events: auto;
   white-space: nowrap;
   overflow: hidden;
@@ -109,7 +109,7 @@ function onDragEnd(event: DragEvent) {
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-    z-index: 10;
+    z-index: 2;
   }
 
   &.dragging {
