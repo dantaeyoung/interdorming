@@ -392,7 +392,13 @@ function handleSubmit() {
   }
 
   emit('submit', guestData)
-  handleClose()
+
+  // Close modal directly without unsaved changes check (we're saving!)
+  internalShow.value = false
+  emit('close')
+  setTimeout(() => {
+    resetForm()
+  }, 100)
 }
 </script>
 

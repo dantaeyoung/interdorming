@@ -39,7 +39,8 @@
             :class="{
               collapsed: bedRow.isCollapsed,
               'room-stripe-dark': isRoomStripeDark(index),
-              'room-stripe-light': !isRoomStripeDark(index)
+              'room-stripe-light': !isRoomStripeDark(index),
+              'has-conflict': bedHasAnyConflict(bedRow.bed.id)
             }"
           >
             <!-- Dormitory label - only show on first bed of dormitory -->
@@ -68,7 +69,7 @@
             </td>
 
             <!-- Bed label -->
-            <td class="bed-label">
+            <td class="bed-label" :class="{ 'has-conflict': bedHasAnyConflict(bedRow.bed.id) }">
               {{ bedRow.bed.bedNumber }} ({{ bedRow.bed.bedType }})
             </td>
 
@@ -90,10 +91,22 @@
                 v-for="blob in getGuestBlobsForCell(bedRow.bed.id, dateCol.index)"
                 :key="blob.guestId"
                 :guest-blob="blob"
+                :has-conflict="bedHasAnyConflict(bedRow.bed.id)"
+                :stack-position="blob.stackPosition"
+                :stack-count="blob.stackCount"
                 @drag-start="onGuestDragStart"
                 @drag-end="onGuestDragEnd"
                 @edit-guest="onEditGuest"
               />
+
+              <!-- Ghost preview for drop target -->
+              <div
+                v-if="getGhostPreview(bedRow.bed.id, dateCol.index)"
+                class="ghost-preview"
+                :style="getGhostPreviewStyle(getGhostPreview(bedRow.bed.id, dateCol.index)!)"
+              >
+                <span class="ghost-text">{{ getGhostFullName(getGhostPreview(bedRow.bed.id, dateCol.index)!) }}</span>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -143,6 +156,7 @@ const {
   leaveDropTarget,
   dropOnBed,
   isDropTarget: checkIsDropTarget,
+  getDraggedGuestId,
 } = useTimelineDragDrop()
 
 // Column width in pixels (directly from slider, 10-100px)
@@ -159,10 +173,34 @@ const selectedGuest = computed(() => {
 /**
  * Get guest blobs that should be rendered in a specific cell
  * Only returns blobs where startColIndex matches the cell's column index
+ * Adds stacking information for overlapping blobs
  */
-function getGuestBlobsForCell(bedId: string, colIndex: number): GuestBlobData[] {
+function getGuestBlobsForCell(bedId: string, colIndex: number): Array<GuestBlobData & { stackPosition?: number; stackCount?: number }> {
   const allBlobs = getGuestBlobsForBed(bedId)
-  return allBlobs.filter(blob => blob.startColIndex === colIndex)
+  const cellBlobs = allBlobs.filter(blob => blob.startColIndex === colIndex)
+
+  // For each blob starting in this cell, check if there are other blobs on this bed that overlap
+  return cellBlobs.map((blob, index) => {
+    // Find all blobs that overlap with this blob's date range
+    const overlappingBlobs = allBlobs.filter(otherBlob => {
+      // Check if date ranges overlap
+      return !(blob.endColIndex < otherBlob.startColIndex || blob.startColIndex > otherBlob.endColIndex)
+    })
+
+    if (overlappingBlobs.length > 1) {
+      // Multiple blobs overlap - need to stack them
+      const sortedOverlapping = overlappingBlobs.sort((a, b) => a.startColIndex - b.startColIndex)
+      const stackPosition = sortedOverlapping.findIndex(b => b.guestId === blob.guestId)
+
+      return {
+        ...blob,
+        stackPosition,
+        stackCount: overlappingBlobs.length
+      }
+    }
+
+    return blob
+  })
 }
 
 /**
@@ -173,10 +211,66 @@ function isDropTarget(bedId: string): boolean {
 }
 
 /**
+ * Get ghost preview data for drop target cells
+ * Returns the blob data if this cell should show a ghost preview
+ */
+function getGhostPreview(bedId: string, colIndex: number): GuestBlobData | null {
+  if (!isDropTarget(bedId)) return null
+
+  const draggedGuestId = getDraggedGuestId()
+  if (!draggedGuestId) return null
+
+  // Find the dragged guest's blob data
+  const allBeds = bedRows.value
+  for (const bedRow of allBeds) {
+    const blobs = getGuestBlobsForBed(bedRow.bed.id)
+    const draggedBlob = blobs.find(blob => blob.guestId === draggedGuestId)
+    if (draggedBlob) {
+      // Check if this cell is the start column for the ghost preview
+      if (draggedBlob.startColIndex === colIndex) {
+        return draggedBlob
+      }
+      return null
+    }
+  }
+
+  return null
+}
+
+/**
+ * Get style for ghost preview based on blob data
+ */
+function getGhostPreviewStyle(blob: GuestBlobData) {
+  const spanCount = blob.spanCount
+  const width = `calc(${spanCount * 100}% + ${(spanCount - 1) * 1}px)`
+
+  return {
+    width,
+    left: '0',
+  }
+}
+
+/**
+ * Get full name for ghost preview
+ */
+function getGhostFullName(blob: GuestBlobData): string {
+  const guest = blob.guest
+  const firstName = guest.preferredName || guest.firstName
+  return `${firstName} ${guest.lastName}`
+}
+
+/**
  * Check if a bed has a conflict on a specific date
  */
 function hasConflict(bedId: string, date: Date): boolean {
   return timelineStore.hasConflictOnDate(bedId, date)
+}
+
+/**
+ * Check if a bed has any conflicts across all dates in the range
+ */
+function bedHasAnyConflict(bedId: string): boolean {
+  return dateColumns.value.some(dateCol => hasConflict(bedId, dateCol.date))
 }
 
 /**
@@ -487,6 +581,22 @@ function getRoomRowspan(index: number): number {
           line-height: 0;
         }
       }
+
+      &.has-conflict {
+        background-color: #fed7aa !important;
+
+        td {
+          background-color: #fed7aa !important;
+        }
+
+        &:hover {
+          background-color: #fdba74 !important;
+
+          td {
+            background-color: #fdba74 !important;
+          }
+        }
+      }
     }
 
     td {
@@ -589,6 +699,13 @@ function getRoomRowspan(index: number): number {
         max-width: 100px;
         min-width: 100px;
         overflow: hidden;
+
+        &.has-conflict {
+          background-color: #fca5a5;
+          color: #7f1d1d;
+          border-left: 4px solid #dc2626;
+          font-weight: 700;
+        }
       }
 
       &.guest-cell {
@@ -603,7 +720,32 @@ function getRoomRowspan(index: number): number {
         }
 
         &.conflict {
-          background-color: #fee2e2;
+          background-color: rgba(220, 38, 38, 0.4) !important;
+          position: relative;
+
+          &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 3px solid rgba(153, 27, 27, 0.3);
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+            z-index: 10;
+            pointer-events: none;
+          }
+
+          &::after {
+            content: '⚠️';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            z-index: 100;
+            pointer-events: none;
+          }
         }
       }
     }
@@ -613,10 +755,18 @@ function getRoomRowspan(index: number): number {
       td.guest-cell {
         background-color: #f3f4f6;
       }
+
+      td.bed-label {
+        background-color: #f3f4f6;
+      }
     }
 
     tr.room-stripe-light {
       td.guest-cell {
+        background-color: white;
+      }
+
+      td.bed-label {
         background-color: white;
       }
     }
@@ -628,13 +778,59 @@ function getRoomRowspan(index: number): number {
       }
 
       td.guest-cell.conflict {
-        background-color: #fee2e2 !important;
+        background-color: rgba(220, 38, 38, 0.4) !important;
+        position: relative;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          border: 3px solid rgba(153, 27, 27, 0.3);
+          box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+          z-index: 10;
+          pointer-events: none;
+        }
+
+        &::after {
+          content: '⚠️';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 1.2rem;
+          z-index: 100;
+          pointer-events: none;
+        }
       }
 
       &:last-child {
         border-right: none;
       }
     }
+  }
+}
+
+.ghost-preview {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: rgba(156, 163, 175, 0.3);
+  border: 2px dashed #6b7280;
+  border-radius: 4px;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .ghost-text {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #4b5563;
+    opacity: 0.8;
   }
 }
 
