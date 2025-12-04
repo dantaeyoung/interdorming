@@ -47,7 +47,9 @@
         {{ notesText }}
       </div>
       <div v-if="showWarningTooltip" class="warning-tooltip-overlay" :style="warningTooltipPosition">
-        {{ warningsText }}
+        <ul class="warning-list">
+          <li v-for="(warning, index) in warnings" :key="index">{{ warning }}</li>
+        </ul>
       </div>
     </Teleport>
   </div>
@@ -336,7 +338,6 @@ function handleBlobMouseLeave() {
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 500;
-  white-space: pre-wrap;
   max-width: 300px;
   z-index: 99999;
   pointer-events: none;
@@ -356,6 +357,16 @@ function handleBlobMouseLeave() {
     border-top: 6px solid transparent;
     border-bottom: 6px solid transparent;
     border-right: 6px solid rgba(239, 68, 68, 0.95);
+  }
+
+  .warning-list {
+    margin: 0;
+    padding-left: 16px;
+    list-style-type: disc;
+
+    li {
+      margin: 2px 0;
+    }
   }
 }
 
