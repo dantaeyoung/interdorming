@@ -7,16 +7,20 @@
     @dragend="onDragEnd"
   >
     <div class="guest-info">
-      <span class="guest-text">{{ displayText }}</span>
+      <span class="guest-name">{{ guestName }}</span>
+      <span class="gender-badge" :class="`gender-${props.guestBlob.guest.gender}`">{{
+        genderCode
+      }}</span>
+      <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
     </div>
     <div class="guest-actions">
       <button
         v-if="hasNotes"
         class="icon-button notes-icon"
+        :title="notesText"
         @click.stop
       >
         📝
-        <span class="notes-tooltip">{{ notesText }}</span>
       </button>
       <button
         class="icon-button edit-icon"
@@ -45,16 +49,16 @@ const emit = defineEmits<{
   editGuest: [guestId: string]
 }>()
 
-const displayText = computed(() => {
+const guestName = computed(() => {
   const guest = props.guestBlob.guest
-  const name = guest.preferredName
+  return guest.preferredName
     ? `${guest.preferredName} ${guest.lastName}`
     : `${guest.firstName} ${guest.lastName}`
+})
 
-  const genderCode =
-    guest.gender === 'male' ? 'M' : guest.gender === 'female' ? 'F' : 'NB'
-
-  return `${name}, ${genderCode}, ${guest.age}`
+const genderCode = computed(() => {
+  const guest = props.guestBlob.guest
+  return guest.gender === 'male' ? 'M' : guest.gender === 'female' ? 'F' : 'NB'
 })
 
 const hasNotes = computed(() => {
@@ -71,21 +75,9 @@ const blobStyle = computed(() => {
   // Each cell is variable width based on zoom, borders are 1px between cells
   const width = `calc(${spanCount * 100}% + ${(spanCount - 1) * 1}px)`
 
-  // Determine background color based on gender
-  const guest = props.guestBlob.guest
-  let backgroundColor = '#6b7280' // Default gray
-  if (guest.gender === 'male') {
-    backgroundColor = '#93c5fd' // Blue for male
-  } else if (guest.gender === 'female') {
-    backgroundColor = '#f9a8d4' // Pink for female
-  } else if (guest.gender === 'non-binary') {
-    backgroundColor = '#c084fc' // Purple for non-binary
-  }
-
   return {
     width,
     left: '0',
-    background: backgroundColor,
   }
 })
 
@@ -118,6 +110,7 @@ function onEditClick() {
   top: 2px;
   bottom: 2px;
   padding: 4px 8px;
+  background: #9ca3af;
   color: #1f2937;
   border-radius: 4px;
   font-size: 0.7rem;
@@ -149,19 +142,50 @@ function onEditClick() {
 .guest-info {
   display: flex;
   align-items: center;
+  gap: 6px;
   overflow: hidden;
   flex: 1;
   min-width: 0;
+  justify-content: center;
 }
 
-.guest-text {
+.guest-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
   font-size: 0.7rem;
-  text-align: center;
-  width: 100%;
+}
+
+.gender-badge {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #1f2937;
+
+  &.gender-male {
+    background-color: #93c5fd;
+  }
+
+  &.gender-female {
+    background-color: #f9a8d4;
+  }
+
+  &.gender-non-binary {
+    background-color: #c084fc;
+  }
+}
+
+.guest-age {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
 .guest-actions {
@@ -207,36 +231,5 @@ function onEditClick() {
     transform: scale(0.95);
   }
 
-  &.notes-icon {
-    position: relative;
-
-    .notes-tooltip {
-      position: absolute;
-      bottom: calc(100% + 4px);
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.95);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      white-space: pre-wrap;
-      max-width: 300px;
-      min-width: 150px;
-      pointer-events: none;
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.2s, visibility 0.2s;
-      z-index: 1000;
-      line-height: 1.4;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-      font-weight: 400;
-    }
-
-    &:hover .notes-tooltip {
-      opacity: 1;
-      visibility: visible;
-    }
-  }
 }
 </style>
