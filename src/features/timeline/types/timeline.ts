@@ -103,11 +103,12 @@ export interface GuestBlobData {
     lastName: string;
     preferredName?: string;
     age: number;
-    gender: 'male' | 'female';
+    gender: 'male' | 'female' | 'non-binary';
     groupName?: string;
     lowerBunk?: boolean;
     arrival: Date;
     departure: Date;
+    notes?: string;
   };
 }
 

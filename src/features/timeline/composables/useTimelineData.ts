@@ -235,11 +235,17 @@ export function useTimelineData() {
           lastName: guest.lastName,
           preferredName: guest.preferredName,
           age: typeof guest.age === 'string' ? parseInt(guest.age) : guest.age,
-          gender: guest.gender === 'M' ? 'male' : 'female',
+          gender:
+            guest.gender === 'M'
+              ? 'male'
+              : guest.gender === 'F'
+                ? 'female'
+                : 'non-binary',
           groupName: guest.groupName,
           lowerBunk: guest.lowerBunk,
           arrival,
           departure,
+          notes: guest.notes,
         },
       }
 

@@ -5,9 +5,27 @@
     :draggable="true"
     @dragstart="onDragStart"
     @dragend="onDragEnd"
-    :title="tooltipText"
   >
-    <span class="guest-name">{{ displayName }}</span>
+    <div class="guest-info">
+      <span class="guest-text">{{ displayText }}</span>
+    </div>
+    <div class="guest-actions">
+      <button
+        v-if="hasNotes"
+        class="icon-button notes-icon"
+        :title="notesText"
+        @click.stop
+      >
+        📝
+      </button>
+      <button
+        class="icon-button edit-icon"
+        title="View/Edit guest details"
+        @click.stop="onEditClick"
+      >
+        ✏️
+      </button>
+    </div>
   </div>
 </template>
 
@@ -24,43 +42,39 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   dragStart: [guestId: string, bedId: string]
   dragEnd: []
+  editGuest: [guestId: string]
 }>()
 
-const displayName = computed(() => props.guestBlob.displayName)
+const displayText = computed(() => {
+  const guest = props.guestBlob.guest
+  const name = guest.preferredName
+    ? `${guest.preferredName} ${guest.lastName}`
+    : `${guest.firstName} ${guest.lastName}`
+
+  const genderCode =
+    guest.gender === 'male' ? 'M' : guest.gender === 'female' ? 'F' : 'NB'
+
+  return `${name}, ${genderCode}, ${guest.age}`
+})
+
+const hasNotes = computed(() => {
+  return !!props.guestBlob.guest.notes && props.guestBlob.guest.notes.trim().length > 0
+})
+
+const notesText = computed(() => {
+  return props.guestBlob.guest.notes || ''
+})
 
 const blobStyle = computed(() => {
   const spanCount = props.guestBlob.spanCount
   // Calculate width: span multiple cells plus borders
-  // Each cell is 150px, borders are 1px between cells
+  // Each cell is variable width based on zoom, borders are 1px between cells
   const width = `calc(${spanCount * 100}% + ${(spanCount - 1) * 1}px)`
 
   return {
     width,
     left: '0',
   }
-})
-
-const tooltipText = computed(() => {
-  const guest = props.guestBlob.guest
-  const parts = [
-    `${guest.firstName} ${guest.lastName}`,
-    `Age: ${guest.age}`,
-    `Gender: ${guest.gender}`,
-  ]
-
-  if (guest.groupName) {
-    parts.push(`Group: ${guest.groupName}`)
-  }
-
-  if (guest.lowerBunk) {
-    parts.push('Requires lower bunk')
-  }
-
-  parts.push(
-    `Dates: ${guest.arrival.toLocaleDateString()} - ${guest.departure.toLocaleDateString()}`
-  )
-
-  return parts.join('\n')
 })
 
 function onDragStart(event: DragEvent) {
@@ -80,6 +94,10 @@ function onDragEnd(event: DragEvent) {
 
   emit('dragEnd')
 }
+
+function onEditClick() {
+  emit('editGuest', props.guestBlob.guestId)
+}
 </script>
 
 <style scoped lang="scss">
@@ -87,7 +105,7 @@ function onDragEnd(event: DragEvent) {
   position: absolute;
   top: 2px;
   bottom: 2px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   border-radius: 4px;
@@ -98,13 +116,12 @@ function onDragEnd(event: DragEvent) {
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 8px;
   z-index: 1;
   pointer-events: auto;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1;
+  line-height: 1.2;
 
   &:hover {
     transform: translateY(-2px);
@@ -118,9 +135,94 @@ function onDragEnd(event: DragEvent) {
   }
 }
 
-.guest-name {
+.guest-info {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.guest-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
+  font-size: 0.7rem;
+  text-align: center;
+  width: 100%;
+}
+
+.guest-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+
+  .edit-icon {
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .notes-icon {
+    opacity: 1; // Notes icon always visible
+  }
+}
+
+.guest-blob:hover {
+  .guest-actions .edit-icon {
+    opacity: 1;
+  }
+}
+
+.icon-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 3px;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &.notes-icon {
+    position: relative;
+
+    &::after {
+      content: attr(title);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      white-space: pre-wrap;
+      max-width: 250px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 100;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    &:hover::after {
+      opacity: 1;
+    }
+  }
 }
 </style>

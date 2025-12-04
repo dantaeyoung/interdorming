@@ -83,6 +83,7 @@
                 :guest-blob="blob"
                 @drag-start="onGuestDragStart"
                 @drag-end="onGuestDragEnd"
+                @edit-guest="onEditGuest"
               />
             </td>
           </tr>
@@ -98,19 +99,31 @@
     <div v-if="dateColumns.length === 0" class="empty-state">
       <p>No date range selected. Please configure the date range above.</p>
     </div>
+
+    <!-- Guest Edit Modal -->
+    <GuestFormModal
+      :show="showGuestModal"
+      :guest="selectedGuest"
+      @close="closeGuestModal"
+      @submit="handleGuestUpdate"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useTimelineData } from '../composables/useTimelineData'
 import { useTimelineDragDrop } from '../composables/useTimelineDragDrop'
 import { useTimelineStore } from '@/stores/timelineStore'
+import { useGuestStore } from '@/stores/guestStore'
 import TimelineHeader from './TimelineHeader.vue'
 import GuestBlob from './GuestBlob.vue'
+import { GuestFormModal } from '@/features/guests/components'
 import type { GuestBlobData } from '../types/timeline'
+import type { Guest } from '@/types'
 
 const timelineStore = useTimelineStore()
+const guestStore = useGuestStore()
 const { dateColumns, monthGroups, bedRows, getGuestBlobsForBed } = useTimelineData()
 const {
   startDrag,
@@ -123,6 +136,14 @@ const {
 
 // Column width in pixels (directly from slider, 10-100px)
 const columnWidthPx = computed(() => timelineStore.columnWidth)
+
+// Guest edit modal state
+const showGuestModal = ref(false)
+const selectedGuestId = ref<string | null>(null)
+const selectedGuest = computed(() => {
+  if (!selectedGuestId.value) return undefined
+  return guestStore.getGuestById(selectedGuestId.value)
+})
 
 /**
  * Get guest blobs that should be rendered in a specific cell
@@ -180,6 +201,32 @@ function onGuestDragStart(guestId: string, bedId: string) {
  */
 function onGuestDragEnd() {
   endDrag()
+}
+
+/**
+ * Handle guest edit click
+ */
+function onEditGuest(guestId: string) {
+  selectedGuestId.value = guestId
+  showGuestModal.value = true
+}
+
+/**
+ * Close guest modal
+ */
+function closeGuestModal() {
+  showGuestModal.value = false
+  selectedGuestId.value = null
+}
+
+/**
+ * Handle guest update from modal
+ */
+function handleGuestUpdate(guestData: Partial<Guest>) {
+  if (guestData.id) {
+    guestStore.updateGuest(guestData.id, guestData)
+  }
+  closeGuestModal()
 }
 
 /**
