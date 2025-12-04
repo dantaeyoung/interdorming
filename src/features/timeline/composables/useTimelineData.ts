@@ -42,6 +42,7 @@ export function useTimelineData() {
       columns.push({
         date: dateObj,
         label: formatDateShort(dateObj),
+        weekday: formatWeekday(dateObj),
         fullLabel: formatDateFull(dateObj),
         index,
       })
@@ -270,6 +271,14 @@ export function useTimelineData() {
    */
   function formatDateShort(date: Date): string {
     return `${date.getMonth() + 1}/${date.getDate()}`
+  }
+
+  /**
+   * Format weekday as abbreviated string (e.g., "M", "Tu", "W")
+   */
+  function formatWeekday(date: Date): string {
+    const weekdays = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa']
+    return weekdays[date.getDay()]
   }
 
   /**

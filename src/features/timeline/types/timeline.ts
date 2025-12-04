@@ -44,6 +44,9 @@ export interface DateColumn {
   /** Display label (e.g., "12/1") */
   label: string;
 
+  /** Weekday abbreviation (e.g., "M", "Tu", "W") */
+  weekday: string;
+
   /** Full date string for tooltips (e.g., "Monday, December 1, 2025") */
   fullLabel: string;
 

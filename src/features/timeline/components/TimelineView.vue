@@ -25,9 +25,13 @@
               v-for="dateCol in dateColumns"
               :key="dateCol.index"
               class="date-header"
+              :class="{ 'is-sunday': dateCol.date.getDay() === 0 }"
               :title="dateCol.fullLabel"
             >
-              {{ dateCol.date.getDate() }}
+              <div class="date-cell">
+                <div class="weekday">{{ dateCol.weekday }}</div>
+                <div class="day">{{ dateCol.date.getDate() }}</div>
+              </div>
             </th>
           </tr>
         </thead>
@@ -626,7 +630,38 @@ function getRoomRowspan(index: number): number {
         max-width: var(--column-width, 50px);
         background-color: #f3f4f6;
         text-align: center;
-        padding: 8px 4px;
+        padding: 4px 4px;
+
+        .date-cell {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+
+          .weekday {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: #6b7280;
+            line-height: 1;
+          }
+
+          .day {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            line-height: 1;
+          }
+        }
+
+        &.is-sunday {
+          .weekday {
+            color: #dc2626;
+          }
+
+          .day {
+            color: #dc2626;
+          }
+        }
       }
 
       &:last-child {
