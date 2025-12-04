@@ -14,15 +14,17 @@
       }}</span>
       <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
     </div>
+    <!-- Warning icon - positioned absolutely in upper right -->
+    <button
+      v-if="hasWarnings"
+      class="icon-button warning-icon"
+      :title="warningsText"
+      @click.stop
+    >
+      ⚠️
+    </button>
+
     <div class="guest-actions">
-      <button
-        v-if="hasWarnings"
-        class="icon-button warning-icon"
-        :title="warningsText"
-        @click.stop
-      >
-        ⚠️
-      </button>
       <button
         v-if="hasNotes"
         ref="notesButtonRef"
@@ -286,6 +288,22 @@ function handleNotesMouseEnter(event: MouseEvent) {
 
   &:active {
     transform: scale(0.95);
+  }
+
+  &.warning-icon {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    padding: 1px 3px;
+    font-size: 0.65rem;
+    z-index: 10;
+
+    &:hover {
+      background: rgba(220, 38, 38, 1);
+      transform: scale(1.15);
+    }
   }
 }
 
