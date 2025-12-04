@@ -53,9 +53,14 @@
               v-if="shouldShowRoomLabel(index)"
               class="room-label"
               :rowspan="getRoomRowspan(index)"
-              :style="{ backgroundColor: bedRow.dormitory.color || '#f9fafb' }"
+              :style="getRoomStyle(bedRow)"
             >
-              {{ bedRow.room.name }}
+              <div class="room-content">
+                <span>{{ bedRow.room.name }}</span>
+                <span class="room-gender-badge" :class="`gender-${bedRow.room.gender}`">
+                  {{ getRoomGenderCode(bedRow.room.gender) }}
+                </span>
+              </div>
             </td>
 
             <!-- Bed label -->
@@ -229,6 +234,48 @@ function handleGuestUpdate(guestData: Partial<Guest>) {
     guestStore.updateGuest(guestData.id, guestData)
   }
   closeGuestModal()
+}
+
+/**
+ * Get room style with lightened background color
+ */
+function getRoomStyle(bedRow: any) {
+  const dormColor = bedRow.dormitory.color || '#f9fafb'
+  // Lighten the dorm color by 50%
+  const lightenedColor = lightenColor(dormColor, 0.5)
+  return {
+    backgroundColor: lightenedColor,
+  }
+}
+
+/**
+ * Lighten a hex color by a percentage (0-1)
+ */
+function lightenColor(hex: string, percent: number): string {
+  // Remove # if present
+  hex = hex.replace('#', '')
+
+  // Convert to RGB
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+
+  // Lighten by mixing with white
+  const newR = Math.round(r + (255 - r) * percent)
+  const newG = Math.round(g + (255 - g) * percent)
+  const newB = Math.round(b + (255 - b) * percent)
+
+  // Convert back to hex
+  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+}
+
+/**
+ * Get gender code for room badge
+ */
+function getRoomGenderCode(gender: 'male' | 'female' | 'any'): string {
+  if (gender === 'male') return 'M'
+  if (gender === 'female') return 'F'
+  return 'A' // Any gender
 }
 
 /**
@@ -456,12 +503,44 @@ function getRoomRowspan(index: number): number {
         height: 30px;
         max-height: 30px;
         overflow: hidden;
-        word-wrap: break-word;
-        white-space: normal;
         line-height: 1.2;
         text-align: center;
         // Ensure text is readable on colored backgrounds
         text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+
+        .room-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+          height: 100%;
+          justify-content: center;
+        }
+
+        .room-gender-badge {
+          flex-shrink: 0;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.6rem;
+          font-weight: 600;
+          color: #1f2937;
+
+          &.gender-male {
+            background-color: #93c5fd;
+          }
+
+          &.gender-female {
+            background-color: #f9a8d4;
+          }
+
+          &.gender-any {
+            background-color: #d1d5db;
+          }
+        }
       }
 
       &.bed-label {
