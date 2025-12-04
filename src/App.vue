@@ -47,7 +47,7 @@
       <!-- Two-Panel Layout -->
       <div class="layout-grid">
         <!-- Left Panel: Unassigned Guests -->
-        <div class="panel left-panel" :style="{ width: `calc(${leftPanelWidth}% - 4px)` }">
+        <div class="panel left-panel" :style="{ flexBasis: `calc(${leftPanelWidth}% - 4px)` }">
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">Unassigned Guests</h3>
@@ -80,7 +80,7 @@
         </div>
 
         <!-- Right Panel: Room Assignments -->
-        <div class="panel right-panel" :style="{ width: `calc(${rightPanelWidth}% - 4px)` }">
+        <div class="panel right-panel" :style="{ flexBasis: `calc(${rightPanelWidth}% - 4px)` }">
           <div class="card">
             <div class="card-header">
               <h3 class="card-title">Room Assignments</h3>
@@ -523,6 +523,7 @@ function startResize(e: MouseEvent) {
   document.addEventListener('mousemove', handleResize)
   document.addEventListener('mouseup', stopResize)
   e.preventDefault()
+  e.stopPropagation()
 }
 
 function handleResize(e: MouseEvent) {
@@ -655,7 +656,8 @@ function stopResize() {
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  flex-shrink: 0;
+  flex-grow: 0;
+  flex-shrink: 1;
 }
 
 .divider {
