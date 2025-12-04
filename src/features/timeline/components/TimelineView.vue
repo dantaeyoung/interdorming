@@ -486,8 +486,7 @@ function getRoomRowspan(index: number): number {
         overflow: visible; // Important: allow guest blobs to span across cells
 
         &.drop-target {
-          background-color: #dbeafe;
-          border: 2px solid #3b82f6;
+          background-color: #fef3c7;
         }
 
         &.conflict {
