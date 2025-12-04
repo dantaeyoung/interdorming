@@ -22,110 +22,80 @@
         </thead>
         <tbody>
           <!-- Crystal Sunshine Room 1 -->
-          <tr>
+          <tr class="bed-row">
             <td class="bed-label">CS101 (L)</td>
             <td class="guest-cell"></td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">John Smith</div>
+            <td class="guest-cell" style="position: relative;">
+              <div class="guest-blob" style="width: calc(300% + 2px); left: 0;">John Smith</div>
             </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">John Smith</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">John Smith</div>
-            </td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
           </tr>
-          <tr>
+          <tr class="bed-row">
             <td class="bed-label">CS102 (U)</td>
             <td class="guest-cell"></td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Jane Doe</div>
+            <td class="guest-cell" style="position: relative;">
+              <div class="guest-blob" style="width: calc(300% + 2px); left: 0;">Jane Doe</div>
             </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Jane Doe</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Jane Doe</div>
-            </td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
           </tr>
 
           <!-- Crystal Sunshine Room 2 -->
-          <tr>
+          <tr class="bed-row">
             <td class="bed-label">CS201 (L)</td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Alice Johnson</div>
+            <td class="guest-cell" style="position: relative;">
+              <div class="guest-blob" style="width: calc(500% + 4px); left: 0;">Alice Johnson</div>
             </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Alice Johnson</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Alice Johnson</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Alice Johnson</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Alice Johnson</div>
-            </td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
           </tr>
-          <tr>
+          <tr class="bed-row">
             <td class="bed-label">CS202 (U)</td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Bob Wilson</div>
+            <td class="guest-cell" style="position: relative;">
+              <div class="guest-blob" style="width: calc(300% + 2px); left: 0;">Bob Wilson</div>
             </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Bob Wilson</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Bob Wilson</div>
-            </td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
             <td class="guest-cell"></td>
           </tr>
 
           <!-- Fresh Rain Room 1 -->
-          <tr>
+          <tr class="bed-row">
             <td class="bed-label">FR101 (L)</td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Mary Chen</div>
+            <td class="guest-cell" style="position: relative;">
+              <div class="guest-blob" style="width: calc(500% + 4px); left: 0;">Mary Chen</div>
             </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Mary Chen</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Mary Chen</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Mary Chen</div>
-            </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Mary Chen</div>
-            </td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
+            <td class="guest-cell"></td>
           </tr>
-          <tr>
+          <tr class="bed-row">
             <td class="bed-label">FR102 (U)</td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
             <td class="guest-cell"></td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Tom Garcia</div>
+            <td class="guest-cell" style="position: relative;">
+              <div class="guest-blob" style="width: calc(200% + 1px); left: 0;">Tom Garcia</div>
             </td>
-            <td class="guest-cell occupied">
-              <div class="guest-chip">Tom Garcia</div>
-            </td>
+            <td class="guest-cell"></td>
             <td class="guest-cell"></td>
           </tr>
         </tbody>
@@ -252,10 +222,7 @@
       &.guest-cell {
         min-width: 150px;
         background-color: white;
-
-        &.occupied {
-          background-color: #eff6ff;
-        }
+        position: relative;
       }
 
       &:last-child {
@@ -265,8 +232,10 @@
   }
 }
 
-.guest-chip {
-  display: inline-block;
+.guest-blob {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
   padding: 6px 12px;
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
@@ -276,10 +245,16 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   cursor: move;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: auto;
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    z-index: 10;
   }
 }
 
