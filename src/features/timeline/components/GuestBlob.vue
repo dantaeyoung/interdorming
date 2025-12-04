@@ -16,9 +16,11 @@
     <div class="guest-actions">
       <button
         v-if="hasNotes"
+        ref="notesButtonRef"
         class="icon-button notes-icon"
-        :title="notesText"
         @click.stop
+        @mouseenter="handleNotesMouseEnter"
+        @mouseleave="showNotesTooltip = false"
       >
         📝
       </button>
@@ -30,11 +32,18 @@
         ✏️
       </button>
     </div>
+
+    <!-- Teleport tooltip to body to avoid z-index issues -->
+    <Teleport to="body">
+      <div v-if="showNotesTooltip" class="notes-tooltip-overlay" :style="tooltipPosition">
+        {{ notesText }}
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { GuestBlobData } from '../types/timeline'
 
 interface Props {
@@ -48,6 +57,10 @@ const emit = defineEmits<{
   dragEnd: []
   editGuest: [guestId: string]
 }>()
+
+const showNotesTooltip = ref(false)
+const tooltipPosition = ref({ top: '0px', left: '0px' })
+const notesButtonRef = ref<HTMLButtonElement | null>(null)
 
 const guestName = computed(() => {
   const guest = props.guestBlob.guest
@@ -101,6 +114,17 @@ function onDragEnd(event: DragEvent) {
 
 function onEditClick() {
   emit('editGuest', props.guestBlob.guestId)
+}
+
+function handleNotesMouseEnter(event: MouseEvent) {
+  if (notesButtonRef.value) {
+    const rect = notesButtonRef.value.getBoundingClientRect()
+    tooltipPosition.value = {
+      top: `${rect.top}px`,
+      left: `${rect.left + rect.width / 2}px`,
+    }
+  }
+  showNotesTooltip.value = true
 }
 </script>
 
@@ -230,6 +254,22 @@ function onEditClick() {
   &:active {
     transform: scale(0.95);
   }
+}
 
+.notes-tooltip-overlay {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: pre-wrap;
+  max-width: 300px;
+  z-index: 99999;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  line-height: 1.4;
+  transform: translate(-50%, calc(-100% - 8px));
 }
 </style>

@@ -107,6 +107,8 @@
       @close="closeGuestModal"
       @submit="handleGuestUpdate"
     />
+
+    <!-- Notes Tooltip Overlay (teleported from GuestBlob components) -->
   </div>
 </template>
 
