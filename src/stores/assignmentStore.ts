@@ -72,6 +72,11 @@ export const useAssignmentStore = defineStore(
         }
       }
 
+      // Clear any suggestion for this guest when manually assigned
+      if (suggestedAssignments.value.has(guestId)) {
+        suggestedAssignments.value.delete(guestId)
+      }
+
       // Assign to new bed
       const bed = dormitoryStore.getBedById(bedId)
       if (bed) {
