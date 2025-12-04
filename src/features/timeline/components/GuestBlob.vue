@@ -71,9 +71,21 @@ const blobStyle = computed(() => {
   // Each cell is variable width based on zoom, borders are 1px between cells
   const width = `calc(${spanCount * 100}% + ${(spanCount - 1) * 1}px)`
 
+  // Determine background color based on gender
+  const guest = props.guestBlob.guest
+  let backgroundColor = '#6b7280' // Default gray
+  if (guest.gender === 'male') {
+    backgroundColor = '#93c5fd' // Blue for male
+  } else if (guest.gender === 'female') {
+    backgroundColor = '#f9a8d4' // Pink for female
+  } else if (guest.gender === 'non-binary') {
+    backgroundColor = '#c084fc' // Purple for non-binary
+  }
+
   return {
     width,
     left: '0',
+    background: backgroundColor,
   }
 })
 
@@ -106,8 +118,7 @@ function onEditClick() {
   top: 2px;
   bottom: 2px;
   padding: 4px 8px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
+  color: #1f2937;
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 500;
@@ -175,7 +186,7 @@ function onEditClick() {
 }
 
 .icon-button {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.1);
   border: none;
   border-radius: 3px;
   padding: 2px 4px;
@@ -188,7 +199,7 @@ function onEditClick() {
   justify-content: center;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.2);
     transform: scale(1.1);
   }
 
