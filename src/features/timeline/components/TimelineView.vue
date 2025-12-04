@@ -36,6 +36,121 @@
           </tr>
         </thead>
         <tbody>
+          <!-- Unassigned Guests Section - Scrollable Stacked Blobs -->
+          <tr class="unassigned-row">
+            <!-- Merged left label -->
+            <td class="unassigned-label-cell" colspan="3">
+              <div class="unassigned-label-content">
+                <span>Unassigned Guests</span>
+              </div>
+            </td>
+
+            <!-- Scrollable date cells container -->
+            <td :colspan="dateColumns.length" class="unassigned-dates-cell">
+              <div class="unassigned-scroll-window">
+                <div class="unassigned-content-area" :style="{ width: `${dateColumns.length * columnWidthPx}px`, minHeight: '150px' }">
+                  <!-- MOCKUP: Guest blobs positioned on x-axis, stacked on y-axis -->
+                  <GuestBlob
+                    :guest-blob="{
+                      guestId: 'mock-1',
+                      displayName: 'Jane',
+                      bedId: 'unassigned',
+                      startColIndex: 0,
+                      endColIndex: 3,
+                      spanCount: 4,
+                      guest: {
+                        firstName: 'Jane',
+                        lastName: 'Smith',
+                        age: 28,
+                        gender: 'female',
+                        arrival: new Date('2024-12-01'),
+                        departure: new Date('2024-12-04')
+                      }
+                    }"
+                    :style="{ position: 'absolute', top: '2px', left: `${0 * columnWidthPx}px`, zIndex: 5 }"
+                  />
+                  <GuestBlob
+                    :guest-blob="{
+                      guestId: 'mock-2',
+                      displayName: 'Bob',
+                      bedId: 'unassigned',
+                      startColIndex: 0,
+                      endColIndex: 5,
+                      spanCount: 6,
+                      guest: {
+                        firstName: 'Bob',
+                        lastName: 'Johnson',
+                        age: 45,
+                        gender: 'male',
+                        arrival: new Date('2024-12-01'),
+                        departure: new Date('2024-12-06')
+                      }
+                    }"
+                    :style="{ position: 'absolute', top: '27px', left: `${0 * columnWidthPx}px`, zIndex: 4 }"
+                  />
+                  <GuestBlob
+                    :guest-blob="{
+                      guestId: 'mock-3',
+                      displayName: 'Alice',
+                      bedId: 'unassigned',
+                      startColIndex: 0,
+                      endColIndex: 2,
+                      spanCount: 3,
+                      guest: {
+                        firstName: 'Alice',
+                        lastName: 'Williams',
+                        age: 32,
+                        gender: 'female',
+                        arrival: new Date('2024-12-01'),
+                        departure: new Date('2024-12-03')
+                      }
+                    }"
+                    :style="{ position: 'absolute', top: '52px', left: `${0 * columnWidthPx}px`, zIndex: 3 }"
+                  />
+                  <GuestBlob
+                    :guest-blob="{
+                      guestId: 'mock-4',
+                      displayName: 'Charlie',
+                      bedId: 'unassigned',
+                      startColIndex: 2,
+                      endColIndex: 4,
+                      spanCount: 3,
+                      guest: {
+                        firstName: 'Charlie',
+                        lastName: 'Wilson',
+                        age: 65,
+                        gender: 'male',
+                        arrival: new Date('2024-12-03'),
+                        departure: new Date('2024-12-05')
+                      }
+                    }"
+                    :style="{ position: 'absolute', top: '77px', left: `${2 * columnWidthPx}px`, zIndex: 2 }"
+                  />
+                  <GuestBlob
+                    :guest-blob="{
+                      guestId: 'mock-5',
+                      displayName: 'Eve',
+                      bedId: 'unassigned',
+                      startColIndex: 1,
+                      endColIndex: 3,
+                      spanCount: 3,
+                      guest: {
+                        firstName: 'Eve',
+                        lastName: 'Davis',
+                        age: 29,
+                        gender: 'female',
+                        arrival: new Date('2024-12-02'),
+                        departure: new Date('2024-12-04')
+                      }
+                    }"
+                    :style="{ position: 'absolute', top: '102px', left: `${1 * columnWidthPx}px`, zIndex: 1 }"
+                  />
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Regular bed rows -->
           <tr
             v-for="(bedRow, index) in bedRows"
             :key="bedRow.bed.id"
@@ -671,6 +786,83 @@ function getRoomRowspan(index: number): number {
   }
 
   tbody {
+    // Unassigned section styling - scrollable window
+    tr.unassigned-row {
+      border-top: 3px solid #3b82f6;
+      border-bottom: 3px solid #3b82f6;
+
+      .unassigned-label-cell {
+        background-color: #bfdbfe;
+        color: #1e40af;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-align: center;
+        vertical-align: middle;
+        position: sticky;
+        left: 0;
+        z-index: 9;
+        border-right: 2px solid #3b82f6;
+
+        .unassigned-label-content {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 150px; // Match scroll window height
+        }
+      }
+
+      .unassigned-dates-cell {
+        padding: 0;
+        background-color: #f0f9ff;
+        position: relative;
+      }
+
+      .unassigned-scroll-window {
+        height: 150px; // Scroll window height
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+        background-color: #f0f9ff;
+      }
+
+      .unassigned-content-area {
+        position: relative;
+        width: 100%;
+
+        // Guest blobs are positioned absolutely within this area
+        // They use their normal x-axis positioning (startColIndex, spanCount)
+        // But are stacked on y-axis with fixed top positions
+
+        // Override guest blob styling in unassigned section
+        :deep(.guest-blob) {
+          height: 30px;
+          padding: 2px 8px;
+          font-size: 0.7rem;
+
+          // Reset any positioning that might interfere
+          position: absolute;
+
+          .guest-info {
+            gap: 4px;
+          }
+
+          .guest-name {
+            font-size: 0.65rem;
+          }
+
+          .gender-badge {
+            width: 16px;
+            height: 16px;
+            font-size: 0.6rem;
+          }
+
+          .guest-age {
+            font-size: 0.65rem;
+          }
+        }
+      }
+    }
+
     tr {
       &:hover {
         background-color: #f9fafb;
