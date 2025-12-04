@@ -13,10 +13,10 @@
       <button
         v-if="hasNotes"
         class="icon-button notes-icon"
-        :title="notesText"
         @click.stop
       >
         📝
+        <span class="notes-tooltip">{{ notesText }}</span>
       </button>
       <button
         class="icon-button edit-icon"
@@ -199,29 +199,32 @@ function onEditClick() {
   &.notes-icon {
     position: relative;
 
-    &::after {
-      content: attr(title);
+    .notes-tooltip {
       position: absolute;
-      bottom: 100%;
+      bottom: calc(100% + 4px);
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.9);
+      background: rgba(0, 0, 0, 0.95);
       color: white;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 0.7rem;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
       white-space: pre-wrap;
-      max-width: 250px;
+      max-width: 300px;
+      min-width: 150px;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.2s;
-      z-index: 100;
-      margin-bottom: 4px;
-      line-height: 1.3;
+      visibility: hidden;
+      transition: opacity 0.2s, visibility 0.2s;
+      z-index: 1000;
+      line-height: 1.4;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      font-weight: 400;
     }
 
-    &:hover::after {
+    &:hover .notes-tooltip {
       opacity: 1;
+      visibility: visible;
     }
   }
 }
