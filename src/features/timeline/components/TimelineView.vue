@@ -36,7 +36,11 @@
             v-for="(bedRow, index) in bedRows"
             :key="bedRow.bed.id"
             class="bed-row"
-            :class="{ collapsed: bedRow.isCollapsed }"
+            :class="{
+              collapsed: bedRow.isCollapsed,
+              'room-stripe-dark': isRoomStripeDark(index),
+              'room-stripe-light': !isRoomStripeDark(index)
+            }"
           >
             <!-- Dormitory label - only show on first bed of dormitory -->
             <td
@@ -307,6 +311,34 @@ function getDormRowspan(index: number): number {
 }
 
 /**
+ * Determine if a row should have dark room stripe
+ * Alternates between dark and light for each room
+ */
+function isRoomStripeDark(index: number): boolean {
+  // Count how many unique rooms appear before this row
+  const currentRoomId = bedRows.value[index].room.id
+  const uniqueRoomsBeforeCurrent = new Set<string>()
+
+  for (let i = 0; i < index; i++) {
+    uniqueRoomsBeforeCurrent.add(bedRows.value[i].room.id)
+  }
+
+  // Add current room if it's the first time seeing it
+  if (!uniqueRoomsBeforeCurrent.has(currentRoomId)) {
+    return uniqueRoomsBeforeCurrent.size % 2 === 0
+  }
+
+  // Check if the first occurrence of current room was dark
+  for (let i = 0; i < index; i++) {
+    if (bedRows.value[i].room.id === currentRoomId) {
+      return isRoomStripeDark(i)
+    }
+  }
+
+  return false
+}
+
+/**
  * Check if room label should be shown for this row
  * Only show on the first bed of each room
  */
@@ -573,6 +605,30 @@ function getRoomRowspan(index: number): number {
         &.conflict {
           background-color: #fee2e2;
         }
+      }
+    }
+
+    // Room stripe alternating colors
+    tr.room-stripe-dark {
+      td.guest-cell {
+        background-color: #f3f4f6;
+      }
+    }
+
+    tr.room-stripe-light {
+      td.guest-cell {
+        background-color: white;
+      }
+    }
+
+    // Keep drop target and conflict styling
+    tr {
+      td.guest-cell.drop-target {
+        background-color: #fef3c7 !important;
+      }
+
+      td.guest-cell.conflict {
+        background-color: #fee2e2 !important;
       }
 
       &:last-child {
