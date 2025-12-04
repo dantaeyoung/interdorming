@@ -97,17 +97,17 @@ export const useValidationStore = defineStore('validation', () => {
       warnings.push('Needs Lower Bunk')
     }
 
-    // Check for family/group separation warnings
-    if (
-      settingsStore.settings.warnings.familySeparation &&
-      guest.groupName &&
-      guest.groupName.trim()
-    ) {
-      const separatedCount = checkFamilySeparation(guest, room)
-      if (separatedCount > 0) {
-        warnings.push(`${separatedCount} group member(s) in other room(s)`)
-      }
-    }
+    // Check for family/group separation warnings - DISABLED
+    // if (
+    //   settingsStore.settings.warnings.familySeparation &&
+    //   guest.groupName &&
+    //   guest.groupName.trim()
+    // ) {
+    //   const separatedCount = checkFamilySeparation(guest, room)
+    //   if (separatedCount > 0) {
+    //     warnings.push(`${separatedCount} group member(s) in other room(s)`)
+    //   }
+    // }
 
     return warnings
   }

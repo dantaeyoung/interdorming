@@ -80,6 +80,7 @@
               class="guest-cell"
               :class="{
                 'drop-target': isDropTarget(bedRow.bed.id),
+                'valid-drop-cell': isValidDropCell(bedRow.bed.id, dateCol.index),
                 conflict: hasConflict(bedRow.bed.id, dateCol.date),
               }"
               @dragover.prevent="onDragOver(bedRow.bed.id)"
@@ -140,6 +141,7 @@ import { useTimelineData } from '../composables/useTimelineData'
 import { useTimelineDragDrop } from '../composables/useTimelineDragDrop'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { useGuestStore } from '@/stores/guestStore'
+import { useDormitoryStore } from '@/stores/dormitoryStore'
 import TimelineHeader from './TimelineHeader.vue'
 import GuestBlob from './GuestBlob.vue'
 import { GuestFormModal } from '@/features/guests/components'
@@ -148,6 +150,7 @@ import type { Guest } from '@/types'
 
 const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
+const dormitoryStore = useDormitoryStore()
 const { dateColumns, monthGroups, bedRows, getGuestBlobsForBed } = useTimelineData()
 const {
   startDrag,
@@ -157,10 +160,46 @@ const {
   dropOnBed,
   isDropTarget: checkIsDropTarget,
   getDraggedGuestId,
+  dragState,
 } = useTimelineDragDrop()
 
 // Column width in pixels (directly from slider, 10-100px)
 const columnWidthPx = computed(() => timelineStore.columnWidth)
+
+// Cache dragged guest blob data to avoid repeated lookups
+const draggedGuestBlob = computed(() => {
+  const draggedGuestId = getDraggedGuestId()
+  if (!draggedGuestId) return null
+
+  // Find the dragged guest's blob
+  for (const bedRow of bedRows.value) {
+    const blobs = getGuestBlobsForBed(bedRow.bed.id)
+    const blob = blobs.find(b => b.guestId === draggedGuestId)
+    if (blob) return blob
+  }
+  return null
+})
+
+// Pre-compute valid drop cells as a Set for O(1) lookup
+const validDropCells = computed(() => {
+  const cells = new Set<string>()
+
+  if (!dragState.value.isDragging) return cells
+
+  const blob = draggedGuestBlob.value
+  if (!blob) return cells
+
+  // For each valid bed, add all cells in the date range
+  for (const bedRow of bedRows.value) {
+    if (isValidDropTarget(bedRow.bed.id)) {
+      for (let colIndex = blob.startColIndex; colIndex <= blob.endColIndex; colIndex++) {
+        cells.add(`${bedRow.bed.id}-${colIndex}`)
+      }
+    }
+  }
+
+  return cells
+})
 
 // Guest edit modal state
 const showGuestModal = ref(false)
@@ -217,21 +256,12 @@ function isDropTarget(bedId: string): boolean {
 function getGhostPreview(bedId: string, colIndex: number): GuestBlobData | null {
   if (!isDropTarget(bedId)) return null
 
-  const draggedGuestId = getDraggedGuestId()
-  if (!draggedGuestId) return null
+  const blob = draggedGuestBlob.value
+  if (!blob) return null
 
-  // Find the dragged guest's blob data
-  const allBeds = bedRows.value
-  for (const bedRow of allBeds) {
-    const blobs = getGuestBlobsForBed(bedRow.bed.id)
-    const draggedBlob = blobs.find(blob => blob.guestId === draggedGuestId)
-    if (draggedBlob) {
-      // Check if this cell is the start column for the ghost preview
-      if (draggedBlob.startColIndex === colIndex) {
-        return draggedBlob
-      }
-      return null
-    }
+  // Check if this cell is the start column for the ghost preview
+  if (blob.startColIndex === colIndex) {
+    return blob
   }
 
   return null
@@ -271,6 +301,49 @@ function hasConflict(bedId: string, date: Date): boolean {
  */
 function bedHasAnyConflict(bedId: string): boolean {
   return dateColumns.value.some(dateCol => hasConflict(bedId, dateCol.date))
+}
+
+/**
+ * Check if a bed is a valid drop target for the currently dragged guest
+ * A bed is valid if it won't create gender mismatch or bunk type warnings
+ */
+function isValidDropTarget(bedId: string): boolean {
+  if (!dragState.value.isDragging || !dragState.value.draggedGuestId) {
+    return false
+  }
+
+  const guest = guestStore.getGuestById(dragState.value.draggedGuestId)
+  if (!guest) return false
+
+  const bed = dormitoryStore.getBedById(bedId)
+  if (!bed) return false
+
+  const room = dormitoryStore.getRoomByBedId(bedId)
+  if (!room) return false
+
+  // Check gender compatibility (non-binary guests can go anywhere)
+  if (
+    guest.gender !== 'Non-binary/Other' &&
+    room.roomGender !== 'Coed' &&
+    guest.gender !== room.roomGender
+  ) {
+    return false
+  }
+
+  // Check bunk type compatibility
+  if (guest.lowerBunk && bed.bedType === 'upper') {
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Check if a specific cell should be highlighted as a valid drop target
+ * Uses pre-computed Set for O(1) lookup
+ */
+function isValidDropCell(bedId: string, colIndex: number): boolean {
+  return validDropCells.value.has(`${bedId}-${colIndex}`)
 }
 
 /**
@@ -715,8 +788,13 @@ function getRoomRowspan(index: number): number {
         position: relative;
         overflow: visible; // Important: allow guest blobs to span across cells
 
-        &.drop-target {
-          background-color: #fef3c7;
+        // Removed yellow highlight on hover
+        // &.drop-target {
+        //   background-color: #fef3c7 !important;
+        // }
+
+        &.valid-drop-cell {
+          background-color: #d1fae5 !important;
         }
 
         &.conflict {
@@ -773,9 +851,10 @@ function getRoomRowspan(index: number): number {
 
     // Keep drop target and conflict styling
     tr {
-      td.guest-cell.drop-target {
-        background-color: #fef3c7 !important;
-      }
+      // Removed yellow highlight on hover
+      // td.guest-cell.drop-target {
+      //   background-color: #fef3c7 !important;
+      // }
 
       td.guest-cell.conflict {
         background-color: rgba(220, 38, 38, 0.4) !important;
