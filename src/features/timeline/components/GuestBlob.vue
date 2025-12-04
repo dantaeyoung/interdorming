@@ -6,6 +6,8 @@
     :draggable="true"
     @dragstart="onDragStart"
     @dragend="onDragEnd"
+    @mouseenter="handleBlobMouseEnter"
+    @mouseleave="handleBlobMouseLeave"
   >
     <div class="guest-info">
       <span class="guest-name">{{ guestName }}</span>
@@ -15,7 +17,7 @@
       <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
     </div>
     <!-- Warning icon - positioned on left edge -->
-    <div v-if="hasWarnings" class="warning-icon" :title="warningsText">
+    <div v-if="hasWarnings" class="warning-icon" ref="warningIconRef">
       ⚠️
     </div>
 
@@ -39,15 +41,13 @@
       </button>
     </div>
 
-    <!-- Warning message - positioned below blob -->
-    <div v-if="hasWarnings" class="warning-message">
-      {{ warningsText }}
-    </div>
-
-    <!-- Teleport tooltip to body to avoid z-index issues -->
+    <!-- Teleport tooltips to body to avoid z-index issues -->
     <Teleport to="body">
       <div v-if="showNotesTooltip" class="notes-tooltip-overlay" :style="tooltipPosition">
         {{ notesText }}
+      </div>
+      <div v-if="showWarningTooltip" class="warning-tooltip-overlay" :style="warningTooltipPosition">
+        {{ warningsText }}
       </div>
     </Teleport>
   </div>
@@ -73,6 +73,10 @@ const emit = defineEmits<{
 const showNotesTooltip = ref(false)
 const tooltipPosition = ref({ top: '0px', left: '0px' })
 const notesButtonRef = ref<HTMLButtonElement | null>(null)
+
+const showWarningTooltip = ref(false)
+const warningTooltipPosition = ref({ top: '0px', left: '0px' })
+const warningIconRef = ref<HTMLDivElement | null>(null)
 
 const validationStore = useValidationStore()
 
@@ -150,6 +154,21 @@ function handleNotesMouseEnter(event: MouseEvent) {
     }
   }
   showNotesTooltip.value = true
+}
+
+function handleBlobMouseEnter() {
+  if (hasWarnings.value && warningIconRef.value) {
+    const rect = warningIconRef.value.getBoundingClientRect()
+    warningTooltipPosition.value = {
+      top: `${rect.top + rect.height / 2}px`,
+      left: `${rect.right + 4}px`,
+    }
+    showWarningTooltip.value = true
+  }
+}
+
+function handleBlobMouseLeave() {
+  showWarningTooltip.value = false
 }
 </script>
 
@@ -309,22 +328,35 @@ function handleNotesMouseEnter(event: MouseEvent) {
   pointer-events: none;
 }
 
-.warning-message {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 2px;
+.warning-tooltip-overlay {
+  position: fixed;
   background: rgba(239, 68, 68, 0.95);
   color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.65rem;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
   font-weight: 500;
   white-space: pre-wrap;
-  z-index: 100;
   max-width: 300px;
-  line-height: 1.3;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  line-height: 1.4;
+  transform: translateY(-50%);
+
+  // Arrow pointing to the left (towards the warning icon)
+  &::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-right: 6px solid rgba(239, 68, 68, 0.95);
+  }
 }
 
 .notes-tooltip-overlay {
