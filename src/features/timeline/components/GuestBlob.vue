@@ -86,8 +86,8 @@ const warningIconRef = ref<HTMLDivElement | null>(null)
 const validationStore = useValidationStore()
 
 const warnings = computed(() => {
-  const bedId = props.guestBlob.bedId
-  return validationStore.getWarningsForBed(bedId)
+  const guestId = props.guestBlob.guestId
+  return validationStore.getWarningsForGuest(guestId)
 })
 
 const hasWarnings = computed(() => warnings.value.length > 0)
