@@ -1,151 +1,246 @@
 <template>
   <div class="timeline-view">
-    <h2 class="timeline-title">Timeline View - Mockup</h2>
-    <p class="timeline-description">
-      This view shows guest occupancy across dates. Drag guests vertically to move between rooms.
-      Dates are fixed horizontally.
-    </p>
+    <TimelineHeader />
 
     <div class="timeline-container">
       <table class="timeline-table">
         <thead>
           <tr>
+            <th class="dorm-header"><div class="rotated-text">Dormitory</div></th>
+            <th class="room-header">Room</th>
             <th class="bed-header">Bed</th>
-            <th class="date-header">12/1</th>
-            <th class="date-header">12/2</th>
-            <th class="date-header">12/3</th>
-            <th class="date-header">12/4</th>
-            <th class="date-header">12/5</th>
-            <th class="date-header">12/6</th>
-            <th class="date-header">12/7</th>
+            <th
+              v-for="dateCol in dateColumns"
+              :key="dateCol.index"
+              class="date-header"
+              :title="dateCol.fullLabel"
+            >
+              {{ dateCol.label }}
+            </th>
           </tr>
         </thead>
         <tbody>
-          <!-- Crystal Sunshine Room 1 -->
-          <tr class="bed-row">
-            <td class="bed-label">CS101 (L)</td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell" style="position: relative;">
-              <div class="guest-blob" style="width: calc(300% + 2px); left: 0;">John Smith</div>
+          <tr
+            v-for="(bedRow, index) in bedRows"
+            :key="bedRow.bed.id"
+            class="bed-row"
+            :class="{ collapsed: bedRow.isCollapsed }"
+          >
+            <!-- Dormitory label - only show on first bed of dormitory -->
+            <td
+              v-if="shouldShowDormLabel(index)"
+              class="dorm-label"
+              :rowspan="getDormRowspan(index)"
+              :style="{ backgroundColor: bedRow.dormitory.color || '#f9fafb' }"
+            >
+              <div class="rotated-text">{{ bedRow.dormitory.name }}</div>
             </td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-          </tr>
-          <tr class="bed-row">
-            <td class="bed-label">CS102 (U)</td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell" style="position: relative;">
-              <div class="guest-blob" style="width: calc(300% + 2px); left: 0;">Jane Doe</div>
-            </td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-          </tr>
 
-          <!-- Crystal Sunshine Room 2 -->
-          <tr class="bed-row">
-            <td class="bed-label">CS201 (L)</td>
-            <td class="guest-cell" style="position: relative;">
-              <div class="guest-blob" style="width: calc(500% + 4px); left: 0;">Alice Johnson</div>
+            <!-- Room label - only show on first bed of room -->
+            <td
+              v-if="shouldShowRoomLabel(index)"
+              class="room-label"
+              :rowspan="getRoomRowspan(index)"
+              :style="{ backgroundColor: bedRow.dormitory.color || '#f9fafb' }"
+            >
+              {{ bedRow.room.name }}
             </td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-          </tr>
-          <tr class="bed-row">
-            <td class="bed-label">CS202 (U)</td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell" style="position: relative;">
-              <div class="guest-blob" style="width: calc(300% + 2px); left: 0;">Bob Wilson</div>
-            </td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-          </tr>
 
-          <!-- Fresh Rain Room 1 -->
-          <tr class="bed-row">
-            <td class="bed-label">FR101 (L)</td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell" style="position: relative;">
-              <div class="guest-blob" style="width: calc(500% + 4px); left: 0;">Mary Chen</div>
+            <!-- Bed label -->
+            <td class="bed-label">
+              {{ bedRow.bed.bedNumber }} ({{ bedRow.bed.bedType }})
             </td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-          </tr>
-          <tr class="bed-row">
-            <td class="bed-label">FR102 (U)</td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell" style="position: relative;">
-              <div class="guest-blob" style="width: calc(200% + 1px); left: 0;">Tom Garcia</div>
+
+            <!-- Date cells -->
+            <td
+              v-for="dateCol in dateColumns"
+              :key="`${bedRow.bed.id}-${dateCol.index}`"
+              class="guest-cell"
+              :class="{
+                'drop-target': isDropTarget(bedRow.bed.id),
+                conflict: hasConflict(bedRow.bed.id, dateCol.date),
+              }"
+              @dragover.prevent="onDragOver(bedRow.bed.id)"
+              @dragleave="onDragLeave"
+              @drop="onDrop(bedRow.bed.id)"
+            >
+              <!-- Render guest blob if this is the starting column -->
+              <GuestBlob
+                v-for="blob in getGuestBlobsForCell(bedRow.bed.id, dateCol.index)"
+                :key="blob.guestId"
+                :guest-blob="blob"
+                @drag-start="onGuestDragStart"
+                @drag-end="onGuestDragEnd"
+              />
             </td>
-            <td class="guest-cell"></td>
-            <td class="guest-cell"></td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div class="mockup-notes">
-      <h3>How it works:</h3>
-      <ul>
-        <li><strong>Rows:</strong> Each bed in each room (e.g., CS101 = Crystal Sunshine Room 1, Bed 1, Lower bunk)</li>
-        <li><strong>Columns:</strong> Dates (12/1, 12/2, etc.)</li>
-        <li><strong>Cells:</strong> Guest names shown as chips spanning their stay dates</li>
-        <li><strong>Dragging:</strong> Guests can be dragged vertically between beds, but dates remain fixed</li>
-        <li><strong>Visual:</strong> Occupied cells have colored chips, empty cells are blank and available</li>
-      </ul>
+    <!-- Empty state -->
+    <div v-if="bedRows.length === 0" class="empty-state">
+      <p>No dormitories configured. Please add rooms and beds in the Room Configuration tab.</p>
+    </div>
+
+    <div v-if="dateColumns.length === 0" class="empty-state">
+      <p>No date range selected. Please configure the date range above.</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// Mockup component - no logic yet
+import { computed } from 'vue'
+import { useTimelineData } from '../composables/useTimelineData'
+import { useTimelineDragDrop } from '../composables/useTimelineDragDrop'
+import { useTimelineStore } from '@/stores/timelineStore'
+import TimelineHeader from './TimelineHeader.vue'
+import GuestBlob from './GuestBlob.vue'
+import type { GuestBlobData } from '../types/timeline'
+
+const timelineStore = useTimelineStore()
+const { dateColumns, bedRows, getGuestBlobsForBed } = useTimelineData()
+const {
+  startDrag,
+  endDrag,
+  enterDropTarget,
+  leaveDropTarget,
+  dropOnBed,
+  isDropTarget: checkIsDropTarget,
+} = useTimelineDragDrop()
+
+/**
+ * Get guest blobs that should be rendered in a specific cell
+ * Only returns blobs where startColIndex matches the cell's column index
+ */
+function getGuestBlobsForCell(bedId: string, colIndex: number): GuestBlobData[] {
+  const allBlobs = getGuestBlobsForBed(bedId)
+  return allBlobs.filter(blob => blob.startColIndex === colIndex)
+}
+
+/**
+ * Check if a bed is currently a valid drop target
+ */
+function isDropTarget(bedId: string): boolean {
+  return checkIsDropTarget(bedId)
+}
+
+/**
+ * Check if a bed has a conflict on a specific date
+ */
+function hasConflict(bedId: string, date: Date): boolean {
+  return timelineStore.hasConflictOnDate(bedId, date)
+}
+
+/**
+ * Handle drag over event
+ */
+function onDragOver(bedId: string) {
+  enterDropTarget(bedId)
+}
+
+/**
+ * Handle drag leave event
+ */
+function onDragLeave() {
+  leaveDropTarget()
+}
+
+/**
+ * Handle drop event
+ */
+function onDrop(bedId: string) {
+  dropOnBed(bedId)
+}
+
+/**
+ * Handle guest drag start
+ */
+function onGuestDragStart(guestId: string, bedId: string) {
+  startDrag(guestId, bedId)
+}
+
+/**
+ * Handle guest drag end
+ */
+function onGuestDragEnd() {
+  endDrag()
+}
+
+/**
+ * Check if dormitory label should be shown for this row
+ * Only show on the first bed of each dormitory
+ */
+function shouldShowDormLabel(index: number): boolean {
+  if (index === 0) return true
+  const currentDorm = bedRows.value[index].dormitory.id
+  const prevDorm = bedRows.value[index - 1].dormitory.id
+  return currentDorm !== prevDorm
+}
+
+/**
+ * Get rowspan for dormitory label
+ * Count how many consecutive beds belong to this dormitory
+ */
+function getDormRowspan(index: number): number {
+  const currentDorm = bedRows.value[index].dormitory.id
+  let count = 1
+  for (let i = index + 1; i < bedRows.value.length; i++) {
+    if (bedRows.value[i].dormitory.id === currentDorm) {
+      count++
+    } else {
+      break
+    }
+  }
+  return count
+}
+
+/**
+ * Check if room label should be shown for this row
+ * Only show on the first bed of each room
+ */
+function shouldShowRoomLabel(index: number): boolean {
+  if (index === 0) return true
+  const currentRoom = bedRows.value[index].room.id
+  const prevRoom = bedRows.value[index - 1].room.id
+  return currentRoom !== prevRoom
+}
+
+/**
+ * Get rowspan for room label
+ * Count how many consecutive beds belong to this room
+ */
+function getRoomRowspan(index: number): number {
+  const currentRoom = bedRows.value[index].room.id
+  let count = 1
+  for (let i = index + 1; i < bedRows.value.length; i++) {
+    if (bedRows.value[i].room.id === currentRoom) {
+      count++
+    } else {
+      break
+    }
+  }
+  return count
+}
 </script>
 
 <style scoped lang="scss">
 .timeline-view {
-  padding: 20px;
   height: 100%;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   background-color: #f9fafb;
-}
-
-.timeline-title {
-  margin: 0 0 8px 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.timeline-description {
-  margin: 0 0 20px 0;
-  color: #6b7280;
-  font-size: 0.95rem;
+  overflow: hidden;
 }
 
 .timeline-container {
+  flex: 1;
+  margin: 20px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow-x: auto;
-  margin-bottom: 30px;
+  overflow: auto;
+  position: relative;
 }
 
 .timeline-table {
@@ -168,13 +263,37 @@
       border-bottom: 2px solid #e5e7eb;
       border-right: 1px solid #e5e7eb;
 
-      &.bed-header {
-        text-align: left;
+      &.dorm-header {
+        padding: 8px 4px;
+        min-width: 40px;
+        max-width: 40px;
+        width: 40px;
         background-color: #e5e7eb;
         position: sticky;
         left: 0;
         z-index: 11;
-        min-width: 120px;
+        vertical-align: middle;
+      }
+
+      &.room-header {
+        padding: 8px 4px;
+        min-width: 100px;
+        max-width: 100px;
+        width: 100px;
+        background-color: #e5e7eb;
+        position: sticky;
+        left: 40px;
+        z-index: 11;
+        vertical-align: middle;
+      }
+
+      &.bed-header {
+        text-align: left;
+        background-color: #e5e7eb;
+        position: sticky;
+        left: 140px;
+        z-index: 11;
+        min-width: 100px;
       }
 
       &.date-header {
@@ -197,32 +316,100 @@
       &:nth-child(2n) {
         background-color: #fafafa;
       }
+
+      &.collapsed {
+        height: 5px;
+
+        td {
+          padding: 0;
+          font-size: 0;
+          line-height: 0;
+        }
+      }
     }
 
     td {
-      padding: 8px 16px;
+      padding: 2px 8px;
       border-bottom: 1px solid #e5e7eb;
       border-right: 1px solid #e5e7eb;
       text-align: center;
       vertical-align: middle;
-      height: 50px;
+      height: 30px;
+      max-height: 30px;
 
-      &.bed-label {
+      &.dorm-label {
+        padding: 2px 6px;
+        min-width: 40px;
+        max-width: 40px;
+        width: 40px;
         font-weight: 600;
-        font-size: 0.85rem;
+        font-size: 0.7rem;
         color: #1f2937;
         background-color: #f9fafb;
         position: sticky;
         left: 0;
         z-index: 9;
+        border-right: 1px solid #d1d5db;
+        height: 30px;
+        max-height: 30px;
+        overflow: hidden;
+        text-align: center;
+        // Ensure text is readable on colored backgrounds
+        text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+      }
+
+      &.room-label {
+        padding: 2px 6px;
+        min-width: 100px;
+        max-width: 100px;
+        width: 100px;
+        font-weight: 600;
+        font-size: 0.7rem;
+        color: #1f2937;
+        background-color: #f9fafb;
+        position: sticky;
+        left: 40px;
+        z-index: 9;
+        border-right: 1px solid #d1d5db;
+        height: 30px;
+        max-height: 30px;
+        overflow: hidden;
+        word-wrap: break-word;
+        white-space: normal;
+        line-height: 1.2;
+        text-align: center;
+        // Ensure text is readable on colored backgrounds
+        text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+      }
+
+      &.bed-label {
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: #1f2937;
+        background-color: #f9fafb;
+        position: sticky;
+        left: 140px;
+        z-index: 9;
         text-align: left;
         border-right: 2px solid #d1d5db;
+        min-width: 100px;
+        overflow: hidden;
       }
 
       &.guest-cell {
         min-width: 150px;
         background-color: white;
         position: relative;
+        overflow: visible; // Important: allow guest blobs to span across cells
+
+        &.drop-target {
+          background-color: #dbeafe;
+          border: 2px solid #3b82f6;
+        }
+
+        &.conflict {
+          background-color: #fee2e2;
+        }
       }
 
       &:last-child {
@@ -232,58 +419,26 @@
   }
 }
 
-.guest-blob {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  padding: 6px 12px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  cursor: move;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-  pointer-events: auto;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-    z-index: 10;
-  }
+.rotated-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  white-space: normal; // Allow wrapping
+  word-wrap: break-word;
+  display: inline-block;
+  max-width: 26px; // Limit horizontal width (which becomes vertical when rotated)
+  line-height: 1.2;
+  overflow: hidden;
 }
 
-.mockup-notes {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.95rem;
 
-  h3 {
-    margin: 0 0 12px 0;
-    font-size: 1.1rem;
-    color: #111827;
-  }
-
-  ul {
+  p {
     margin: 0;
-    padding-left: 20px;
-
-    li {
-      margin-bottom: 8px;
-      color: #4b5563;
-      font-size: 0.9rem;
-      line-height: 1.5;
-
-      strong {
-        color: #1f2937;
-      }
-    }
   }
 }
 </style>
