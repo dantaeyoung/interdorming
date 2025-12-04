@@ -345,11 +345,11 @@ function handleBlobMouseLeave() {
   line-height: 1.4;
   transform: translateY(-100%);
 
-  // Arrow pointing down and to the left (towards the warning icon)
+  // Arrow pointing down (towards the warning icon)
   &::before {
     content: '';
     position: absolute;
-    left: -6px;
+    left: 4px;
     bottom: -6px;
     width: 0;
     height: 0;
