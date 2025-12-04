@@ -14,15 +14,10 @@
       }}</span>
       <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
     </div>
-    <!-- Warning icon - positioned absolutely in upper right -->
-    <button
-      v-if="hasWarnings"
-      class="icon-button warning-icon"
-      :title="warningsText"
-      @click.stop
-    >
+    <!-- Warning icon - positioned on left edge -->
+    <div v-if="hasWarnings" class="warning-icon" :title="warningsText">
       ⚠️
-    </button>
+    </div>
 
     <div class="guest-actions">
       <button
@@ -42,6 +37,11 @@
       >
         ✏️
       </button>
+    </div>
+
+    <!-- Warning message - positioned below blob -->
+    <div v-if="hasWarnings" class="warning-message">
+      {{ warningsText }}
     </div>
 
     <!-- Teleport tooltip to body to avoid z-index issues -->
@@ -290,21 +290,41 @@ function handleNotesMouseEnter(event: MouseEvent) {
     transform: scale(0.95);
   }
 
-  &.warning-icon {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    background: rgba(239, 68, 68, 0.9);
-    color: white;
-    padding: 1px 3px;
-    font-size: 0.65rem;
-    z-index: 10;
+}
 
-    &:hover {
-      background: rgba(220, 38, 38, 1);
-      transform: scale(1.15);
-    }
-  }
+.warning-icon {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.warning-message {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 2px;
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  white-space: pre-wrap;
+  z-index: 100;
+  max-width: 300px;
+  line-height: 1.3;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .notes-tooltip-overlay {
