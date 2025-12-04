@@ -99,6 +99,13 @@
       </div>
     </div>
 
+    <!-- Timeline Tab -->
+    <div v-show="activeTab === 'timeline'" class="tab-content">
+      <div class="scrollable-content">
+        <TimelineView />
+      </div>
+    </div>
+
     <!-- Room Configuration Tab -->
     <div v-show="activeTab === 'configuration'" class="tab-content">
       <div class="toolbar">
@@ -166,6 +173,7 @@ import { GuestCSVUpload, RoomConfigCSV, AssignmentCSVExport } from '@/features/c
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
 import { PrintView } from '@/features/print/components'
+import { TimelineView } from '@/features/timeline/components'
 
 // Composables
 import { useCSV } from '@/features/csv/composables/useCSV'
@@ -182,6 +190,7 @@ const assignmentStore = useAssignmentStore()
 const activeTab = ref('assignment')
 const tabs: Tab[] = [
   { id: 'assignment', label: 'Guest Assignment' },
+  { id: 'timeline', label: 'Timeline View' },
   { id: 'configuration', label: 'Room Configuration' },
   { id: 'print', label: 'Print' },
   { id: 'settings', label: 'Settings' },
