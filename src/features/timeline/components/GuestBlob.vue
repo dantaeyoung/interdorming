@@ -293,7 +293,7 @@ function handleNotesMouseEnter(event: MouseEvent) {
   &.warning-icon {
     position: absolute;
     top: 2px;
-    right: 2px;
+    left: 2px;
     background: rgba(239, 68, 68, 0.9);
     color: white;
     padding: 1px 3px;
