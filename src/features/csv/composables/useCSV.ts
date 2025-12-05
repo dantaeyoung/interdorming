@@ -151,9 +151,17 @@ export function useCSV() {
     const invalidRows: string[] = []
 
     for (let i = 1; i < lines.length; i++) {
-      const values = parseCSVRow(lines[i])
+      const rawRow = lines[i]
+      const values = parseCSVRow(rawRow)
+
+      // Helper to get row preview for error messages
+      const getRowPreview = () => {
+        const preview = rawRow.substring(0, 40)
+        return preview.length < rawRow.length ? `${preview}...` : preview
+      }
+
       if (values.length !== headers.length) {
-        invalidRows.push(`Row ${i + 1}: Expected ${headers.length} columns, got ${values.length}`)
+        invalidRows.push(`Row ${i + 1} (${getRowPreview()}): Expected ${headers.length} columns, got ${values.length}`)
         continue
       }
 
@@ -168,9 +176,20 @@ export function useCSV() {
         }
       })
 
+      // Helper to get guest name for error messages
+      const getGuestIdentifier = () => {
+        const firstName = guest.firstName || ''
+        const lastName = guest.lastName || ''
+        if (firstName || lastName) {
+          const fullName = `${firstName} ${lastName}`.trim()
+          return `"${fullName}"`
+        }
+        return getRowPreview()
+      }
+
       // Validate required fields
       if (!guest.firstName || !guest.lastName) {
-        invalidRows.push(`Row ${i + 1}: Missing first name or last name`)
+        invalidRows.push(`Row ${i + 1} ${getGuestIdentifier()}: Missing first name or last name`)
         continue
       }
 
@@ -196,7 +215,7 @@ export function useCSV() {
         ].includes(guest.gender.trim())
       ) {
         invalidRows.push(
-          `Row ${i + 1}: Invalid gender '${guest.gender}'. Use M, F, Male, Female, Non-binary, or Other`
+          `Row ${i + 1} ${getGuestIdentifier()}: Invalid gender '${guest.gender}'. Use M, F, Male, Female, Non-binary, or Other`
         )
         continue
       }
