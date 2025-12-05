@@ -2,7 +2,12 @@
   <div id="app" class="app-container">
     <!-- Header -->
     <div class="header">
-      <h1>Dorm Assignment Tool</h1>
+      <h1>
+        Interdorming: Dorm Assignment Tool
+        <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
+          ({{ currentBranch }} branch)
+        </span>
+      </h1>
       <p>Drag and drop guests to assign them to dormitory beds</p>
     </div>
 
@@ -160,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 
 // Shared components
@@ -185,6 +190,14 @@ import type { Tab } from '@/shared/components/TabNavigation.vue'
 const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
+
+// Git branch detection
+const currentBranch = ref<string | null>(null)
+
+onMounted(() => {
+  // Try to detect git branch from environment variable (set during build)
+  currentBranch.value = import.meta.env.VITE_GIT_BRANCH || null
+})
 
 // Tab state
 const activeTab = ref('assignment')
@@ -586,6 +599,13 @@ function stopResize() {
     margin: 0;
     font-size: 1.125rem;
     font-weight: 600;
+
+    .branch-indicator {
+      color: #ff6b6b;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-left: 8px;
+    }
   }
 
   p {
