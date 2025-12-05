@@ -808,6 +808,7 @@ function getRoomRowspan(index: number): number {
   overflow-x: auto;
   overflow-y: auto;
   border-bottom: 3px solid #3b82f6;
+  margin-bottom: 0;
 }
 
 .dorms-section {
@@ -815,6 +816,7 @@ function getRoomRowspan(index: number): number {
   overflow-x: auto;
   overflow-y: auto;
   min-height: 0; // Important for flex child scrolling
+  margin-top: 0;
 }
 
 .timeline-table {
@@ -822,6 +824,8 @@ function getRoomRowspan(index: number): number {
   border-collapse: collapse;
   min-width: 1000px;
   table-layout: fixed;
+  margin: 0;
+  display: table;
 
   thead {
     background-color: #f3f4f6;
