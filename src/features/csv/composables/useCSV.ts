@@ -213,6 +213,18 @@ export function useCSV() {
       throw new Error(debugInfo)
     }
 
+    // Log warnings about skipped rows even when some guests loaded successfully
+    if (invalidRows.length > 0) {
+      console.warn(`CSV Import: ${guests.length} guests loaded successfully, but ${invalidRows.length} row(s) were skipped:`)
+      invalidRows.forEach((error, index) => {
+        console.warn(`  ${index + 1}. ${error}`)
+      })
+      // Also show a brief summary in the console for easy visibility
+      console.warn(`Summary: Loaded ${guests.length}/${lines.length - 1} rows from CSV`)
+    } else {
+      console.log(`CSV Import: Successfully loaded ${guests.length} guests from CSV`)
+    }
+
     return guests
   }
 
