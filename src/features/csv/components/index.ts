@@ -5,3 +5,4 @@
 export { default as GuestCSVUpload } from './GuestCSVUpload.vue'
 export { default as AssignmentCSVExport } from './AssignmentCSVExport.vue'
 export { default as RoomConfigCSV } from './RoomConfigCSV.vue'
+export { default as CSVWarningModal } from './CSVWarningModal.vue'

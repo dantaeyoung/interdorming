@@ -6,6 +6,15 @@
 import { CSV_FIELD_MAPPINGS } from '@/types'
 import type { Guest, GuestCSVRow } from '@/types'
 
+/**
+ * Result of CSV parsing with guests and any warnings
+ */
+export interface CSVParseResult {
+  guests: Guest[]
+  warnings: string[]
+  totalRows: number
+}
+
 export function useCSV() {
   /**
    * Parses a CSV row handling quoted fields and escaped quotes
@@ -118,7 +127,7 @@ export function useCSV() {
   /**
    * Parses CSV text into guest objects
    */
-  function parseGuestCSV(csvText: string): Guest[] {
+  function parseGuestCSV(csvText: string): CSVParseResult {
     const lines = csvText.trim().split('\n')
     if (lines.length < 2) {
       throw new Error('CSV must have at least a header row and one data row')
@@ -213,19 +222,11 @@ export function useCSV() {
       throw new Error(debugInfo)
     }
 
-    // Log warnings about skipped rows even when some guests loaded successfully
-    if (invalidRows.length > 0) {
-      console.warn(`CSV Import: ${guests.length} guests loaded successfully, but ${invalidRows.length} row(s) were skipped:`)
-      invalidRows.forEach((error, index) => {
-        console.warn(`  ${index + 1}. ${error}`)
-      })
-      // Also show a brief summary in the console for easy visibility
-      console.warn(`Summary: Loaded ${guests.length}/${lines.length - 1} rows from CSV`)
-    } else {
-      console.log(`CSV Import: Successfully loaded ${guests.length} guests from CSV`)
+    return {
+      guests,
+      warnings: invalidRows,
+      totalRows: lines.length - 1,
     }
-
-    return guests
   }
 
   /**

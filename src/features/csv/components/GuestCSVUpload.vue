@@ -15,6 +15,14 @@
       </button>
     </div>
     <p v-if="hint" class="upload-hint">{{ hint }}</p>
+
+    <CSVWarningModal
+      :is-open="showWarningModal"
+      :success-count="successCount"
+      :total-rows="totalRows"
+      :warnings="warnings"
+      @close="closeWarningModal"
+    />
   </div>
 </template>
 
@@ -23,6 +31,7 @@ import { ref } from 'vue'
 import { useCSV } from '../composables/useCSV'
 import { useGuestStore } from '@/stores/guestStore'
 import type { Guest } from '@/types'
+import CSVWarningModal from './CSVWarningModal.vue'
 
 interface Props {
   label?: string
@@ -46,6 +55,19 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const guestStore = useGuestStore()
 const { parseGuestCSV } = useCSV()
 
+// Modal state
+const showWarningModal = ref(false)
+const successCount = ref(0)
+const totalRows = ref(0)
+const warnings = ref<string[]>([])
+
+function closeWarningModal() {
+  showWarningModal.value = false
+  successCount.value = 0
+  totalRows.value = 0
+  warnings.value = []
+}
+
 async function handleFileChange(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
@@ -54,12 +76,20 @@ async function handleFileChange(event: Event) {
 
   try {
     const csvText = await readFileAsText(file)
-    const guests = parseGuestCSV(csvText)
+    const result = parseGuestCSV(csvText)
 
     // Import guests into store
-    guestStore.importGuests(guests)
+    guestStore.importGuests(result.guests)
 
-    emit('upload-success', guests)
+    emit('upload-success', result.guests)
+
+    // Show modal with results (only if there are warnings)
+    if (result.warnings.length > 0) {
+      successCount.value = result.guests.length
+      totalRows.value = result.totalRows
+      warnings.value = result.warnings
+      showWarningModal.value = true
+    }
 
     // Reset file input
     if (fileInput.value) {
