@@ -943,7 +943,7 @@ function getRoomRowspan(index: number): number {
 
     // Unassigned section styling - scrollable window
     tr.unassigned-row {
-      height: 150px;
+      height: 200px;
       margin: 0;
       padding: 0;
 
