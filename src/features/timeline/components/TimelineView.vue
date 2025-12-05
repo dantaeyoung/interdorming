@@ -4,6 +4,16 @@
 
     <div class="timeline-container" :style="{ '--column-width': `${columnWidthPx}px` }">
       <table class="timeline-table">
+        <colgroup>
+          <col style="width: 40px; min-width: 40px; max-width: 40px;" />
+          <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+          <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+          <col
+            v-for="dateCol in dateColumns"
+            :key="`col-${dateCol.index}`"
+            :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
+          />
+        </colgroup>
         <thead>
           <!-- Month row -->
           <tr>
@@ -45,107 +55,32 @@
               </div>
             </td>
 
-            <!-- Scrollable date cells container -->
-            <td :colspan="dateColumns.length" class="unassigned-dates-cell">
-              <div class="unassigned-scroll-window">
-                <div class="unassigned-content-area" :style="{ width: `${dateColumns.length * columnWidthPx}px`, minHeight: '150px' }">
-                  <!-- MOCKUP: Guest blobs positioned on x-axis, stacked on y-axis -->
-                  <GuestBlob
-                    :guest-blob="{
-                      guestId: 'mock-1',
-                      displayName: 'Jane',
-                      bedId: 'unassigned',
-                      startColIndex: 0,
-                      endColIndex: 3,
-                      spanCount: 4,
-                      guest: {
-                        firstName: 'Jane',
-                        lastName: 'Smith',
-                        age: 28,
-                        gender: 'female',
-                        arrival: new Date('2024-12-01'),
-                        departure: new Date('2024-12-04')
-                      }
-                    }"
-                    :style="{ position: 'absolute', top: '2px', left: `${0 * columnWidthPx}px`, zIndex: 5 }"
-                  />
-                  <GuestBlob
-                    :guest-blob="{
-                      guestId: 'mock-2',
-                      displayName: 'Bob',
-                      bedId: 'unassigned',
-                      startColIndex: 0,
-                      endColIndex: 5,
-                      spanCount: 6,
-                      guest: {
-                        firstName: 'Bob',
-                        lastName: 'Johnson',
-                        age: 45,
-                        gender: 'male',
-                        arrival: new Date('2024-12-01'),
-                        departure: new Date('2024-12-06')
-                      }
-                    }"
-                    :style="{ position: 'absolute', top: '27px', left: `${0 * columnWidthPx}px`, zIndex: 4 }"
-                  />
-                  <GuestBlob
-                    :guest-blob="{
-                      guestId: 'mock-3',
-                      displayName: 'Alice',
-                      bedId: 'unassigned',
-                      startColIndex: 0,
-                      endColIndex: 2,
-                      spanCount: 3,
-                      guest: {
-                        firstName: 'Alice',
-                        lastName: 'Williams',
-                        age: 32,
-                        gender: 'female',
-                        arrival: new Date('2024-12-01'),
-                        departure: new Date('2024-12-03')
-                      }
-                    }"
-                    :style="{ position: 'absolute', top: '52px', left: `${0 * columnWidthPx}px`, zIndex: 3 }"
-                  />
-                  <GuestBlob
-                    :guest-blob="{
-                      guestId: 'mock-4',
-                      displayName: 'Charlie',
-                      bedId: 'unassigned',
-                      startColIndex: 2,
-                      endColIndex: 4,
-                      spanCount: 3,
-                      guest: {
-                        firstName: 'Charlie',
-                        lastName: 'Wilson',
-                        age: 65,
-                        gender: 'male',
-                        arrival: new Date('2024-12-03'),
-                        departure: new Date('2024-12-05')
-                      }
-                    }"
-                    :style="{ position: 'absolute', top: '77px', left: `${2 * columnWidthPx}px`, zIndex: 2 }"
-                  />
-                  <GuestBlob
-                    :guest-blob="{
-                      guestId: 'mock-5',
-                      displayName: 'Eve',
-                      bedId: 'unassigned',
-                      startColIndex: 1,
-                      endColIndex: 3,
-                      spanCount: 3,
-                      guest: {
-                        firstName: 'Eve',
-                        lastName: 'Davis',
-                        age: 29,
-                        gender: 'female',
-                        arrival: new Date('2024-12-02'),
-                        departure: new Date('2024-12-04')
-                      }
-                    }"
-                    :style="{ position: 'absolute', top: '102px', left: `${1 * columnWidthPx}px`, zIndex: 1 }"
-                  />
-                </div>
+            <!-- Individual date cells to maintain grid alignment -->
+            <td
+              v-for="dateCol in dateColumns"
+              :key="`unassigned-${dateCol.index}`"
+              class="unassigned-date-cell"
+            >
+              <!-- Render blobs that start in this column -->
+              <div
+                v-for="(blob, index) in unassignedGuestBlobs.filter(b => b.startColIndex === dateCol.index)"
+                :key="blob.guestId"
+                class="unassigned-blob-wrapper"
+                :style="{
+                  position: 'absolute',
+                  top: `${2 + unassignedGuestBlobs.indexOf(blob) * 25}px`,
+                  left: '0',
+                  width: `calc(${blob.spanCount * 100}% + ${(blob.spanCount - 1) * 1}px)`,
+                  height: '30px',
+                  zIndex: unassignedGuestBlobs.length - unassignedGuestBlobs.indexOf(blob)
+                }"
+              >
+                <GuestBlob
+                  :guest-blob="blob"
+                  @drag-start="onGuestDragStart"
+                  @drag-end="onGuestDragEnd"
+                  @edit-guest="onEditGuest"
+                />
               </div>
             </td>
           </tr>
@@ -260,6 +195,7 @@ import { useTimelineData } from '../composables/useTimelineData'
 import { useTimelineDragDrop } from '../composables/useTimelineDragDrop'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { useGuestStore } from '@/stores/guestStore'
+import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import TimelineHeader from './TimelineHeader.vue'
 import GuestBlob from './GuestBlob.vue'
@@ -269,6 +205,7 @@ import type { Guest } from '@/types'
 
 const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
+const assignmentStore = useAssignmentStore()
 const dormitoryStore = useDormitoryStore()
 const { dateColumns, monthGroups, bedRows, getGuestBlobsForBed } = useTimelineData()
 const {
@@ -284,6 +221,84 @@ const {
 
 // Column width in pixels (directly from slider, 10-100px)
 const columnWidthPx = computed(() => timelineStore.columnWidth)
+
+// Get unassigned guests and generate blobs for them
+const unassignedGuestBlobs = computed((): GuestBlobData[] => {
+  const blobs: GuestBlobData[] = []
+  const rangeStart = new Date(timelineStore.config.dateRangeStart)
+  rangeStart.setHours(0, 0, 0, 0)
+  const rangeEnd = new Date(timelineStore.config.dateRangeEnd)
+  rangeEnd.setHours(0, 0, 0, 0)
+
+  assignmentStore.unassignedGuestIds.forEach(guestId => {
+    const guest = guestStore.getGuestById(guestId)
+    if (!guest) return
+
+    // Only show guests with arrival/departure dates
+    if (!guest.arrival || !guest.departure) return
+
+    const arrival = new Date(guest.arrival)
+    arrival.setHours(0, 0, 0, 0)
+    const departure = new Date(guest.departure)
+    departure.setHours(0, 0, 0, 0)
+
+    // Skip if guest stay doesn't overlap with visible range
+    if (departure < rangeStart || arrival > rangeEnd) return
+
+    // Find start and end column indices
+    const arrivalTime = arrival.getTime()
+    const departureTime = departure.getTime()
+
+    const startColIndex = dateColumns.value.findIndex(col => {
+      const colDate = new Date(col.date)
+      colDate.setHours(0, 0, 0, 0)
+      return colDate.getTime() === arrivalTime
+    })
+
+    const endColIndex = dateColumns.value.findIndex(col => {
+      const colDate = new Date(col.date)
+      colDate.setHours(0, 0, 0, 0)
+      return colDate.getTime() === departureTime
+    })
+
+    // Clamp to visible range
+    const visibleStartIndex = Math.max(0, startColIndex === -1 ? 0 : startColIndex)
+    const visibleEndIndex = Math.min(
+      dateColumns.value.length - 1,
+      endColIndex === -1 ? dateColumns.value.length - 1 : endColIndex
+    )
+
+    const spanCount = visibleEndIndex - visibleStartIndex + 1
+
+    blobs.push({
+      guestId,
+      displayName: guest.preferredName || guest.firstName,
+      bedId: 'unassigned',
+      startColIndex: visibleStartIndex,
+      endColIndex: visibleEndIndex,
+      spanCount,
+      guest: {
+        firstName: guest.firstName,
+        lastName: guest.lastName,
+        preferredName: guest.preferredName,
+        age: typeof guest.age === 'string' ? parseInt(guest.age) : guest.age,
+        gender:
+          guest.gender === 'M'
+            ? 'male'
+            : guest.gender === 'F'
+              ? 'female'
+              : 'non-binary',
+        groupName: guest.groupName,
+        lowerBunk: guest.lowerBunk,
+        arrival,
+        departure,
+        notes: guest.notes,
+      },
+    })
+  })
+
+  return blobs
+})
 
 // Cache dragged guest blob data to avoid repeated lookups
 const draggedGuestBlob = computed(() => {
@@ -676,6 +691,7 @@ function getRoomRowspan(index: number): number {
   width: 100%;
   border-collapse: collapse;
   min-width: 1000px;
+  table-layout: fixed;
 
   thead {
     background-color: #f3f4f6;
@@ -742,6 +758,7 @@ function getRoomRowspan(index: number): number {
 
       &.date-header {
         width: var(--column-width, 50px);
+        min-width: var(--column-width, 50px);
         max-width: var(--column-width, 50px);
         background-color: #f3f4f6;
         text-align: center;
@@ -790,6 +807,7 @@ function getRoomRowspan(index: number): number {
     tr.unassigned-row {
       border-top: 3px solid #3b82f6;
       border-bottom: 3px solid #3b82f6;
+      height: 150px;
 
       .unassigned-label-cell {
         background-color: #bfdbfe;
@@ -802,62 +820,54 @@ function getRoomRowspan(index: number): number {
         left: 0;
         z-index: 9;
         border-right: 2px solid #3b82f6;
+        height: 150px;
 
         .unassigned-label-content {
           display: flex;
           align-items: center;
           justify-content: center;
-          height: 150px; // Match scroll window height
+          height: 100%;
         }
       }
 
-      .unassigned-dates-cell {
+      .unassigned-date-cell {
         padding: 0;
         background-color: #f0f9ff;
         position: relative;
-      }
+        height: 150px;
+        vertical-align: top;
+        overflow: visible; // Allow blobs to span across cells
 
-      .unassigned-scroll-window {
-        height: 150px; // Scroll window height
-        overflow-y: auto;
-        overflow-x: hidden;
-        position: relative;
-        background-color: #f0f9ff;
-      }
+        .unassigned-blob-wrapper {
+          :deep(.guest-blob) {
+            // Override component positioning - blob should fill wrapper
+            position: static !important;
+            width: 100% !important;
+            height: 100% !important;
+            left: auto !important;
+            top: auto !important;
+            bottom: auto !important;
 
-      .unassigned-content-area {
-        position: relative;
-        width: 100%;
+            padding: 2px 8px;
+            font-size: 0.7rem;
 
-        // Guest blobs are positioned absolutely within this area
-        // They use their normal x-axis positioning (startColIndex, spanCount)
-        // But are stacked on y-axis with fixed top positions
+            .guest-info {
+              gap: 4px;
+            }
 
-        // Override guest blob styling in unassigned section
-        :deep(.guest-blob) {
-          height: 30px;
-          padding: 2px 8px;
-          font-size: 0.7rem;
+            .guest-name {
+              font-size: 0.65rem;
+            }
 
-          // Reset any positioning that might interfere
-          position: absolute;
+            .gender-badge {
+              width: 16px;
+              height: 16px;
+              font-size: 0.6rem;
+            }
 
-          .guest-info {
-            gap: 4px;
-          }
-
-          .guest-name {
-            font-size: 0.65rem;
-          }
-
-          .gender-badge {
-            width: 16px;
-            height: 16px;
-            font-size: 0.6rem;
-          }
-
-          .guest-age {
-            font-size: 0.65rem;
+            .guest-age {
+              font-size: 0.65rem;
+            }
           }
         }
       }
@@ -1010,6 +1020,7 @@ function getRoomRowspan(index: number): number {
 
       &.guest-cell {
         width: var(--column-width, 50px);
+        min-width: var(--column-width, 50px);
         max-width: var(--column-width, 50px);
         background-color: white;
         position: relative;
