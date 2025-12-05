@@ -2,50 +2,68 @@
   <div class="timeline-view">
     <TimelineHeader />
 
-    <div class="timeline-container" :style="{ '--column-width': `${columnWidthPx}px` }">
-      <table class="timeline-table">
-        <colgroup>
-          <col style="width: 40px; min-width: 40px; max-width: 40px;" />
-          <col style="width: 100px; min-width: 100px; max-width: 100px;" />
-          <col style="width: 100px; min-width: 100px; max-width: 100px;" />
-          <col
-            v-for="dateCol in dateColumns"
-            :key="`col-${dateCol.index}`"
-            :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
-          />
-        </colgroup>
-        <thead>
-          <!-- Month row -->
-          <tr>
-            <th class="dorm-header" rowspan="2"><div class="rotated-text">Dormitory</div></th>
-            <th class="room-header" rowspan="2">Room</th>
-            <th class="bed-header" rowspan="2">Bed</th>
-            <th
-              v-for="monthGroup in monthGroups"
-              :key="`${monthGroup.year}-${monthGroup.month}`"
-              :colspan="monthGroup.colspan"
-              class="month-header"
-            >
-              {{ monthGroup.month }}
-            </th>
-          </tr>
-          <!-- Day row -->
-          <tr>
-            <th
+    <div class="timeline-content-wrapper" :style="{ '--column-width': `${columnWidthPx}px` }">
+      <!-- Sticky Header -->
+      <div class="timeline-header-section">
+        <table class="timeline-table">
+          <colgroup>
+            <col style="width: 40px; min-width: 40px; max-width: 40px;" />
+            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+            <col
               v-for="dateCol in dateColumns"
-              :key="dateCol.index"
-              class="date-header"
-              :class="{ 'is-sunday': dateCol.date.getDay() === 0 }"
-              :title="dateCol.fullLabel"
-            >
-              <div class="date-cell">
-                <div class="weekday">{{ dateCol.weekday }}</div>
-                <div class="day">{{ dateCol.date.getDate() }}</div>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+              :key="`col-${dateCol.index}`"
+              :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
+            />
+          </colgroup>
+          <thead>
+            <!-- Month row -->
+            <tr>
+              <th class="dorm-header" rowspan="2"><div class="rotated-text">Dormitory</div></th>
+              <th class="room-header" rowspan="2">Room</th>
+              <th class="bed-header" rowspan="2">Bed</th>
+              <th
+                v-for="monthGroup in monthGroups"
+                :key="`${monthGroup.year}-${monthGroup.month}`"
+                :colspan="monthGroup.colspan"
+                class="month-header"
+              >
+                {{ monthGroup.month }}
+              </th>
+            </tr>
+            <!-- Day row -->
+            <tr>
+              <th
+                v-for="dateCol in dateColumns"
+                :key="dateCol.index"
+                class="date-header"
+                :class="{ 'is-sunday': dateCol.date.getDay() === 0 }"
+                :title="dateCol.fullLabel"
+              >
+                <div class="date-cell">
+                  <div class="weekday">{{ dateCol.weekday }}</div>
+                  <div class="day">{{ dateCol.date.getDate() }}</div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+
+      <!-- Unassigned Guests Section - Independently Scrollable -->
+      <div class="unassigned-section">
+        <table class="timeline-table">
+          <colgroup>
+            <col style="width: 40px; min-width: 40px; max-width: 40px;" />
+            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+            <col
+              v-for="dateCol in dateColumns"
+              :key="`col-unassigned-${dateCol.index}`"
+              :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
+            />
+          </colgroup>
+          <tbody>
           <!-- Unassigned Guests Section - Scrollable Stacked Blobs -->
           <tr class="unassigned-row">
             <!-- Merged left label -->
@@ -101,7 +119,24 @@
               </div>
             </td>
           </tr>
+          </tbody>
+        </table>
+      </div>
 
+      <!-- Dorms Section - Independently Scrollable -->
+      <div class="dorms-section">
+        <table class="timeline-table">
+          <colgroup>
+            <col style="width: 40px; min-width: 40px; max-width: 40px;" />
+            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+            <col
+              v-for="dateCol in dateColumns"
+              :key="`col-dorms-${dateCol.index}`"
+              :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
+            />
+          </colgroup>
+          <tbody>
           <!-- Regular bed rows -->
           <tr
             v-for="(bedRow, index) in bedRows"
@@ -181,8 +216,9 @@
               </div>
             </td>
           </tr>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Empty state -->
@@ -711,14 +747,39 @@ function getRoomRowspan(index: number): number {
   overflow: hidden;
 }
 
-.timeline-container {
+.timeline-content-wrapper {
   flex: 1;
   margin: 20px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   position: relative;
+}
+
+.timeline-header-section {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: white;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.unassigned-section {
+  flex-shrink: 0;
+  height: 200px;
+  overflow-x: auto;
+  overflow-y: auto;
+  border-bottom: 3px solid #3b82f6;
+}
+
+.dorms-section {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  min-height: 0; // Important for flex child scrolling
 }
 
 .timeline-table {
@@ -729,9 +790,6 @@ function getRoomRowspan(index: number): number {
 
   thead {
     background-color: #f3f4f6;
-    position: sticky;
-    top: 0;
-    z-index: 10;
 
     th {
       padding: 12px 16px;
@@ -839,8 +897,6 @@ function getRoomRowspan(index: number): number {
   tbody {
     // Unassigned section styling - scrollable window
     tr.unassigned-row {
-      border-top: 3px solid #3b82f6;
-      border-bottom: 3px solid #3b82f6;
       height: 150px;
 
       .unassigned-label-cell {
