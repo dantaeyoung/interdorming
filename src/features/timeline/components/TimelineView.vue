@@ -60,6 +60,12 @@
               v-for="dateCol in dateColumns"
               :key="`unassigned-${dateCol.index}`"
               class="unassigned-date-cell"
+              :class="{
+                'valid-drop-cell': isValidDropCell('unassigned', dateCol.index)
+              }"
+              @dragover.prevent="onDragOver('unassigned')"
+              @dragleave="onDragLeave"
+              @drop="onDrop('unassigned')"
             >
               <!-- Render blobs that start in this column -->
               <div
@@ -81,6 +87,17 @@
                   @drag-end="onGuestDragEnd"
                   @edit-guest="onEditGuest"
                 />
+              </div>
+
+              <!-- Ghost preview for drop target -->
+              <div
+                v-if="getGhostPreview('unassigned', dateCol.index)"
+                class="ghost-preview"
+                :style="getGhostPreviewStyle(getGhostPreview('unassigned', dateCol.index)!)"
+              >
+                <div class="ghost-text">
+                  <span>{{ getGhostFullName(getGhostPreview('unassigned', dateCol.index)!) }}</span>
+                </div>
               </div>
             </td>
           </tr>
@@ -305,7 +322,11 @@ const draggedGuestBlob = computed(() => {
   const draggedGuestId = getDraggedGuestId()
   if (!draggedGuestId) return null
 
-  // Find the dragged guest's blob
+  // Check unassigned blobs first
+  const unassignedBlob = unassignedGuestBlobs.value.find(b => b.guestId === draggedGuestId)
+  if (unassignedBlob) return unassignedBlob
+
+  // Find the dragged guest's blob in assigned beds
   for (const bedRow of bedRows.value) {
     const blobs = getGuestBlobsForBed(bedRow.bed.id)
     const blob = blobs.find(b => b.guestId === draggedGuestId)
@@ -322,6 +343,13 @@ const validDropCells = computed(() => {
 
   const blob = draggedGuestBlob.value
   if (!blob) return cells
+
+  // Add unassigned cells as valid drop targets (to unassign a guest)
+  if (isValidDropTarget('unassigned')) {
+    for (let colIndex = blob.startColIndex; colIndex <= blob.endColIndex; colIndex++) {
+      cells.add(`unassigned-${colIndex}`)
+    }
+  }
 
   // For each valid bed, add all cells in the date range
   for (const bedRow of bedRows.value) {
@@ -440,10 +468,16 @@ function bedHasAnyConflict(bedId: string): boolean {
 /**
  * Check if a bed is a valid drop target for the currently dragged guest
  * A bed is valid if it won't create gender mismatch or bunk type warnings
+ * Special case: "unassigned" is always a valid drop target (to unassign a guest)
  */
 function isValidDropTarget(bedId: string): boolean {
   if (!dragState.value.isDragging || !dragState.value.draggedGuestId) {
     return false
+  }
+
+  // "unassigned" is always a valid drop target (to unassign a guest)
+  if (bedId === 'unassigned') {
+    return true
   }
 
   const guest = guestStore.getGuestById(dragState.value.draggedGuestId)

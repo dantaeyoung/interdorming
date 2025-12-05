@@ -63,7 +63,7 @@ export function useTimelineDragDrop() {
   }
 
   /**
-   * Called when guest is dropped on a bed
+   * Called when guest is dropped on a bed or unassigned area
    */
   function dropOnBed(targetBedId: string) {
     if (!dragState.value.isDragging || !dragState.value.draggedGuestId) {
@@ -76,6 +76,13 @@ export function useTimelineDragDrop() {
 
     // Don't do anything if dropped on same bed
     if (targetBedId === sourceBedId) {
+      endDrag()
+      return
+    }
+
+    // Handle drop on unassigned area (unassign the guest)
+    if (targetBedId === 'unassigned') {
+      assignmentStore.unassignGuest(guestId)
       endDrag()
       return
     }
