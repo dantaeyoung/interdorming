@@ -808,7 +808,9 @@ function getRoomRowspan(index: number): number {
   overflow-x: auto;
   overflow-y: auto;
   border-bottom: 3px solid #3b82f6;
-  margin-bottom: 0;
+  margin: 0;
+  padding: 0;
+  background: white;
 }
 
 .dorms-section {
@@ -816,7 +818,9 @@ function getRoomRowspan(index: number): number {
   overflow-x: auto;
   overflow-y: auto;
   min-height: 0; // Important for flex child scrolling
-  margin-top: 0;
+  margin: 0;
+  padding: 0;
+  background: white;
 }
 
 .timeline-table {
@@ -934,9 +938,14 @@ function getRoomRowspan(index: number): number {
   }
 
   tbody {
+    margin: 0;
+    padding: 0;
+
     // Unassigned section styling - scrollable window
     tr.unassigned-row {
       height: 150px;
+      margin: 0;
+      padding: 0;
 
       .unassigned-label-cell {
         background-color: #bfdbfe;
@@ -947,7 +956,7 @@ function getRoomRowspan(index: number): number {
         vertical-align: middle;
         position: sticky;
         left: 0;
-        z-index: 9;
+        z-index: 100; // Higher than any blob z-index
         border-right: 2px solid #3b82f6;
         height: 150px;
 
@@ -1003,6 +1012,9 @@ function getRoomRowspan(index: number): number {
     }
 
     tr {
+      margin: 0;
+      padding: 0;
+
       &:hover {
         background-color: #f9fafb;
       }
