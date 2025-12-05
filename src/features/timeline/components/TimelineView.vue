@@ -51,7 +51,7 @@
       </div>
 
       <!-- Unassigned Guests Section - Independently Scrollable -->
-      <div class="unassigned-section">
+      <div class="unassigned-section" ref="unassignedSectionRef">
         <table class="timeline-table">
           <colgroup>
             <col style="width: 40px; min-width: 40px; max-width: 40px;" />
@@ -124,7 +124,7 @@
       </div>
 
       <!-- Dorms Section - Independently Scrollable -->
-      <div class="dorms-section">
+      <div class="dorms-section" ref="dormsSectionRef">
         <table class="timeline-table">
           <colgroup>
             <col style="width: 40px; min-width: 40px; max-width: 40px;" />
@@ -243,7 +243,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useTimelineData } from '../composables/useTimelineData'
 import { useTimelineDragDrop } from '../composables/useTimelineDragDrop'
 import { useTimelineStore } from '@/stores/timelineStore'
@@ -274,6 +274,41 @@ const {
 
 // Column width in pixels (directly from slider, 10-100px)
 const columnWidthPx = computed(() => timelineStore.columnWidth)
+
+// Refs for scroll synchronization
+const unassignedSectionRef = ref<HTMLElement | null>(null)
+const dormsSectionRef = ref<HTMLElement | null>(null)
+
+// Synchronize horizontal scrolling between sections
+let isScrolling = false // Prevent infinite loop
+
+function syncHorizontalScroll(source: HTMLElement, target: HTMLElement) {
+  if (isScrolling) return
+  isScrolling = true
+  target.scrollLeft = source.scrollLeft
+  requestAnimationFrame(() => {
+    isScrolling = false
+  })
+}
+
+onMounted(() => {
+  if (unassignedSectionRef.value && dormsSectionRef.value) {
+    const unassigned = unassignedSectionRef.value
+    const dorms = dormsSectionRef.value
+
+    const unassignedScrollHandler = () => syncHorizontalScroll(unassigned, dorms)
+    const dormsScrollHandler = () => syncHorizontalScroll(dorms, unassigned)
+
+    unassigned.addEventListener('scroll', unassignedScrollHandler)
+    dorms.addEventListener('scroll', dormsScrollHandler)
+
+    // Cleanup
+    onUnmounted(() => {
+      unassigned.removeEventListener('scroll', unassignedScrollHandler)
+      dorms.removeEventListener('scroll', dormsScrollHandler)
+    })
+  }
+})
 
 // Get unassigned guests and generate blobs for them
 const unassignedGuestBlobs = computed((): GuestBlobData[] => {
