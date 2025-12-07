@@ -171,6 +171,14 @@
                 <span class="room-gender-badge" :class="`gender-${bedRow.room.gender}`">
                   {{ getRoomGenderCode(bedRow.room.gender) }}
                 </span>
+                <button
+                  v-if="roomHasAvailableBeds(bedRow.room)"
+                  @click="handleAutoPlaceRoom(bedRow.room)"
+                  class="room-auto-place-btn"
+                  title="Auto-place guests in this room only"
+                >
+                  Auto-place
+                </button>
               </div>
             </td>
 
@@ -250,16 +258,18 @@ import { useTimelineStore } from '@/stores/timelineStore'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
 import TimelineHeader from './TimelineHeader.vue'
 import GuestBlob from './GuestBlob.vue'
 import { GuestFormModal } from '@/features/guests/components'
 import type { GuestBlobData } from '../types/timeline'
-import type { Guest } from '@/types'
+import type { Guest, Room } from '@/types'
 
 const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const dormitoryStore = useDormitoryStore()
+const { autoPlaceGuestsInRoom } = useAutoPlacement()
 const { dateColumns, monthGroups, bedRows, getGuestBlobsForBed } = useTimelineData()
 const {
   startDrag,
@@ -634,6 +644,26 @@ function onEditGuest(guestId: string) {
 function closeGuestModal() {
   showGuestModal.value = false
   selectedGuestId.value = null
+}
+
+/**
+ * Check if room has available beds
+ */
+function roomHasAvailableBeds(room: Room | undefined): boolean {
+  if (!room || !room.beds) return false
+  return room.beds.some(bed => !bed.assignedGuestId && bed.active !== false)
+}
+
+/**
+ * Auto-place guests in a specific room
+ */
+function handleAutoPlaceRoom(room: Room) {
+  const suggestions = autoPlaceGuestsInRoom(room)
+
+  // Add suggestions to the assignment store
+  suggestions.forEach((bedId, guestId) => {
+    assignmentStore.suggestedAssignments.set(guestId, bedId)
+  })
 }
 
 /**
@@ -1133,6 +1163,29 @@ function getRoomRowspan(index: number): number {
 
           &.gender-any {
             background-color: #d1d5db;
+          }
+        }
+
+        .room-auto-place-btn {
+          padding: 2px 6px;
+          font-size: 0.6rem;
+          font-weight: 500;
+          color: white;
+          background-color: #3b82f6;
+          border: 1px solid #3b82f6;
+          border-radius: 3px;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+          margin-top: 4px;
+
+          &:hover {
+            background-color: #2563eb;
+            transform: scale(1.05);
+          }
+
+          &:active {
+            transform: scale(0.95);
           }
         }
       }
