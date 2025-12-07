@@ -329,6 +329,9 @@ const unassignedGuestBlobs = computed((): GuestBlobData[] => {
   rangeEnd.setHours(0, 0, 0, 0)
 
   assignmentStore.unassignedGuestIds.forEach(guestId => {
+    // Skip if guest has a suggested assignment (they'll show in the bed row instead)
+    if (assignmentStore.suggestedAssignments.has(guestId)) return
+
     const guest = guestStore.getGuestById(guestId)
     if (!guest) return
 

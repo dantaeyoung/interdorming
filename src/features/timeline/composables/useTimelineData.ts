@@ -172,18 +172,19 @@ export function useTimelineData() {
    * Generate guest blob data for rendering
    * Returns map of bedId -> array of guest blobs
    * Uses existing assignments from assignmentStore + guest date ranges
+   * Also includes suggested assignments
    */
   const guestBlobsByBed = computed((): Map<string, GuestBlobData[]> => {
     const blobMap = new Map<string, GuestBlobData[]>()
     const dateColsArray = dateColumns.value
 
-    // Iterate through all assignments
-    assignmentStore.assignments.forEach((bedId, guestId) => {
+    // Helper function to create blob data
+    const createBlobData = (guestId: string, bedId: string) => {
       const guest = guestStore.getGuestById(guestId)
-      if (!guest) return
+      if (!guest) return null
 
       // Use guest's arrival and departure dates
-      if (!guest.arrival || !guest.departure) return
+      if (!guest.arrival || !guest.departure) return null
 
       // Normalize dates to midnight for comparison
       const arrival = new Date(guest.arrival)
@@ -197,7 +198,7 @@ export function useTimelineData() {
       rangeEnd.setHours(0, 0, 0, 0)
 
       // Skip if guest stay doesn't overlap with visible range
-      if (departure < rangeStart || arrival > rangeEnd) return
+      if (departure < rangeStart || arrival > rangeEnd) return null
 
       // Find start and end column indices
       const arrivalTime = arrival.getTime()
@@ -224,7 +225,7 @@ export function useTimelineData() {
 
       const spanCount = visibleEndIndex - visibleStartIndex + 1
 
-      const blobData: GuestBlobData = {
+      return {
         guestId,
         displayName: guest.preferredName || guest.firstName,
         bedId,
@@ -249,6 +250,26 @@ export function useTimelineData() {
           notes: guest.notes,
         },
       }
+    }
+
+    // Iterate through all regular assignments
+    assignmentStore.assignments.forEach((bedId, guestId) => {
+      const blobData = createBlobData(guestId, bedId)
+      if (!blobData) return
+
+      if (!blobMap.has(bedId)) {
+        blobMap.set(bedId, [])
+      }
+      blobMap.get(bedId)!.push(blobData)
+    })
+
+    // Iterate through all suggested assignments (only if not already assigned)
+    assignmentStore.suggestedAssignments.forEach((bedId, guestId) => {
+      // Skip if guest is already assigned (don't show suggestion if they're placed)
+      if (assignmentStore.assignments.has(guestId)) return
+
+      const blobData = createBlobData(guestId, bedId)
+      if (!blobData) return
 
       if (!blobMap.has(bedId)) {
         blobMap.set(bedId, [])
