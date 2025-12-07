@@ -12,7 +12,6 @@ import type { Guest, Bed, Room } from '@/types'
 interface PassConfig {
   name: string
   allowRelaxation: boolean
-  relaxBunkPreference?: boolean
   relaxAge?: boolean
 }
 
@@ -23,16 +22,37 @@ export function useAutoPlacement() {
   const settingsStore = useSettingsStore()
 
   /**
+   * Helper function to check if guest requires lower bunk (hard constraint)
+   */
+  function requiresLowerBunk(guest: Guest): boolean {
+    return (
+      guest.lowerBunk === 'Yes' ||
+      guest.lowerBunk === true ||
+      guest.lowerBunk === 'TRUE' ||
+      guest.lowerBunk === 'true'
+    )
+  }
+
+  /**
    * Main auto-placement function
    * Uses 3-pass algorithm with progressive constraint relaxation
    */
   function autoPlaceGuests(): Map<string, string> {
     const suggestedAssignments = new Map<string, string>()
 
-    // Get unassigned guests
-    let unassignedGuests = guestStore.guests.filter(
-      g => !assignmentStore.assignments.has(g.id)
-    )
+    // Get unassigned guests and prioritize those with hard constraints
+    // Place guests with lower bunk requirements FIRST to ensure they get valid beds
+    let unassignedGuests = guestStore.guests
+      .filter(g => !assignmentStore.assignments.has(g.id))
+      .sort((a, b) => {
+        const aRequiresLower = requiresLowerBunk(a)
+        const bRequiresLower = requiresLowerBunk(b)
+
+        // Guests requiring lower bunks go first
+        if (aRequiresLower && !bRequiresLower) return -1
+        if (!aRequiresLower && bRequiresLower) return 1
+        return 0
+      })
 
     if (unassignedGuests.length === 0) {
       return suggestedAssignments
@@ -48,8 +68,8 @@ export function useAutoPlacement() {
     // Define passes with progressive constraint relaxation
     const passes: PassConfig[] = [
       { name: 'strict', allowRelaxation: false },
-      { name: 'relaxed', allowRelaxation: true, relaxBunkPreference: true },
-      { name: 'emergency', allowRelaxation: true, relaxBunkPreference: true, relaxAge: true },
+      { name: 'relaxed', allowRelaxation: true },
+      { name: 'emergency', allowRelaxation: true, relaxAge: true },
     ]
 
     // Execute each pass
@@ -145,15 +165,15 @@ export function useAutoPlacement() {
     const room = dormitoryStore.getRoomByBedId(bed.bedId)
     if (!room) return -Infinity
 
-    // 1. Gender matching (hard constraint - highest priority, never relaxed)
-    const genderPriority = priorities.find(p => p.name === 'gender')
-    if (genderPriority?.enabled) {
-      const genderScore = scoreGenderMatch(guest, room)
-      if (genderScore < 0) return -Infinity // Hard constraint violation
-      score += genderScore * genderPriority.weight
-    }
+    // 1. Gender matching (hard constraint - always enforced)
+    const genderScore = scoreGenderMatch(guest, room)
+    if (genderScore < 0) return -Infinity // Hard constraint violation
 
-    // 2. Gendered room preference (prefer M/F over co-ed for same-gender groups)
+    // 2. Bunk requirement (hard constraint - always enforced)
+    const bunkScore = scoreBunkRequirement(guest, bed)
+    if (bunkScore < 0) return -Infinity // Hard constraint violation
+
+    // 3. Gendered room preference (prefer M/F over co-ed for same-gender groups)
     const genderedRoomPriority = priorities.find(p => p.name === 'genderedRoomPreference')
     if (genderedRoomPriority?.enabled) {
       score += scoreGenderedRoomPreference(guest, room) * genderedRoomPriority.weight
@@ -172,13 +192,7 @@ export function useAutoPlacement() {
         scoreMinimizeBuildings(bed, suggestedAssignments) * minimizeBuildingsPriority.weight
     }
 
-    // 5. Bunk preference (relaxed in pass 2+)
-    const bunkPriority = priorities.find(p => p.name === 'bunkPreference')
-    if (bunkPriority?.enabled && !passConfig.relaxBunkPreference) {
-      score += scoreBunkPreference(guest, bed) * bunkPriority.weight
-    }
-
-    // 6. Age compatibility (relaxed in pass 3)
+    // 5. Age compatibility (relaxed in pass 3)
     const agePriority = priorities.find(p => p.name === 'ageCompatibility')
     if (agePriority?.enabled && !passConfig.relaxAge) {
       score += scoreAgeCompatibility(guest, room, suggestedAssignments) * agePriority.weight
@@ -206,6 +220,33 @@ export function useAutoPlacement() {
 
     // Gender mismatch is forbidden
     return -1
+  }
+
+  /**
+   * Score bunk requirement (hard constraint - never relaxed)
+   * Returns -1 for violation (triggers -Infinity), 0-1 for acceptable
+   * Guests who require lower bunks (for mobility issues) cannot be placed in upper bunks
+   */
+  function scoreBunkRequirement(guest: Guest, bed: Bed): number {
+    // Check if guest requires lower bunk
+    const needsLowerBunk =
+      guest.lowerBunk === 'Yes' ||
+      guest.lowerBunk === true ||
+      guest.lowerBunk === 'TRUE' ||
+      guest.lowerBunk === 'true'
+
+    if (!needsLowerBunk) return 0 // No requirement - any bed is acceptable
+
+    // Guest needs lower bunk - check bed type
+    if (bed.bedType === 'lower' || bed.bedType === 'single') {
+      return 1.0 // Perfect match
+    }
+
+    if (bed.bedType === 'upper') {
+      return -1 // Hard constraint violation - cannot place someone with mobility issues in upper bunk
+    }
+
+    return 0 // Unknown bed type - neutral score
   }
 
   /**
@@ -359,35 +400,6 @@ export function useAutoPlacement() {
   }
 
   /**
-   * Score bunk preference matching
-   * Rewards lower bunk or single bed for guests who need them
-   */
-  function scoreBunkPreference(guest: Guest, bed: Bed): number {
-    // No preference = neutral
-    if (!guest.lowerBunk) return 0
-
-    const needsLowerBunk =
-      guest.lowerBunk === 'Yes' ||
-      guest.lowerBunk === true ||
-      guest.lowerBunk === 'TRUE' ||
-      guest.lowerBunk === 'true'
-
-    if (!needsLowerBunk) return 0
-
-    // Reward lower bunk or single bed
-    if (bed.bedType === 'lower' || bed.bedType === 'single') {
-      return 1.0
-    }
-
-    // Penalize upper bunk
-    if (bed.bedType === 'upper') {
-      return -0.5
-    }
-
-    return 0
-  }
-
-  /**
    * Score age compatibility with roommates
    * Prefers similar ages, penalizes large age gaps
    */
@@ -484,10 +496,19 @@ export function useAutoPlacement() {
   function autoPlaceGuestsInRoom(room: Room): Map<string, string> {
     const suggestedAssignments = new Map<string, string>()
 
-    // Get unassigned guests
-    let unassignedGuests = guestStore.guests.filter(
-      g => !assignmentStore.assignments.has(g.id)
-    )
+    // Get unassigned guests and prioritize those with hard constraints
+    // Place guests with lower bunk requirements FIRST to ensure they get valid beds
+    let unassignedGuests = guestStore.guests
+      .filter(g => !assignmentStore.assignments.has(g.id))
+      .sort((a, b) => {
+        const aRequiresLower = requiresLowerBunk(a)
+        const bRequiresLower = requiresLowerBunk(b)
+
+        // Guests requiring lower bunks go first
+        if (aRequiresLower && !bRequiresLower) return -1
+        if (!aRequiresLower && bRequiresLower) return 1
+        return 0
+      })
 
     if (unassignedGuests.length === 0) {
       return suggestedAssignments
@@ -505,8 +526,8 @@ export function useAutoPlacement() {
     // Define passes with progressive constraint relaxation
     const passes: PassConfig[] = [
       { name: 'strict', allowRelaxation: false },
-      { name: 'relaxed', allowRelaxation: true, relaxBunkPreference: true },
-      { name: 'emergency', allowRelaxation: true, relaxBunkPreference: true, relaxAge: true },
+      { name: 'relaxed', allowRelaxation: true },
+      { name: 'emergency', allowRelaxation: true, relaxAge: true },
     ]
 
     // Execute each pass
