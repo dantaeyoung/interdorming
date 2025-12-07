@@ -2,13 +2,6 @@
   <div class="assignment-toolbar">
     <div class="toolbar-section">
       <button
-        class="btn btn-primary"
-        :disabled="!hasGuests || autoPlaceDisabled"
-        @click="$emit('auto-place')"
-      >
-        Auto Place
-      </button>
-      <button
         v-if="hasSuggestions"
         class="btn"
         @click="$emit('accept-all')"

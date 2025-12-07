@@ -88,8 +88,17 @@
         <div class="panel right-panel" :style="{ flexBasis: `calc(${rightPanelWidth}% - 4px)` }">
           <div class="card">
             <div class="card-header">
-              <h3 class="card-title">Room Assignments</h3>
-              <span class="card-subtitle">({{ assignedCount }})</span>
+              <div class="card-header-left">
+                <h3 class="card-title">Room Assignments</h3>
+                <span class="card-subtitle">({{ assignedCount }})</span>
+                <button
+                  class="btn btn-auto-place"
+                  :disabled="guestStore.guests.length === 0"
+                  @click="handleAutoPlace"
+                >
+                  Auto-place
+                </button>
+              </div>
             </div>
             <div class="card-body">
               <div class="panel-content">
@@ -747,6 +756,34 @@ function stopResize() {
   font-size: 0.8rem;
   color: #6b7280;
   font-weight: 500;
+}
+
+.card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-auto-place {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+  background-color: #3b82f6;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background-color: #2563eb;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .card-body {

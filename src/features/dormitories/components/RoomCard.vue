@@ -14,7 +14,7 @@
           class="auto-place-btn"
           title="Auto-place guests in this room only"
         >
-          Auto-fill
+          Auto-place
         </button>
         <div class="room-info">
           {{ occupiedCount }}/{{ room.beds.length }} beds
