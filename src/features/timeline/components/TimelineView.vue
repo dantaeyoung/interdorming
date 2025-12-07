@@ -172,8 +172,8 @@
                   {{ getRoomGenderCode(bedRow.room.gender) }}
                 </span>
                 <button
-                  v-if="roomHasAvailableBeds(bedRow.room)"
-                  @click="handleAutoPlaceRoom(bedRow.room)"
+                  v-if="roomHasAvailableBeds(bedRow.dormitory.name, bedRow.room.name)"
+                  @click="handleAutoPlaceRoom(bedRow.dormitory.name, bedRow.room.name)"
                   class="room-auto-place-btn"
                   title="Auto-place guests in this room only"
                 >
@@ -263,7 +263,7 @@ import TimelineHeader from './TimelineHeader.vue'
 import GuestBlob from './GuestBlob.vue'
 import { GuestFormModal } from '@/features/guests/components'
 import type { GuestBlobData } from '../types/timeline'
-import type { Guest, Room } from '@/types'
+import type { Guest } from '@/types'
 
 const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
@@ -649,15 +649,26 @@ function closeGuestModal() {
 /**
  * Check if room has available beds
  */
-function roomHasAvailableBeds(room: Room | undefined): boolean {
+function roomHasAvailableBeds(dormitoryName: string, roomName: string): boolean {
+  const dorm = dormitoryStore.dormitories.find(d => d.dormitoryName === dormitoryName)
+  if (!dorm) return false
+
+  const room = dorm.rooms.find(r => r.roomName === roomName)
   if (!room || !room.beds) return false
+
   return room.beds.some(bed => !bed.assignedGuestId && bed.active !== false)
 }
 
 /**
  * Auto-place guests in a specific room
  */
-function handleAutoPlaceRoom(room: Room) {
+function handleAutoPlaceRoom(dormitoryName: string, roomName: string) {
+  const dorm = dormitoryStore.dormitories.find(d => d.dormitoryName === dormitoryName)
+  if (!dorm) return
+
+  const room = dorm.rooms.find(r => r.roomName === roomName)
+  if (!room) return
+
   const suggestions = autoPlaceGuestsInRoom(room)
 
   // Add suggestions to the assignment store
