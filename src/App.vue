@@ -41,12 +41,14 @@
         </div>
       </div>
 
-      <!-- Assignment Stats -->
-      <AssignmentStats />
-
-      <!-- Status Message -->
-      <div v-if="statusMessage" class="status-message" :class="statusMessageType">
-        {{ statusMessage }}
+      <!-- Stats and Status Bar -->
+      <div class="stats-status-bar">
+        <AssignmentStats />
+        <div class="status-message-area">
+          <div v-if="statusMessage" class="status-message" :class="statusMessageType">
+            {{ statusMessage }}
+          </div>
+        </div>
       </div>
 
       <!-- Two-Panel Layout -->
@@ -650,13 +652,30 @@ function stopResize() {
   flex: 1;
 }
 
+.stats-status-bar {
+  display: flex;
+  gap: 12px;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: 60px;
+}
+
+.status-message-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  min-height: 60px;
+}
+
 .status-message {
   padding: 8px 16px;
-  margin: 8px 16px 0;
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 500;
-  flex-shrink: 0;
+  flex: 1;
 
   &.success {
     background-color: #d1fae5;
