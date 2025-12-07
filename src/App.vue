@@ -259,17 +259,17 @@ async function handleLoadTestData() {
     // Parse CSV using the CSV composable
     const { useCSV } = await import('@/features/csv/composables/useCSV')
     const { parseGuestCSV } = useCSV()
-    const guests = parseGuestCSV(csvText)
+    const result = parseGuestCSV(csvText)
 
     // Import guests into store
-    guestStore.importGuests(guests)
+    guestStore.importGuests(result.guests)
 
     // Initialize default dormitories if none exist
     if (dormitoryStore.dormitories.length === 0) {
       dormitoryStore.initializeDefaultDormitories()
     }
 
-    showStatus(`Successfully loaded ${guests.length} test guests and default room configuration`, 'success')
+    showStatus(`Successfully loaded ${result.guests.length} test guests and default room configuration`, 'success')
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to load test data'
     showStatus(`Error loading test data: ${errorMessage}`, 'error')
