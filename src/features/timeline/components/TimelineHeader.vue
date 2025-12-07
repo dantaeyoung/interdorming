@@ -6,9 +6,6 @@
         <button @click="setPreset('auto-detect')" class="btn-preset" :class="{ active: isAutoDetect }">
           Auto-detect
         </button>
-        <button @click="setPreset('next-7-days')" class="btn-preset">Next 7 Days</button>
-        <button @click="setPreset('next-14-days')" class="btn-preset">Next 14 Days</button>
-        <button @click="setPreset('this-month')" class="btn-preset">This Month</button>
       </div>
       <div class="date-pickers">
         <div class="date-picker-group">
