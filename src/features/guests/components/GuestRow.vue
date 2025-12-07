@@ -3,6 +3,7 @@
     :class="['guest-row', { 'picked-up': isPickedUp, 'has-suggestion': hasSuggestion }]"
     v-bind="draggableProps"
   >
+    <td class="order-cell">{{ guest.importOrder || '-' }}</td>
     <td>
       <div class="name-cell">
         <div v-if="familyPosition !== 'none'" :class="['family-indicator', `family-${familyPosition}`]">
@@ -30,7 +31,13 @@
     <td>{{ guest.departure || '-' }}</td>
     <td>{{ guest.indivGrp || '-' }}</td>
     <td class="notes-cell">
-      <span v-if="guest.notes" :title="guest.notes" class="notes-text">
+      <span
+        v-if="guest.notes"
+        ref="notesCellRef"
+        class="notes-text"
+        @mouseenter="handleNotesMouseEnter"
+        @mouseleave="showNotesModal = false"
+      >
         {{ truncateNotes(guest.notes) }}
       </span>
       <span v-else>-</span>
@@ -49,11 +56,18 @@
         ✎
       </button>
     </td>
+
+    <!-- Teleport notes modal to body -->
+    <Teleport to="body">
+      <div v-if="showNotesModal && guest.notes" class="notes-modal-overlay" :style="modalPosition">
+        {{ guest.notes }}
+      </div>
+    </Teleport>
   </tr>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useValidationStore } from '@/stores/validationStore'
@@ -91,9 +105,25 @@ const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.
 
 const draggableProps = useDraggableGuest(props.guest.id)
 
-function truncateNotes(notes: string, maxLength: number = 30): string {
+// Notes modal state
+const showNotesModal = ref(false)
+const modalPosition = ref({ top: '0px', left: '0px' })
+const notesCellRef = ref<HTMLSpanElement | null>(null)
+
+function truncateNotes(notes: string, maxLength: number = 50): string {
   if (notes.length <= maxLength) return notes
   return notes.substring(0, maxLength) + '...'
+}
+
+function handleNotesMouseEnter() {
+  if (notesCellRef.value) {
+    const rect = notesCellRef.value.getBoundingClientRect()
+    modalPosition.value = {
+      top: `${rect.top}px`,
+      left: `${rect.left + rect.width / 2}px`,
+    }
+  }
+  showNotesModal.value = true
 }
 
 function handleEdit() {
@@ -236,14 +266,21 @@ td {
   border-bottom: 1px solid #e5e7eb;
   font-size: 0.85rem;
 
-  &:first-child {
+  &.order-cell {
+    font-weight: 600;
+    color: #6b7280;
+    text-align: center;
+    width: 50px;
+  }
+
+  &:nth-child(2) {
     padding-left: 30px;
     position: relative;
   }
 }
 
 .notes-cell {
-  max-width: 200px;
+  max-width: 300px;
 
   .notes-text {
     cursor: help;
@@ -274,5 +311,22 @@ td {
   &:active {
     transform: scale(0.95);
   }
+}
+
+.notes-modal-overlay {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: pre-wrap;
+  max-width: 300px;
+  z-index: 99999;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  line-height: 1.4;
+  transform: translate(-50%, calc(-100% - 8px));
 }
 </style>

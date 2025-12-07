@@ -7,6 +7,10 @@
     <table class="table">
       <thead>
         <tr>
+          <th @click="handleSort('importOrder')">
+            #
+            <SortIndicator :active="sortColumn === 'importOrder'" :direction="sortDirection" />
+          </th>
           <th @click="handleSort('firstName')">
             Name
             <SortIndicator :active="sortColumn === 'firstName'" :direction="sortDirection" />
@@ -84,7 +88,7 @@
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
-          <td colspan="17" class="empty-cell">
+          <td colspan="18" class="empty-cell">
             <div class="empty-state-inline">
               <template v-if="guestStore.guests.length === 0">
                 <strong>{{ emptyTitle }}</strong>
@@ -360,6 +364,12 @@ export { SortIndicator }
       }
 
       &:first-child {
+        width: 50px;
+        text-align: center;
+        padding-left: 10px;
+      }
+
+      &:nth-child(2) {
         padding-left: 30px;
       }
     }
