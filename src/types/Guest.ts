@@ -24,6 +24,7 @@ export interface Guest {
   amountPaid?: string
   firstVisit?: string
   roomPreference?: string
+  importOrder?: number
 }
 
 /**

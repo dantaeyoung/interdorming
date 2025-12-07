@@ -83,9 +83,14 @@ export const useGuestStore = defineStore(
 
     // Actions
     function addGuest(guestInput: GuestInput) {
+      // Find the highest import order and add 1
+      const maxImportOrder = guests.value.reduce((max, g) =>
+        Math.max(max, g.importOrder || 0), 0)
+
       const guest: Guest = {
         ...guestInput,
         id: generateGuestId(),
+        importOrder: maxImportOrder + 1,
       }
       guests.value.push(guest)
       return guest
@@ -106,7 +111,11 @@ export const useGuestStore = defineStore(
     }
 
     function importGuests(importedGuests: Guest[]) {
-      guests.value = importedGuests
+      // Assign import order to each guest (1-indexed)
+      guests.value = importedGuests.map((guest, index) => ({
+        ...guest,
+        importOrder: index + 1
+      }))
     }
 
     function clearAllGuests() {
