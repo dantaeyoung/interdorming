@@ -956,6 +956,7 @@ function getRoomRowspan(index: number): number {
         vertical-align: middle;
         position: sticky;
         left: 0;
+        top: 0;
         z-index: 100; // Higher than any blob z-index
         border-right: 2px solid #3b82f6;
         height: 150px;
