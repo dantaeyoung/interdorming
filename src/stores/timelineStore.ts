@@ -8,7 +8,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useGuestStore } from './guestStore'
 import { useAssignmentStore } from './assignmentStore'
-import type { TimelineConfig, DateRangePreset } from '@/features/timeline/types/timeline'
+import type { TimelineConfig } from '@/features/timeline/types/timeline'
+import { DateRangePreset } from '@/features/timeline/types/timeline'
 
 export const useTimelineStore = defineStore(
   'timeline',
