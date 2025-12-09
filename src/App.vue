@@ -25,6 +25,7 @@
             @upload-success="handleUploadSuccess"
             @upload-error="handleUploadError"
             @load-test-data="handleLoadTestData"
+            @request-reset-confirmation="handleRequestResetConfirmation"
           />
         </div>
 
@@ -410,6 +411,22 @@ function handleDeleteAll() {
       assignmentStore.clearAllAssignments()
       showStatus('All guest data deleted', 'success')
     }
+  )
+}
+
+function handleRequestResetConfirmation(callback: () => void) {
+  confirmAction(
+    'Reset and Replace',
+    'Are you sure you want to clear all existing guests and assignments? This will replace them with the new CSV data. This cannot be undone.',
+    () => {
+      // Clear all assignments first
+      assignmentStore.clearAllAssignments()
+      // Execute the callback (which imports the new CSV)
+      callback()
+      showStatus('Guests replaced with new CSV data', 'success')
+    },
+    'Reset and Replace',
+    'Cancel'
   )
 }
 
