@@ -23,6 +23,14 @@
       :warnings="warnings"
       @close="closeWarningModal"
     />
+
+    <CSVImportModeModal
+      :is-open="showImportModeModal"
+      :existing-guest-count="guestStore.guests.length"
+      @reset-and-replace="handleResetAndReplace"
+      @add-and-update="handleAddAndUpdate"
+      @cancel="handleImportModeCancel"
+    />
   </div>
 </template>
 
@@ -32,6 +40,7 @@ import { useCSV } from '../composables/useCSV'
 import { useGuestStore } from '@/stores/guestStore'
 import type { Guest } from '@/types'
 import CSVWarningModal from './CSVWarningModal.vue'
+import CSVImportModeModal from './CSVImportModeModal.vue'
 
 interface Props {
   label?: string
@@ -49,6 +58,7 @@ const emit = defineEmits<{
   'upload-success': [guests: Guest[]]
   'upload-error': [error: string]
   'load-test-data': []
+  'request-reset-confirmation': [callback: () => void]
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -60,6 +70,10 @@ const showWarningModal = ref(false)
 const successCount = ref(0)
 const totalRows = ref(0)
 const warnings = ref<string[]>([])
+
+// Import mode modal state
+const showImportModeModal = ref(false)
+const pendingCSVData = ref<{ guests: Guest[]; warnings: string[]; totalRows: number } | null>(null)
 
 function closeWarningModal() {
   showWarningModal.value = false
@@ -78,17 +92,14 @@ async function handleFileChange(event: Event) {
     const csvText = await readFileAsText(file)
     const result = parseGuestCSV(csvText)
 
-    // Import guests into store
-    guestStore.importGuests(result.guests)
-
-    emit('upload-success', result.guests)
-
-    // Show modal with results (only if there are warnings)
-    if (result.warnings.length > 0) {
-      successCount.value = result.guests.length
-      totalRows.value = result.totalRows
-      warnings.value = result.warnings
-      showWarningModal.value = true
+    // Check if guests already exist
+    if (guestStore.guests.length > 0) {
+      // Store the parsed data and show import mode modal
+      pendingCSVData.value = result
+      showImportModeModal.value = true
+    } else {
+      // No existing guests, proceed with normal import
+      performImport(result)
     }
 
     // Reset file input
@@ -104,6 +115,85 @@ async function handleFileChange(event: Event) {
       fileInput.value.value = ''
     }
   }
+}
+
+function performImport(result: { guests: Guest[]; warnings: string[]; totalRows: number }) {
+  // Import guests into store
+  guestStore.importGuests(result.guests)
+
+  emit('upload-success', result.guests)
+
+  // Show modal with results (only if there are warnings)
+  if (result.warnings.length > 0) {
+    successCount.value = result.guests.length
+    totalRows.value = result.totalRows
+    warnings.value = result.warnings
+    showWarningModal.value = true
+  }
+}
+
+function handleResetAndReplace() {
+  showImportModeModal.value = false
+
+  if (!pendingCSVData.value) return
+
+  // Request confirmation from parent component
+  emit('request-reset-confirmation', () => {
+    if (pendingCSVData.value) {
+      performImport(pendingCSVData.value)
+      pendingCSVData.value = null
+    }
+  })
+}
+
+function handleAddAndUpdate() {
+  showImportModeModal.value = false
+
+  if (!pendingCSVData.value) return
+
+  // Merge guests: update existing, add new
+  const existingGuests = [...guestStore.guests]
+  const newGuests = pendingCSVData.value.guests
+
+  newGuests.forEach(newGuest => {
+    // Find existing guest by matching first name and last name
+    const existingIndex = existingGuests.findIndex(
+      g => g.firstName.toLowerCase() === newGuest.firstName.toLowerCase() &&
+           g.lastName.toLowerCase() === newGuest.lastName.toLowerCase()
+    )
+
+    if (existingIndex !== -1) {
+      // Update existing guest (preserve ID and importOrder)
+      existingGuests[existingIndex] = {
+        ...newGuest,
+        id: existingGuests[existingIndex].id,
+        importOrder: existingGuests[existingIndex].importOrder
+      }
+    } else {
+      // Add new guest
+      existingGuests.push(newGuest)
+    }
+  })
+
+  // Import the merged list
+  guestStore.importGuests(existingGuests)
+
+  emit('upload-success', newGuests)
+
+  // Show warnings if any
+  if (pendingCSVData.value.warnings.length > 0) {
+    successCount.value = newGuests.length
+    totalRows.value = pendingCSVData.value.totalRows
+    warnings.value = pendingCSVData.value.warnings
+    showWarningModal.value = true
+  }
+
+  pendingCSVData.value = null
+}
+
+function handleImportModeCancel() {
+  showImportModeModal.value = false
+  pendingCSVData.value = null
 }
 
 function readFileAsText(file: File): Promise<string> {
