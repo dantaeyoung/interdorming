@@ -41,6 +41,38 @@
           <input type="checkbox" v-model="columns.departure" />
           <span>Departure Date</span>
         </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.indivGrp" />
+          <span>Indiv/Grp?</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.notes" />
+          <span>Notes</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.retreat" />
+          <span>Retreat</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.ratePerNight" />
+          <span>Rate/Night</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.priceQuoted" />
+          <span>Price Quoted</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.amountPaid" />
+          <span>Amount Paid</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.firstVisit" />
+          <span>First Visit</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.roomPreference" />
+          <span>Rm Preference</span>
+        </label>
       </div>
     </div>
 
@@ -107,6 +139,14 @@
                 <th v-if="columns.lowerBunk">Lower Bunk?</th>
                 <th v-if="columns.arrival">Arrival</th>
                 <th v-if="columns.departure">Departure</th>
+                <th v-if="columns.indivGrp">Indiv/Grp?</th>
+                <th v-if="columns.notes">Notes</th>
+                <th v-if="columns.retreat">Retreat</th>
+                <th v-if="columns.ratePerNight">Rate/Night</th>
+                <th v-if="columns.priceQuoted">Price Quoted</th>
+                <th v-if="columns.amountPaid">Amount Paid</th>
+                <th v-if="columns.firstVisit">First Visit</th>
+                <th v-if="columns.roomPreference">Rm Preference</th>
               </tr>
             </thead>
             <tbody>
@@ -121,6 +161,14 @@
                 <td v-if="columns.lowerBunk">{{ getGuestField(bed.assignedGuestId, 'lowerBunk') }}</td>
                 <td v-if="columns.arrival">{{ getGuestField(bed.assignedGuestId, 'arrival') }}</td>
                 <td v-if="columns.departure">{{ getGuestField(bed.assignedGuestId, 'departure') }}</td>
+                <td v-if="columns.indivGrp">{{ getGuestField(bed.assignedGuestId, 'indivGrp') }}</td>
+                <td v-if="columns.notes">{{ getGuestField(bed.assignedGuestId, 'notes') }}</td>
+                <td v-if="columns.retreat">{{ getGuestField(bed.assignedGuestId, 'retreat') }}</td>
+                <td v-if="columns.ratePerNight">{{ getGuestField(bed.assignedGuestId, 'ratePerNight') }}</td>
+                <td v-if="columns.priceQuoted">{{ getGuestField(bed.assignedGuestId, 'priceQuoted') }}</td>
+                <td v-if="columns.amountPaid">{{ getGuestField(bed.assignedGuestId, 'amountPaid') }}</td>
+                <td v-if="columns.firstVisit">{{ getGuestField(bed.assignedGuestId, 'firstVisit') }}</td>
+                <td v-if="columns.roomPreference">{{ getGuestField(bed.assignedGuestId, 'roomPreference') }}</td>
               </tr>
             </tbody>
           </table>
@@ -140,6 +188,14 @@
               <th v-if="columns.lowerBunk">Lower Bunk?</th>
               <th v-if="columns.arrival">Arrival</th>
               <th v-if="columns.departure">Departure</th>
+              <th v-if="columns.indivGrp">Indiv/Grp?</th>
+              <th v-if="columns.notes">Notes</th>
+              <th v-if="columns.retreat">Retreat</th>
+              <th v-if="columns.ratePerNight">Rate/Night</th>
+              <th v-if="columns.priceQuoted">Price Quoted</th>
+              <th v-if="columns.amountPaid">Amount Paid</th>
+              <th v-if="columns.firstVisit">First Visit</th>
+              <th v-if="columns.roomPreference">Rm Preference</th>
             </tr>
           </thead>
           <tbody>
@@ -151,6 +207,14 @@
               <td v-if="columns.lowerBunk">{{ getGuestFieldById(guestId, 'lowerBunk') }}</td>
               <td v-if="columns.arrival">{{ getGuestFieldById(guestId, 'arrival') }}</td>
               <td v-if="columns.departure">{{ getGuestFieldById(guestId, 'departure') }}</td>
+              <td v-if="columns.indivGrp">{{ getGuestFieldById(guestId, 'indivGrp') }}</td>
+              <td v-if="columns.notes">{{ getGuestFieldById(guestId, 'notes') }}</td>
+              <td v-if="columns.retreat">{{ getGuestFieldById(guestId, 'retreat') }}</td>
+              <td v-if="columns.ratePerNight">{{ getGuestFieldById(guestId, 'ratePerNight') }}</td>
+              <td v-if="columns.priceQuoted">{{ getGuestFieldById(guestId, 'priceQuoted') }}</td>
+              <td v-if="columns.amountPaid">{{ getGuestFieldById(guestId, 'amountPaid') }}</td>
+              <td v-if="columns.firstVisit">{{ getGuestFieldById(guestId, 'firstVisit') }}</td>
+              <td v-if="columns.roomPreference">{{ getGuestFieldById(guestId, 'roomPreference') }}</td>
             </tr>
           </tbody>
         </table>
@@ -180,6 +244,14 @@ const columns = reactive({
   lowerBunk: true,
   arrival: true,
   departure: true,
+  indivGrp: false,
+  notes: false,
+  retreat: false,
+  ratePerNight: false,
+  priceQuoted: false,
+  amountPaid: false,
+  firstVisit: false,
+  roomPreference: false,
 })
 
 const currentDate = computed(() => {

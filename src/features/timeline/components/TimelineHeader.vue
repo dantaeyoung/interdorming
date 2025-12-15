@@ -45,18 +45,6 @@
       </div>
     </div>
 
-    <div class="header-controls">
-      <button
-        v-if="config.showUnassignedPanel"
-        @click="timelineStore.toggleUnassignedPanel"
-        class="btn-secondary"
-      >
-        Hide Unassigned
-      </button>
-      <button v-else @click="timelineStore.toggleUnassignedPanel" class="btn-secondary">
-        Show Unassigned
-      </button>
-    </div>
   </div>
 </template>
 
@@ -163,11 +151,6 @@ function onZoomChange(event: Event) {
   white-space: nowrap;
 }
 
-.header-controls {
-  display: flex;
-  gap: 8px;
-}
-
 .preset-buttons {
   display: flex;
   gap: 6px;
@@ -195,23 +178,6 @@ function onZoomChange(event: Event) {
     background-color: #3b82f6;
     color: white;
     border-color: #3b82f6;
-  }
-}
-
-.btn-secondary {
-  padding: 4px 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #374151;
-  background-color: white;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background-color: #f9fafb;
-    border-color: #9ca3af;
   }
 }
 
