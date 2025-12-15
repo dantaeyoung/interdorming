@@ -144,11 +144,32 @@ export function useTimelineDragDrop() {
 
   /**
    * Pick up a guest by clicking (toggle pick state)
+   * If another guest is already picked, swap them
    */
   function pickGuest(guestId: string, bedId: string) {
     // If same guest is already picked, cancel the pick
     if (pickState.value.isPicked && pickState.value.pickedGuestId === guestId) {
       cancelPick()
+      return
+    }
+
+    // If another guest is picked, perform a swap
+    if (pickState.value.isPicked && pickState.value.pickedGuestId) {
+      const pickedGuestId = pickState.value.pickedGuestId
+
+      // Unassign the clicked guest from their bed first
+      assignmentStore.unassignGuest(guestId)
+
+      // Place the currently picked guest in the clicked guest's bed
+      assignmentStore.assignGuestToBed(pickedGuestId, bedId)
+
+      // Now pick up the clicked guest (who is now unassigned)
+      pickState.value = {
+        isPicked: true,
+        pickedGuestId: guestId,
+        sourceBedId: 'unassigned',
+        hoverBedId: null,
+      }
       return
     }
 
@@ -161,6 +182,7 @@ export function useTimelineDragDrop() {
       isPicked: true,
       pickedGuestId: guestId,
       sourceBedId: bedId,
+      hoverBedId: null,
     }
   }
 
