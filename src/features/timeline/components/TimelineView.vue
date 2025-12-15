@@ -80,6 +80,7 @@
                 @dragover.prevent="onDragOver('unassigned')"
                 @dragleave="onDragLeave"
                 @drop="onDrop('unassigned')"
+                @click="onBedCellClick('unassigned')"
               >
                 <!-- Render blobs that start in this column -->
                 <div
@@ -97,9 +98,11 @@
                 >
                   <GuestBlob
                     :guest-blob="blob"
+                    :is-picked="checkIsGuestPicked(blob.guestId)"
                     @drag-start="onGuestDragStart"
                     @drag-end="onGuestDragEnd"
                     @edit-guest="onEditGuest"
+                    @pick="onGuestPick"
                   />
                 </div>
 
@@ -205,18 +208,21 @@
               @dragover.prevent="onDragOver(bedRow.bed.id)"
               @dragleave="onDragLeave"
               @drop="onDrop(bedRow.bed.id)"
+              @click="onBedCellClick(bedRow.bed.id)"
             >
               <!-- Render guest blob if this is the starting column -->
               <GuestBlob
                 v-for="blob in getGuestBlobsForCell(bedRow.bed.id, dateCol.index)"
                 :key="blob.guestId"
                 :guest-blob="blob"
+                :is-picked="checkIsGuestPicked(blob.guestId)"
                 :has-conflict="bedHasAnyConflict(bedRow.bed.id)"
                 :stack-position="blob.stackPosition"
                 :stack-count="blob.stackCount"
                 @drag-start="onGuestDragStart"
                 @drag-end="onGuestDragEnd"
                 @edit-guest="onEditGuest"
+                @pick="onGuestPick"
               />
 
               <!-- Ghost preview for drop target -->
@@ -285,6 +291,15 @@ const {
   isDropTarget: checkIsDropTarget,
   getDraggedGuestId,
   dragState,
+  // Pick-to-place functions
+  pickState,
+  pickGuest,
+  placeGuest,
+  isGuestPicked,
+  getPickedGuestId,
+  hasPickedGuest,
+  setupKeyboardListener,
+  cleanupKeyboardListener,
 } = useTimelineDragDrop()
 
 // Column width in pixels (directly from slider, 10-100px)
@@ -341,6 +356,9 @@ function syncHorizontalScroll(source: HTMLElement, target: HTMLElement) {
 }
 
 onMounted(() => {
+  // Setup keyboard listener for Escape key to cancel pick
+  setupKeyboardListener()
+
   if (unassignedSectionRef.value && dormsSectionRef.value) {
     const unassigned = unassignedSectionRef.value
     const dorms = dormsSectionRef.value
@@ -358,6 +376,8 @@ onMounted(() => {
       // Cleanup resize listeners if still active
       document.removeEventListener('mousemove', onResize)
       document.removeEventListener('mouseup', stopResize)
+      // Cleanup keyboard listener
+      cleanupKeyboardListener()
     })
   }
 })
@@ -461,13 +481,34 @@ const draggedGuestBlob = computed(() => {
   return null
 })
 
+// Get the blob for a picked guest (similar to draggedGuestBlob)
+const pickedGuestBlob = computed(() => {
+  const pickedGuestId = getPickedGuestId()
+  if (!pickedGuestId) return null
+
+  // Check unassigned blobs first
+  const unassignedBlob = unassignedGuestBlobs.value.find(b => b.guestId === pickedGuestId)
+  if (unassignedBlob) return unassignedBlob
+
+  // Find the picked guest's blob in assigned beds
+  for (const bedRow of bedRows.value) {
+    const blobs = getGuestBlobsForBed(bedRow.bed.id)
+    const blob = blobs.find(b => b.guestId === pickedGuestId)
+    if (blob) return blob
+  }
+  return null
+})
+
 // Pre-compute valid drop cells as a Set for O(1) lookup
 const validDropCells = computed(() => {
   const cells = new Set<string>()
 
-  if (!dragState.value.isDragging) return cells
+  // Check both dragging and picked states
+  const isDraggingOrPicked = dragState.value.isDragging || pickState.value.isPicked
+  if (!isDraggingOrPicked) return cells
 
-  const blob = draggedGuestBlob.value
+  // Use the appropriate blob (dragged or picked)
+  const blob = dragState.value.isDragging ? draggedGuestBlob.value : pickedGuestBlob.value
   if (!blob) return cells
 
   // Add unassigned cells as valid drop targets (to unassign a guest)
@@ -592,12 +633,19 @@ function bedHasAnyConflict(bedId: string): boolean {
 }
 
 /**
- * Check if a bed is a valid drop target for the currently dragged guest
+ * Check if a bed is a valid drop target for the currently dragged or picked guest
  * A bed is valid if it won't create gender mismatch or bunk type warnings
  * Special case: "unassigned" is always a valid drop target (to unassign a guest)
  */
 function isValidDropTarget(bedId: string): boolean {
-  if (!dragState.value.isDragging || !dragState.value.draggedGuestId) {
+  // Check both dragging and picked states
+  const guestId = dragState.value.isDragging
+    ? dragState.value.draggedGuestId
+    : pickState.value.isPicked
+      ? pickState.value.pickedGuestId
+      : null
+
+  if (!guestId) {
     return false
   }
 
@@ -606,7 +654,7 @@ function isValidDropTarget(bedId: string): boolean {
     return true
   }
 
-  const guest = guestStore.getGuestById(dragState.value.draggedGuestId)
+  const guest = guestStore.getGuestById(guestId)
   if (!guest) return false
 
   const bed = dormitoryStore.getBedById(bedId)
@@ -673,6 +721,29 @@ function onGuestDragStart(guestId: string, bedId: string) {
  */
 function onGuestDragEnd() {
   endDrag()
+}
+
+/**
+ * Handle guest pick (click-to-pick mode)
+ */
+function onGuestPick(guestId: string, bedId: string) {
+  pickGuest(guestId, bedId)
+}
+
+/**
+ * Handle click on a bed cell to place a picked guest
+ */
+function onBedCellClick(bedId: string) {
+  if (hasPickedGuest()) {
+    placeGuest(bedId)
+  }
+}
+
+/**
+ * Check if a guest blob is currently picked
+ */
+function checkIsGuestPicked(guestId: string): boolean {
+  return isGuestPicked(guestId)
 }
 
 /**
@@ -1312,6 +1383,7 @@ function getRoomRowspan(index: number): number {
 
         &.valid-drop-cell {
           background-color: #d1fae5 !important;
+          cursor: pointer;
         }
 
         &.conflict {

@@ -1,11 +1,12 @@
 <template>
   <div
     class="guest-blob"
-    :class="{ 'has-warnings': hasWarnings, 'has-conflict': hasConflict, 'is-suggested': isSuggested }"
+    :class="{ 'has-warnings': hasWarnings, 'has-conflict': hasConflict, 'is-suggested': isSuggested, 'is-picked': props.isPicked }"
     :style="blobStyle"
     :draggable="true"
     @dragstart="onDragStart"
     @dragend="onDragEnd"
+    @click.stop="onBlobClick"
     @mouseenter="handleBlobMouseEnter"
     @mouseleave="handleBlobMouseLeave"
   >
@@ -76,6 +77,7 @@ interface Props {
   hasConflict?: boolean
   stackPosition?: number
   stackCount?: number
+  isPicked?: boolean
 }
 
 const props = defineProps<Props>()
@@ -84,6 +86,7 @@ const emit = defineEmits<{
   dragStart: [guestId: string, bedId: string]
   dragEnd: []
   editGuest: [guestId: string]
+  pick: [guestId: string, bedId: string]
 }>()
 
 const showNotesTooltip = ref(false)
@@ -233,6 +236,19 @@ function acceptSuggestion() {
 function rejectSuggestion() {
   assignmentStore.suggestedAssignments.delete(props.guestBlob.guestId)
 }
+
+/**
+ * Handle click on the blob for pick-to-place functionality
+ */
+function onBlobClick(event: MouseEvent) {
+  // Don't trigger pick if clicking on buttons or if it's a suggested guest
+  const target = event.target as HTMLElement
+  if (target.closest('button') || isSuggested.value) {
+    return
+  }
+
+  emit('pick', props.guestBlob.guestId, props.guestBlob.bedId)
+}
 </script>
 
 <style scoped lang="scss">
@@ -278,6 +294,24 @@ function rejectSuggestion() {
     &:hover {
       opacity: 1;
       border-color: #3b82f6;
+    }
+  }
+
+  &.is-picked {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 3px solid #f59e0b;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(1.05);
+    z-index: 100;
+    animation: pulse-pick 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-pick {
+    0%, 100% {
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.8), 0 6px 12px rgba(0, 0, 0, 0.4);
     }
   }
 

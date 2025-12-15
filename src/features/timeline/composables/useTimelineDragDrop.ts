@@ -1,22 +1,34 @@
 /**
  * Timeline Drag-and-Drop Composable
- * Handles drag-and-drop interactions for moving guests between beds
+ * Handles drag-and-drop and click-to-pick interactions for moving guests between beds
  */
 
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import type { DragDropState } from '../types/timeline'
 
+// Shared state - created outside the function so it's a singleton
+const dragState = ref<DragDropState>({
+  isDragging: false,
+  draggedGuestId: null,
+  sourceBedId: null,
+  targetBedId: null,
+  isValidTarget: false,
+})
+
+// Click-to-pick state (separate from drag state) - also shared
+const pickState = ref<{
+  isPicked: boolean
+  pickedGuestId: string | null
+  sourceBedId: string | null
+}>({
+  isPicked: false,
+  pickedGuestId: null,
+  sourceBedId: null,
+})
+
 export function useTimelineDragDrop() {
   const assignmentStore = useAssignmentStore()
-
-  const dragState = ref<DragDropState>({
-    isDragging: false,
-    draggedGuestId: null,
-    sourceBedId: null,
-    targetBedId: null,
-    isValidTarget: false,
-  })
 
   /**
    * Called when drag starts on a guest blob
@@ -124,7 +136,114 @@ export function useTimelineDragDrop() {
     return dragState.value.draggedGuestId
   }
 
+  // ============================================
+  // Click-to-Pick Functions
+  // ============================================
+
+  /**
+   * Pick up a guest by clicking (toggle pick state)
+   */
+  function pickGuest(guestId: string, bedId: string) {
+    // If same guest is already picked, cancel the pick
+    if (pickState.value.isPicked && pickState.value.pickedGuestId === guestId) {
+      cancelPick()
+      return
+    }
+
+    // Cancel any existing drag
+    if (dragState.value.isDragging) {
+      endDrag()
+    }
+
+    pickState.value = {
+      isPicked: true,
+      pickedGuestId: guestId,
+      sourceBedId: bedId,
+    }
+  }
+
+  /**
+   * Place a picked guest on a bed
+   */
+  function placeGuest(targetBedId: string) {
+    if (!pickState.value.isPicked || !pickState.value.pickedGuestId) {
+      return false
+    }
+
+    const guestId = pickState.value.pickedGuestId
+    const sourceBedId = pickState.value.sourceBedId
+
+    // Don't do anything if placed on same bed
+    if (targetBedId === sourceBedId) {
+      cancelPick()
+      return false
+    }
+
+    // Handle placement on unassigned area
+    if (targetBedId === 'unassigned') {
+      assignmentStore.unassignGuest(guestId)
+      cancelPick()
+      return true
+    }
+
+    // Assign guest to new bed
+    assignmentStore.assignGuestToBed(guestId, targetBedId)
+    cancelPick()
+    return true
+  }
+
+  /**
+   * Cancel the current pick operation
+   */
+  function cancelPick() {
+    pickState.value = {
+      isPicked: false,
+      pickedGuestId: null,
+      sourceBedId: null,
+    }
+  }
+
+  /**
+   * Check if a guest is currently picked
+   */
+  function isGuestPicked(guestId: string): boolean {
+    return pickState.value.isPicked && pickState.value.pickedGuestId === guestId
+  }
+
+  /**
+   * Get the currently picked guest ID
+   */
+  function getPickedGuestId(): string | null {
+    return pickState.value.pickedGuestId
+  }
+
+  /**
+   * Check if any guest is picked (for showing valid drop targets)
+   */
+  function hasPickedGuest(): boolean {
+    return pickState.value.isPicked
+  }
+
+  /**
+   * Handle keyboard events for canceling pick
+   */
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && pickState.value.isPicked) {
+      cancelPick()
+    }
+  }
+
+  // Set up keyboard listener
+  function setupKeyboardListener() {
+    document.addEventListener('keydown', handleKeyDown)
+  }
+
+  function cleanupKeyboardListener() {
+    document.removeEventListener('keydown', handleKeyDown)
+  }
+
   return {
+    // Drag state and functions
     dragState,
     startDrag,
     endDrag,
@@ -134,5 +253,15 @@ export function useTimelineDragDrop() {
     isDragging,
     isDropTarget,
     getDraggedGuestId,
+    // Pick state and functions
+    pickState,
+    pickGuest,
+    placeGuest,
+    cancelPick,
+    isGuestPicked,
+    getPickedGuestId,
+    hasPickedGuest,
+    setupKeyboardListener,
+    cleanupKeyboardListener,
   }
 }
