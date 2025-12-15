@@ -265,7 +265,7 @@
           </thead>
           <tbody>
             <tr v-for="guestId in assignmentStore.unassignedGuestIds" :key="guestId">
-              <td v-if="columns.guestName" class="guest-name">{{ getGuestNameById(guestId) }}</td>
+              <td v-if="columns.guestName" class="guest-name">{{ getGuestFullName(guestId) }}</td>
               <td v-if="columns.gender">{{ getGuestFieldById(guestId, 'gender') }}</td>
               <td v-if="columns.age">{{ getGuestFieldById(guestId, 'age') }}</td>
               <td v-if="columns.group">{{ getGuestFieldById(guestId, 'groupName') }}</td>
@@ -289,11 +289,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch, onMounted } from 'vue'
 import type { Dormitory } from '@/types'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 import { useUtils } from '@/shared/composables/useUtils'
 import type { Room } from '@/types'
+
+const STORAGE_KEY = 'dormAssignments-printPreferences'
 
 const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
@@ -323,6 +325,49 @@ const columns = reactive({
 // Display options
 const showOnlyAssignedBeds = ref(false)
 const flatTableMode = ref(false)
+
+// Load preferences from localStorage
+function loadPreferences() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const prefs = JSON.parse(saved)
+      if (prefs.columns) {
+        Object.assign(columns, prefs.columns)
+      }
+      if (prefs.showOnlyAssignedBeds !== undefined) {
+        showOnlyAssignedBeds.value = prefs.showOnlyAssignedBeds
+      }
+      if (prefs.flatTableMode !== undefined) {
+        flatTableMode.value = prefs.flatTableMode
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load print preferences:', e)
+  }
+}
+
+// Save preferences to localStorage
+function savePreferences() {
+  try {
+    const prefs = {
+      columns: { ...columns },
+      showOnlyAssignedBeds: showOnlyAssignedBeds.value,
+      flatTableMode: flatTableMode.value,
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+  } catch (e) {
+    console.warn('Failed to save print preferences:', e)
+  }
+}
+
+// Load on mount
+onMounted(() => {
+  loadPreferences()
+})
+
+// Watch for changes and save
+watch([() => ({ ...columns }), showOnlyAssignedBeds, flatTableMode], savePreferences, { deep: true })
 
 // Flat list of all beds with dorm/room info for strip mode
 const flatBedList = computed(() => {
