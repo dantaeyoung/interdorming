@@ -81,6 +81,8 @@
                 @dragleave="onDragLeave"
                 @drop="onDrop('unassigned')"
                 @click="onBedCellClick('unassigned')"
+                @mouseenter="onCellMouseEnter('unassigned')"
+                @mouseleave="onCellMouseLeave"
               >
                 <!-- Render blobs that start in this column -->
                 <div
@@ -209,6 +211,8 @@
               @dragleave="onDragLeave"
               @drop="onDrop(bedRow.bed.id)"
               @click="onBedCellClick(bedRow.bed.id)"
+              @mouseenter="onCellMouseEnter(bedRow.bed.id)"
+              @mouseleave="onCellMouseLeave"
             >
               <!-- Render guest blob if this is the starting column -->
               <GuestBlob
@@ -298,6 +302,9 @@ const {
   isGuestPicked,
   getPickedGuestId,
   hasPickedGuest,
+  enterPickTarget,
+  leavePickTarget,
+  isPickHoverTarget,
   setupKeyboardListener,
   cleanupKeyboardListener,
 } = useTimelineDragDrop()
@@ -572,20 +579,26 @@ function getGuestBlobsForCell(bedId: string, colIndex: number): Array<GuestBlobD
 }
 
 /**
- * Check if a bed is currently a valid drop target
+ * Check if a bed is currently a valid drop target (for drag or pick hover)
  */
 function isDropTarget(bedId: string): boolean {
-  return checkIsDropTarget(bedId)
+  return checkIsDropTarget(bedId) || isPickHoverTarget(bedId)
 }
 
 /**
  * Get ghost preview data for drop target cells
  * Returns the blob data if this cell should show a ghost preview
+ * Works for both drag-and-drop and click-to-pick modes
  */
 function getGhostPreview(bedId: string, colIndex: number): GuestBlobData | null {
-  if (!isDropTarget(bedId)) return null
+  // Check if this bed is a drop target (drag) or pick hover target
+  const isDragTarget = checkIsDropTarget(bedId)
+  const isPickTarget = isPickHoverTarget(bedId)
 
-  const blob = draggedGuestBlob.value
+  if (!isDragTarget && !isPickTarget) return null
+
+  // Use the appropriate blob (dragged or picked)
+  const blob = isDragTarget ? draggedGuestBlob.value : pickedGuestBlob.value
   if (!blob) return null
 
   // Check if this cell is the start column for the ghost preview
@@ -737,6 +750,22 @@ function onBedCellClick(bedId: string) {
   if (hasPickedGuest()) {
     placeGuest(bedId)
   }
+}
+
+/**
+ * Handle mouse enter on a cell (for pick mode ghost preview)
+ */
+function onCellMouseEnter(bedId: string) {
+  if (hasPickedGuest()) {
+    enterPickTarget(bedId)
+  }
+}
+
+/**
+ * Handle mouse leave on a cell (for pick mode ghost preview)
+ */
+function onCellMouseLeave() {
+  leavePickTarget()
 }
 
 /**

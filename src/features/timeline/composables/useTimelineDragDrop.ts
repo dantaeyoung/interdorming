@@ -21,10 +21,12 @@ const pickState = ref<{
   isPicked: boolean
   pickedGuestId: string | null
   sourceBedId: string | null
+  hoverBedId: string | null
 }>({
   isPicked: false,
   pickedGuestId: null,
   sourceBedId: null,
+  hoverBedId: null,
 })
 
 export function useTimelineDragDrop() {
@@ -200,6 +202,7 @@ export function useTimelineDragDrop() {
       isPicked: false,
       pickedGuestId: null,
       sourceBedId: null,
+      hoverBedId: null,
     }
   }
 
@@ -222,6 +225,28 @@ export function useTimelineDragDrop() {
    */
   function hasPickedGuest(): boolean {
     return pickState.value.isPicked
+  }
+
+  /**
+   * Called when hovering over a bed while a guest is picked
+   */
+  function enterPickTarget(bedId: string) {
+    if (!pickState.value.isPicked) return
+    pickState.value.hoverBedId = bedId
+  }
+
+  /**
+   * Called when leaving a bed while a guest is picked
+   */
+  function leavePickTarget() {
+    pickState.value.hoverBedId = null
+  }
+
+  /**
+   * Check if a specific bed is the current pick hover target
+   */
+  function isPickHoverTarget(bedId: string): boolean {
+    return pickState.value.isPicked && pickState.value.hoverBedId === bedId
   }
 
   /**
@@ -261,6 +286,9 @@ export function useTimelineDragDrop() {
     isGuestPicked,
     getPickedGuestId,
     hasPickedGuest,
+    enterPickTarget,
+    leavePickTarget,
+    isPickHoverTarget,
     setupKeyboardListener,
     cleanupKeyboardListener,
   }
