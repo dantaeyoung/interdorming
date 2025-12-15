@@ -51,10 +51,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTimelineStore } from '@/stores/timelineStore'
+import { useGuestStore } from '@/stores/guestStore'
 import { useTimelineData } from '../composables/useTimelineData'
 import { DateRangePreset } from '../types/timeline'
 
 const timelineStore = useTimelineStore()
+const guestStore = useGuestStore()
 const { totalDays } = useTimelineData()
 
 const config = computed(() => timelineStore.config)
@@ -69,10 +71,56 @@ const endDateString = computed(() => {
   return formatDateForInput(config.value.dateRangeEnd)
 })
 
+// Compute the auto-detected date range from guest data
+const autoDetectedRange = computed(() => {
+  if (guestStore.guests.length === 0) return null
+
+  let earliestArrival: Date | null = null
+  let latestDeparture: Date | null = null
+
+  guestStore.guests.forEach(guest => {
+    if (guest.arrival) {
+      const arrivalDate = new Date(guest.arrival)
+      arrivalDate.setHours(0, 0, 0, 0)
+      if (!isNaN(arrivalDate.getTime())) {
+        if (!earliestArrival || arrivalDate < earliestArrival) {
+          earliestArrival = arrivalDate
+        }
+      }
+    }
+    if (guest.departure) {
+      const departureDate = new Date(guest.departure)
+      departureDate.setHours(0, 0, 0, 0)
+      if (!isNaN(departureDate.getTime())) {
+        if (!latestDeparture || departureDate > latestDeparture) {
+          latestDeparture = departureDate
+        }
+      }
+    }
+  })
+
+  if (earliestArrival && latestDeparture) {
+    return { start: earliestArrival, end: latestDeparture }
+  }
+  return null
+})
+
 const isAutoDetect = computed(() => {
-  // Check if current range matches auto-detected range
-  // This is a simple heuristic - could be improved
-  return false
+  if (!autoDetectedRange.value) return false
+
+  const currentStart = new Date(config.value.dateRangeStart)
+  currentStart.setHours(0, 0, 0, 0)
+  const currentEnd = new Date(config.value.dateRangeEnd)
+  currentEnd.setHours(0, 0, 0, 0)
+
+  const autoStart = autoDetectedRange.value.start
+  const autoEnd = autoDetectedRange.value.end
+
+  // Check if current range matches auto-detected range (within 1 day tolerance)
+  const startMatches = Math.abs(currentStart.getTime() - autoStart.getTime()) < 86400000
+  const endMatches = Math.abs(currentEnd.getTime() - autoEnd.getTime()) < 86400000
+
+  return startMatches && endMatches
 })
 
 function setPreset(preset: string) {
