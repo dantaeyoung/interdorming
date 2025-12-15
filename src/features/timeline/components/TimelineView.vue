@@ -112,9 +112,11 @@
                 <div
                   v-if="getGhostPreview('unassigned', dateCol.index)"
                   class="ghost-preview"
+                  :class="{ 'has-warning': wouldHaveWarnings('unassigned') }"
                   :style="getGhostPreviewStyle(getGhostPreview('unassigned', dateCol.index)!)"
                 >
                   <div class="ghost-text">
+                    <span v-if="wouldHaveWarnings('unassigned')" class="warning-emoji">⚠️</span>
                     <span>{{ getGhostFullName(getGhostPreview('unassigned', dateCol.index)!) }}</span>
                   </div>
                 </div>
@@ -233,9 +235,13 @@
               <div
                 v-if="getGhostPreview(bedRow.bed.id, dateCol.index)"
                 class="ghost-preview"
+                :class="{ 'has-warning': wouldHaveWarnings(bedRow.bed.id) }"
                 :style="getGhostPreviewStyle(getGhostPreview(bedRow.bed.id, dateCol.index)!)"
               >
-                <span class="ghost-text">{{ getGhostFullName(getGhostPreview(bedRow.bed.id, dateCol.index)!) }}</span>
+                <span class="ghost-text">
+                  <span v-if="wouldHaveWarnings(bedRow.bed.id)" class="warning-emoji">⚠️</span>
+                  {{ getGhostFullName(getGhostPreview(bedRow.bed.id, dateCol.index)!) }}
+                </span>
               </div>
             </td>
           </tr>
@@ -629,6 +635,58 @@ function getGhostFullName(blob: GuestBlobData): string {
   const guest = blob.guest
   const firstName = guest.preferredName || guest.firstName
   return `${firstName} ${guest.lastName}`
+}
+
+/**
+ * Get warnings that would occur if the currently dragged/picked guest were placed on this bed
+ * Returns array of warning messages, empty if placement is valid
+ */
+function getPlacementWarnings(bedId: string): string[] {
+  // Get the currently dragged or picked guest
+  const guestId = dragState.value.isDragging
+    ? dragState.value.draggedGuestId
+    : pickState.value.isPicked
+      ? pickState.value.pickedGuestId
+      : null
+
+  if (!guestId) return []
+
+  // "unassigned" area never has warnings
+  if (bedId === 'unassigned') return []
+
+  const guest = guestStore.getGuestById(guestId)
+  if (!guest) return []
+
+  const bed = dormitoryStore.getBedById(bedId)
+  if (!bed) return []
+
+  const room = dormitoryStore.getRoomByBedId(bedId)
+  if (!room) return []
+
+  const warnings: string[] = []
+
+  // Check gender compatibility (non-binary guests can go anywhere)
+  if (
+    guest.gender !== 'Non-binary/Other' &&
+    room.roomGender !== 'Coed' &&
+    guest.gender !== room.roomGender
+  ) {
+    warnings.push(`${guest.gender} guest in ${room.roomGender} room`)
+  }
+
+  // Check bunk type compatibility
+  if (guest.lowerBunk && bed.bedType === 'upper') {
+    warnings.push('Needs lower bunk')
+  }
+
+  return warnings
+}
+
+/**
+ * Check if placing the currently dragged/picked guest on this bed would cause warnings
+ */
+function wouldHaveWarnings(bedId: string): boolean {
+  return getPlacementWarnings(bedId).length > 0
 }
 
 /**
@@ -1528,6 +1586,22 @@ function getRoomRowspan(index: number): number {
     font-weight: 500;
     color: #4b5563;
     opacity: 0.8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .warning-emoji {
+    font-size: 0.9rem;
+  }
+
+  &.has-warning {
+    background: rgba(239, 68, 68, 0.15);
+    border: 2px dashed #ef4444;
+
+    .ghost-text {
+      color: #991b1b;
+    }
   }
 }
 
