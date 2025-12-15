@@ -51,76 +51,81 @@
       </div>
 
       <!-- Unassigned Guests Section - Independently Scrollable -->
-      <div class="unassigned-section" ref="unassignedSectionRef">
-        <table class="timeline-table">
-          <colgroup>
-            <col style="width: 40px; min-width: 40px; max-width: 40px;" />
-            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
-            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
-            <col
-              v-for="dateCol in dateColumns"
-              :key="`col-unassigned-${dateCol.index}`"
-              :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
-            />
-          </colgroup>
-          <tbody>
-          <!-- Unassigned Guests Section - Scrollable Stacked Blobs -->
-          <tr class="unassigned-row">
-            <!-- Merged left label -->
-            <td class="unassigned-label-cell" colspan="3">
-              <div class="unassigned-label-content">
-                <span>Unassigned Guests</span>
-              </div>
-            </td>
-
-            <!-- Individual date cells to maintain grid alignment -->
-            <td
-              v-for="dateCol in dateColumns"
-              :key="`unassigned-${dateCol.index}`"
-              class="unassigned-date-cell"
-              :class="{
-                'valid-drop-cell': isValidDropCell('unassigned', dateCol.index)
-              }"
-              @dragover.prevent="onDragOver('unassigned')"
-              @dragleave="onDragLeave"
-              @drop="onDrop('unassigned')"
-            >
-              <!-- Render blobs that start in this column -->
-              <div
-                v-for="(blob, index) in unassignedGuestBlobs.filter(b => b.startColIndex === dateCol.index)"
-                :key="blob.guestId"
-                class="unassigned-blob-wrapper"
-                :style="{
-                  position: 'absolute',
-                  top: `${2 + unassignedGuestBlobs.indexOf(blob) * 25}px`,
-                  left: '0',
-                  width: `calc(${blob.spanCount * 100}% + ${(blob.spanCount - 1) * 1}px)`,
-                  height: '30px',
-                  zIndex: unassignedGuestBlobs.length - unassignedGuestBlobs.indexOf(blob)
+      <div class="unassigned-section" :style="{ height: `${unassignedSectionHeight}px` }">
+        <!-- Fixed label on the left -->
+        <div class="unassigned-label-fixed">
+          <span>Unassigned Guests</span>
+        </div>
+        <!-- Scrollable content area -->
+        <div class="unassigned-scrollable" ref="unassignedSectionRef">
+          <table class="timeline-table unassigned-table">
+            <colgroup>
+              <col
+                v-for="dateCol in dateColumns"
+                :key="`col-unassigned-${dateCol.index}`"
+                :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
+              />
+            </colgroup>
+            <tbody>
+            <!-- Unassigned Guests Section - Scrollable Stacked Blobs -->
+            <tr class="unassigned-row">
+              <!-- Individual date cells to maintain grid alignment -->
+              <td
+                v-for="dateCol in dateColumns"
+                :key="`unassigned-${dateCol.index}`"
+                class="unassigned-date-cell"
+                :class="{
+                  'valid-drop-cell': isValidDropCell('unassigned', dateCol.index)
                 }"
+                @dragover.prevent="onDragOver('unassigned')"
+                @dragleave="onDragLeave"
+                @drop="onDrop('unassigned')"
               >
-                <GuestBlob
-                  :guest-blob="blob"
-                  @drag-start="onGuestDragStart"
-                  @drag-end="onGuestDragEnd"
-                  @edit-guest="onEditGuest"
-                />
-              </div>
-
-              <!-- Ghost preview for drop target -->
-              <div
-                v-if="getGhostPreview('unassigned', dateCol.index)"
-                class="ghost-preview"
-                :style="getGhostPreviewStyle(getGhostPreview('unassigned', dateCol.index)!)"
-              >
-                <div class="ghost-text">
-                  <span>{{ getGhostFullName(getGhostPreview('unassigned', dateCol.index)!) }}</span>
+                <!-- Render blobs that start in this column -->
+                <div
+                  v-for="(blob, index) in unassignedGuestBlobs.filter(b => b.startColIndex === dateCol.index)"
+                  :key="blob.guestId"
+                  class="unassigned-blob-wrapper"
+                  :style="{
+                    position: 'absolute',
+                    top: `${2 + unassignedGuestBlobs.indexOf(blob) * 25}px`,
+                    left: '0',
+                    width: `calc(${blob.spanCount * 100}% + ${(blob.spanCount - 1) * 1}px)`,
+                    height: '30px',
+                    zIndex: unassignedGuestBlobs.length - unassignedGuestBlobs.indexOf(blob)
+                  }"
+                >
+                  <GuestBlob
+                    :guest-blob="blob"
+                    @drag-start="onGuestDragStart"
+                    @drag-end="onGuestDragEnd"
+                    @edit-guest="onEditGuest"
+                  />
                 </div>
-              </div>
-            </td>
-          </tr>
-          </tbody>
-        </table>
+
+                <!-- Ghost preview for drop target -->
+                <div
+                  v-if="getGhostPreview('unassigned', dateCol.index)"
+                  class="ghost-preview"
+                  :style="getGhostPreviewStyle(getGhostPreview('unassigned', dateCol.index)!)"
+                >
+                  <div class="ghost-text">
+                    <span>{{ getGhostFullName(getGhostPreview('unassigned', dateCol.index)!) }}</span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resizable Divider -->
+      <div
+        class="section-divider"
+        @mousedown="startResize"
+      >
+        <div class="divider-handle"></div>
       </div>
 
       <!-- Dorms Section - Independently Scrollable -->
@@ -289,6 +294,40 @@ const columnWidthPx = computed(() => timelineStore.columnWidth)
 const unassignedSectionRef = ref<HTMLElement | null>(null)
 const dormsSectionRef = ref<HTMLElement | null>(null)
 
+// Resizable section height
+const unassignedSectionHeight = ref(200)
+const isResizing = ref(false)
+const resizeStartY = ref(0)
+const resizeStartHeight = ref(0)
+
+// Resize handlers
+function startResize(event: MouseEvent) {
+  isResizing.value = true
+  resizeStartY.value = event.clientY
+  resizeStartHeight.value = unassignedSectionHeight.value
+
+  document.addEventListener('mousemove', onResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'row-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function onResize(event: MouseEvent) {
+  if (!isResizing.value) return
+
+  const delta = event.clientY - resizeStartY.value
+  const newHeight = Math.max(100, Math.min(500, resizeStartHeight.value + delta))
+  unassignedSectionHeight.value = newHeight
+}
+
+function stopResize() {
+  isResizing.value = false
+  document.removeEventListener('mousemove', onResize)
+  document.removeEventListener('mouseup', stopResize)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
 // Synchronize horizontal scrolling between sections
 let isScrolling = false // Prevent infinite loop
 
@@ -316,6 +355,9 @@ onMounted(() => {
     onUnmounted(() => {
       unassigned.removeEventListener('scroll', unassignedScrollHandler)
       dorms.removeEventListener('scroll', dormsScrollHandler)
+      // Cleanup resize listeners if still active
+      document.removeEventListener('mousemove', onResize)
+      document.removeEventListener('mouseup', stopResize)
     })
   }
 })
@@ -848,13 +890,62 @@ function getRoomRowspan(index: number): number {
 
 .unassigned-section {
   flex-shrink: 0;
-  height: 200px;
-  overflow-x: auto;
-  overflow-y: auto;
-  border-bottom: 3px solid #3b82f6;
+  display: flex;
+  flex-direction: row;
   margin: 0;
   padding: 0;
   background: white;
+  position: relative;
+}
+
+.unassigned-label-fixed {
+  width: 240px;
+  min-width: 240px;
+  background-color: #bfdbfe;
+  color: #1e40af;
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 2px solid #3b82f6;
+  position: sticky;
+  left: 0;
+  z-index: 15;
+}
+
+.unassigned-scrollable {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  background: white;
+}
+
+.timeline-table.unassigned-table {
+  min-width: auto;
+}
+
+.section-divider {
+  height: 8px;
+  background: linear-gradient(to bottom, #e5e7eb, #3b82f6, #e5e7eb);
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+
+  &:hover {
+    background: linear-gradient(to bottom, #d1d5db, #2563eb, #d1d5db);
+  }
+
+  .divider-handle {
+    width: 40px;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .dorms-section {
@@ -987,37 +1078,16 @@ function getRoomRowspan(index: number): number {
 
     // Unassigned section styling - scrollable window
     tr.unassigned-row {
-      height: 200px;
+      height: 100%;
       margin: 0;
       padding: 0;
-
-      .unassigned-label-cell {
-        background-color: #bfdbfe;
-        color: #1e40af;
-        font-weight: 600;
-        font-size: 0.875rem;
-        text-align: center;
-        vertical-align: middle;
-        position: sticky;
-        left: 0;
-        top: 0;
-        z-index: 100; // Higher than any blob z-index
-        border-right: 2px solid #3b82f6;
-        height: 150px;
-
-        .unassigned-label-content {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-        }
-      }
 
       .unassigned-date-cell {
         padding: 0;
         background-color: #f0f9ff;
         position: relative;
-        height: 150px;
+        height: 100%;
+        min-height: 150px;
         vertical-align: top;
         overflow: visible; // Allow blobs to span across cells
 
