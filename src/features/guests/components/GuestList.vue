@@ -342,7 +342,7 @@ export { SortIndicator }
 .table-wrapper {
   position: relative;
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .group-lines-svg {
