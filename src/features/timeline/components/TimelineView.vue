@@ -184,6 +184,14 @@
                   {{ getRoomGenderCode(bedRow.room.gender) }}
                 </span>
                 <button
+                  v-if="getRoomSuggestionCount(bedRow.dormitory.name, bedRow.room.name) > 0"
+                  @click="handleAcceptRoomSuggestions(bedRow.dormitory.name, bedRow.room.name)"
+                  class="room-accept-btn"
+                  title="Accept all suggestions for this room"
+                >
+                  Accept ({{ getRoomSuggestionCount(bedRow.dormitory.name, bedRow.room.name) }})
+                </button>
+                <button
                   v-if="roomHasAvailableBeds(bedRow.dormitory.name, bedRow.room.name)"
                   @click="handleAutoPlaceRoom(bedRow.dormitory.name, bedRow.room.name)"
                   class="room-auto-place-btn"
@@ -881,6 +889,34 @@ function handleAutoPlaceRoom(dormitoryName: string, roomName: string) {
 }
 
 /**
+ * Get suggestion count for a specific room
+ */
+function getRoomSuggestionCount(dormitoryName: string, roomName: string): number {
+  const dorm = dormitoryStore.dormitories.find(d => d.dormitoryName === dormitoryName)
+  if (!dorm) return 0
+
+  const room = dorm.rooms.find(r => r.roomName === roomName)
+  if (!room || !room.beds) return 0
+
+  const roomBedIds = room.beds.map(bed => bed.bedId)
+  return assignmentStore.getSuggestionsCountForRoom(roomBedIds)
+}
+
+/**
+ * Accept all suggestions for a specific room
+ */
+function handleAcceptRoomSuggestions(dormitoryName: string, roomName: string) {
+  const dorm = dormitoryStore.dormitories.find(d => d.dormitoryName === dormitoryName)
+  if (!dorm) return
+
+  const room = dorm.rooms.find(r => r.roomName === roomName)
+  if (!room || !room.beds) return
+
+  const roomBedIds = room.beds.map(bed => bed.bedId)
+  assignmentStore.acceptSuggestionsForRoom(roomBedIds)
+}
+
+/**
  * Handle guest update from modal
  */
 function handleGuestUpdate(guestData: Partial<Guest>) {
@@ -1423,6 +1459,29 @@ function getRoomRowspan(index: number): number {
 
           &:hover {
             background-color: #2563eb;
+            transform: scale(1.05);
+          }
+
+          &:active {
+            transform: scale(0.95);
+          }
+        }
+
+        .room-accept-btn {
+          padding: 2px 6px;
+          font-size: 0.6rem;
+          font-weight: 500;
+          color: white;
+          background-color: #10b981;
+          border: 1px solid #10b981;
+          border-radius: 3px;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+          margin-top: 4px;
+
+          &:hover {
+            background-color: #059669;
             transform: scale(1.05);
           }
 

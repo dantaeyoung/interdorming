@@ -11,6 +11,15 @@
           <span class="btn-icon">↩</span>
           <span class="btn-label">Undo</span>
         </button>
+        <button
+          class="action-btn"
+          :disabled="!canRedo"
+          @click="$emit('redo')"
+          title="Redo last undone action"
+        >
+          <span class="btn-icon">↪</span>
+          <span class="btn-label">Redo</span>
+        </button>
       </div>
 
       <div class="action-divider"></div>
@@ -57,6 +66,7 @@ import { useAssignmentStore } from '@/stores/assignmentStore'
 
 const emit = defineEmits<{
   undo: []
+  redo: []
   'reset-assignments': []
   'accept-all': []
   'clear-suggestions': []
@@ -65,6 +75,7 @@ const emit = defineEmits<{
 const assignmentStore = useAssignmentStore()
 
 const canUndo = computed(() => assignmentStore.canUndo)
+const canRedo = computed(() => assignmentStore.canRedo)
 const assignedCount = computed(() => assignmentStore.assignedCount)
 const hasSuggestions = computed(() => assignmentStore.hasSuggestions)
 const suggestionCount = computed(() => assignmentStore.suggestedAssignments.size)

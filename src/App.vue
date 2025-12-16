@@ -168,6 +168,7 @@
     <FloatingActionBar
       v-if="activeTab === 'assignment' || activeTab === 'timeline'"
       @undo="handleUndo"
+      @redo="handleRedo"
       @reset-assignments="handleResetAssignments"
       @accept-all="handleAcceptAll"
       @clear-suggestions="handleClearSuggestions"
@@ -314,6 +315,11 @@ function handleClearSuggestions() {
 function handleUndo() {
   assignmentStore.undo()
   showStatus('Undone', 'success')
+}
+
+function handleRedo() {
+  assignmentStore.redo()
+  showStatus('Redone', 'success')
 }
 
 function handleExport() {
