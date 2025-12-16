@@ -54,6 +54,57 @@ export const useAssignmentStore = defineStore(
 
     const hasSuggestions = computed(() => suggestedAssignments.value.size > 0)
 
+    // Get all guests assigned to a specific bed
+    function getGuestsAssignedToBed(bedId: string): string[] {
+      const guests: string[] = []
+      for (const [guestId, assignedBedId] of assignments.value.entries()) {
+        if (assignedBedId === bedId) {
+          guests.push(guestId)
+        }
+      }
+      return guests
+    }
+
+    // Get all guests assigned to beds in a specific room
+    function getGuestsAssignedToRoom(roomBedIds: string[]): string[] {
+      const guests: string[] = []
+      for (const [guestId, assignedBedId] of assignments.value.entries()) {
+        if (roomBedIds.includes(assignedBedId)) {
+          guests.push(guestId)
+        }
+      }
+      return guests
+    }
+
+    // Get all guests assigned to beds in a specific dormitory
+    function getGuestsAssignedToDormitory(dormitoryBedIds: string[]): string[] {
+      const guests: string[] = []
+      for (const [guestId, assignedBedId] of assignments.value.entries()) {
+        if (dormitoryBedIds.includes(assignedBedId)) {
+          guests.push(guestId)
+        }
+      }
+      return guests
+    }
+
+    // Unassign all guests from a specific bed
+    function unassignGuestsFromBed(bedId: string) {
+      const guests = getGuestsAssignedToBed(bedId)
+      guests.forEach(guestId => unassignGuest(guestId, true))
+    }
+
+    // Unassign all guests from beds in a room
+    function unassignGuestsFromRoom(roomBedIds: string[]) {
+      const guests = getGuestsAssignedToRoom(roomBedIds)
+      guests.forEach(guestId => unassignGuest(guestId, true))
+    }
+
+    // Unassign all guests from beds in a dormitory
+    function unassignGuestsFromDormitory(dormitoryBedIds: string[]) {
+      const guests = getGuestsAssignedToDormitory(dormitoryBedIds)
+      guests.forEach(guestId => unassignGuest(guestId, true))
+    }
+
     // Actions
     function assignGuestToBed(guestId: string, bedId: string, skipHistory = false) {
       const dormitoryStore = useDormitoryStore()
@@ -273,6 +324,12 @@ export const useAssignmentStore = defineStore(
       undo,
       clearHistory,
       autoPlace,
+      getGuestsAssignedToBed,
+      getGuestsAssignedToRoom,
+      getGuestsAssignedToDormitory,
+      unassignGuestsFromBed,
+      unassignGuestsFromRoom,
+      unassignGuestsFromDormitory,
     }
   },
   {
