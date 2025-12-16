@@ -232,13 +232,16 @@ function updateOverlayPosition() {
     overlayTop.value = thead.offsetHeight
   }
 
-  // Measure actual row positions (center of each row)
+  // Measure actual row positions (center of each row) relative to tbody
+  const tbody = tableRef.value.querySelector('tbody') as HTMLElement
   const rows = tableRef.value.querySelectorAll('tbody tr:not(.empty-row)')
   const positions: number[] = []
+  const tbodyTop = tbody ? tbody.offsetTop : 0
+
   rows.forEach((row) => {
     const htmlRow = row as HTMLElement
-    // Calculate center Y position relative to tbody
-    const rowTop = htmlRow.offsetTop
+    // Calculate center Y position relative to tbody (subtract tbody offset since SVG starts at tbody)
+    const rowTop = htmlRow.offsetTop - tbodyTop
     const rowHeight = htmlRow.offsetHeight
     positions.push(rowTop + rowHeight / 2)
   })
