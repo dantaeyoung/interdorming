@@ -32,6 +32,7 @@
             Group
             <SortIndicator :active="sortColumn === 'groupName'" :direction="sortDirection" />
           </th>
+          <th class="group-lines-header"></th>
           <th @click="handleSort('arrival')">
             Arrival
             <SortIndicator :active="sortColumn === 'arrival'" :direction="sortDirection" />
@@ -84,7 +85,7 @@
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
-          <td colspan="18" class="empty-cell">
+          <td colspan="19" class="empty-cell">
             <div class="empty-state-inline">
               <template v-if="guestStore.guests.length === 0">
                 <strong>{{ emptyTitle }}</strong>
@@ -347,8 +348,16 @@ export { SortIndicator }
         text-align: center;
       }
 
-      &:nth-child(3) {
-        padding-left: 22px;
+      &.group-lines-header {
+        width: 20px;
+        min-width: 20px;
+        max-width: 20px;
+        padding: 0;
+        cursor: default;
+
+        &:hover {
+          background-color: #f9fafb;
+        }
       }
     }
   }

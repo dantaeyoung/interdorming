@@ -30,9 +30,6 @@
     <td class="order-cell">{{ guest.importOrder || '-' }}</td>
     <td>
       <div class="name-cell">
-        <div v-if="familyPosition !== 'none'" :class="['family-indicator', `family-${familyPosition}`]">
-          <div class="family-dot"></div>
-        </div>
         <span class="name-text">{{ displayName }}</span>
         <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
           ✨
@@ -52,6 +49,11 @@
     </td>
     <td class="group-cell" :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15 }">
       {{ guest.groupName || '-' }}
+    </td>
+    <td class="group-lines-cell">
+      <div v-if="familyPosition !== 'none'" :class="['family-indicator', `family-${familyPosition}`]">
+        <div class="family-dot"></div>
+      </div>
     </td>
     <td>{{ guest.arrival || '-' }}</td>
     <td>{{ guest.departure || '-' }}</td>
@@ -249,12 +251,21 @@ function handleUnlink() {
   flex: 1;
 }
 
+.group-lines-cell {
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  padding: 0 !important;
+  position: relative;
+}
+
 .family-indicator {
   position: absolute;
-  left: -14px;
+  left: 50%;
   top: 0;
   bottom: 0;
   width: 12px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -262,9 +273,10 @@ function handleUnlink() {
   &::before {
     content: '';
     position: absolute;
-    left: 5px;
+    left: 50%;
     width: 2px;
     background-color: #ef4444;
+    transform: translateX(-50%);
   }
 
   &.family-first::before {
@@ -354,11 +366,6 @@ td {
     color: #6b7280;
     text-align: center;
     width: 50px;
-  }
-
-  &:nth-child(3) {
-    padding-left: 22px;
-    position: relative;
   }
 }
 
