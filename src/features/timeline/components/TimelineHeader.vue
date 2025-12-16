@@ -43,6 +43,9 @@
           class="zoom-slider"
         />
       </div>
+      <button @click="handleExportExcel" class="btn-export">
+        Export Excel
+      </button>
     </div>
 
   </div>
@@ -53,11 +56,13 @@ import { computed } from 'vue'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { useGuestStore } from '@/stores/guestStore'
 import { useTimelineData } from '../composables/useTimelineData'
+import { useExcelExport } from '@/features/export/composables/useExcelExport'
 import { DateRangePreset } from '../types/timeline'
 
 const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
 const { totalDays } = useTimelineData()
+const { exportTimelineToExcel } = useExcelExport()
 
 const config = computed(() => timelineStore.config)
 
@@ -170,6 +175,10 @@ function onZoomChange(event: Event) {
   const input = event.target as HTMLInputElement
   const width = parseInt(input.value)
   timelineStore.setColumnWidth(width)
+}
+
+function handleExportExcel() {
+  exportTimelineToExcel()
 }
 </script>
 
@@ -327,6 +336,24 @@ function onZoomChange(event: Event) {
       background: #2563eb;
       transform: scale(1.1);
     }
+  }
+}
+
+.btn-export {
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+  background-color: #10b981;
+  border: 1px solid #10b981;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: #059669;
+    border-color: #059669;
   }
 }
 </style>

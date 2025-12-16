@@ -36,6 +36,7 @@
             @clear-suggestions="handleClearSuggestions"
             @undo="handleUndo"
             @export="handleExport"
+            @export-excel="handleExportExcel"
             @reset-assignments="handleResetAssignments"
             @delete-all="handleDeleteAll"
           />
@@ -194,6 +195,7 @@ import { TimelineView } from '@/features/timeline/components'
 
 // Composables
 import { useCSV } from '@/features/csv/composables/useCSV'
+import { useExcelExport } from '@/features/export/composables/useExcelExport'
 
 import type { Guest } from '@/types'
 import type { Tab } from '@/shared/components/TabNavigation.vue'
@@ -388,6 +390,17 @@ function handleExport() {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to export CSV'
     showStatus(`Error exporting CSV: ${errorMessage}`, 'error')
+  }
+}
+
+function handleExportExcel() {
+  try {
+    const { exportAssignmentsToExcel } = useExcelExport()
+    exportAssignmentsToExcel()
+    showStatus('Excel file exported successfully', 'success')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to export Excel'
+    showStatus(`Error exporting Excel: ${errorMessage}`, 'error')
   }
 }
 
