@@ -51,9 +51,7 @@
       {{ guest.groupName || '-' }}
     </td>
     <td class="group-lines-cell">
-      <div v-if="familyPosition !== 'none'" :class="['family-indicator', `family-${familyPosition}`]">
-        <div class="family-dot"></div>
-      </div>
+      <!-- SVG overlay handles group line visualization -->
     </td>
     <td>{{ guest.arrival || '-' }}</td>
     <td>{{ guest.departure || '-' }}</td>
@@ -252,9 +250,9 @@ function handleUnlink() {
 }
 
 .group-lines-cell {
-  width: 20px;
-  min-width: 20px;
-  max-width: 20px;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
   padding: 0 !important;
   position: relative;
 }
