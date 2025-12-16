@@ -6,6 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Guest, GuestInput } from '@/types'
+import { useSortConfig } from '@/shared/composables/useSortConfig'
 
 export const useGuestStore = defineStore(
   'guests',
@@ -13,8 +14,6 @@ export const useGuestStore = defineStore(
     // State
     const guests = ref<Guest[]>([])
     const searchQuery = ref('')
-    const sortColumn = ref<keyof Guest | null>(null)
-    const sortDirection = ref<'asc' | 'desc'>('asc')
 
     // Getters
     const getGuestById = computed(() => {
@@ -41,6 +40,9 @@ export const useGuestStore = defineStore(
       return guests.value
     })
 
+    // Get sortGuests from useSortConfig composable
+    const { sortGuests } = useSortConfig()
+
     const filteredGuests = computed(() => {
       let filtered = guests.value
 
@@ -56,27 +58,8 @@ export const useGuestStore = defineStore(
         )
       }
 
-      // Apply sorting
-      if (sortColumn.value) {
-        filtered = [...filtered].sort((a, b) => {
-          const aVal = a[sortColumn.value!]
-          const bVal = b[sortColumn.value!]
-
-          if (aVal === undefined || aVal === null) return 1
-          if (bVal === undefined || bVal === null) return -1
-
-          let comparison = 0
-          if (typeof aVal === 'string' && typeof bVal === 'string') {
-            comparison = aVal.localeCompare(bVal)
-          } else if (typeof aVal === 'number' && typeof bVal === 'number') {
-            comparison = aVal - bVal
-          } else {
-            comparison = String(aVal).localeCompare(String(bVal))
-          }
-
-          return sortDirection.value === 'asc' ? comparison : -comparison
-        })
-      }
+      // Apply multi-level custom sort from useSortConfig
+      filtered = sortGuests(filtered)
 
       return filtered
     })
@@ -126,16 +109,6 @@ export const useGuestStore = defineStore(
       searchQuery.value = query
     }
 
-    function setSortColumn(column: keyof Guest | null) {
-      if (sortColumn.value === column) {
-        // Toggle sort direction if same column
-        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
-      } else {
-        sortColumn.value = column
-        sortDirection.value = 'asc'
-      }
-    }
-
     // Utility: Generate unique guest ID
     function generateGuestId(): string {
       return `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -145,8 +118,6 @@ export const useGuestStore = defineStore(
       // State
       guests,
       searchQuery,
-      sortColumn,
-      sortDirection,
 
       // Getters
       getGuestById,
@@ -161,7 +132,6 @@ export const useGuestStore = defineStore(
       importGuests,
       clearAllGuests,
       setSearchQuery,
-      setSortColumn,
     }
   },
   {

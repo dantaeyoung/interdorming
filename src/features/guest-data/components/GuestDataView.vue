@@ -38,8 +38,20 @@
           Showing {{ guestStore.filteredGuests.length }} of {{ guestStore.guests.length }}
         </span>
       </div>
+      <button class="btn-sort" @click="showSortModal = true" :title="sortDescription">
+        <span class="sort-icon">↕</span>
+        Sort
+        <span v-if="hasSortLevels" class="sort-indicator">*</span>
+      </button>
       <button class="btn-add-guest" @click="handleAddGuest">+ Add Guest</button>
     </div>
+
+    <!-- Sort Config Modal -->
+    <SortConfigModal
+      :show="showSortModal"
+      @close="showSortModal = false"
+      @apply="handleSortApply"
+    />
 
     <!-- Guest Table -->
     <div class="guest-table-container">
@@ -96,13 +108,24 @@ import { useAssignmentStore } from '@/stores/assignmentStore'
 import { GuestCSVUpload } from '@/features/csv/components'
 import { GuestList, GuestSearch } from '@/features/guests/components'
 import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
-import { ConfirmDialog } from '@/shared/components'
+import { ConfirmDialog, SortConfigModal } from '@/shared/components'
+import { useSortConfig } from '@/shared/composables/useSortConfig'
 import type { Guest } from '@/types'
 
 const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
 const groupLinking = useGroupLinking()
+const { hasSortLevels, sortDescription } = useSortConfig()
+
+// Sort modal state
+const showSortModal = ref(false)
+
+function handleSortApply() {
+  // Sort is applied automatically through the guestStore's filteredGuests computed
+  // Just show a status message
+  showStatus('Sort applied', 'success')
+}
 
 // Ref to GuestList for triggering add modal
 const guestListRef = ref<InstanceType<typeof GuestList> | null>(null)
@@ -355,6 +378,36 @@ function handleDeleteAll() {
   font-size: 0.875rem;
   color: #6b7280;
   flex: 1;
+}
+
+.btn-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+
+  .sort-icon {
+    font-size: 0.9rem;
+  }
+
+  .sort-indicator {
+    color: #3b82f6;
+    font-weight: 700;
+  }
 }
 
 .btn-add-guest {

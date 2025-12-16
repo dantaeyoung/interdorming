@@ -32,6 +32,13 @@
     <div v-show="activeTab === 'assignment'" class="tab-content">
       <!-- Toolbar Section -->
       <div class="combined-toolbar">
+        <div class="toolbar-left-section">
+          <button class="btn-sort" @click="showSortModal = true" :title="sortDescription">
+            <span class="sort-icon">↕</span>
+            Sort
+            <span v-if="hasSortLevels" class="sort-indicator">*</span>
+          </button>
+        </div>
         <div class="toolbar-right-section">
           <AssignmentToolbar
             @export="handleExport"
@@ -164,6 +171,12 @@
       @cancel="handleConfirmDialogCancel"
     />
 
+    <!-- Sort Config Modal -->
+    <SortConfigModal
+      :show="showSortModal"
+      @close="showSortModal = false"
+    />
+
     <!-- Floating Action Bar - visible on Table View and Timeline View -->
     <FloatingActionBar
       v-if="activeTab === 'assignment' || activeTab === 'timeline'"
@@ -181,7 +194,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 
 // Shared components
-import { TabNavigation, ConfirmDialog, FloatingActionBar } from '@/shared/components'
+import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal } from '@/shared/components'
+import { useSortConfig } from '@/shared/composables/useSortConfig'
 
 // Feature components
 import { GuestList, GuestSearch } from '@/features/guests/components'
@@ -204,6 +218,10 @@ import type { Tab } from '@/shared/components/TabNavigation.vue'
 const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
+
+// Sort configuration
+const { hasSortLevels, sortDescription } = useSortConfig()
+const showSortModal = ref(false)
 
 // Git branch detection
 const currentBranch = ref<string | null>(null)
@@ -687,6 +705,36 @@ function stopResize() {
 
 .toolbar-right-section {
   flex: 1;
+}
+
+.btn-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+
+  .sort-icon {
+    font-size: 0.9rem;
+  }
+
+  .sort-indicator {
+    color: #3b82f6;
+    font-weight: 700;
+  }
 }
 
 .layout-grid {
