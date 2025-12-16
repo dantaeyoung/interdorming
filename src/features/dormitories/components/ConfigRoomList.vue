@@ -18,7 +18,7 @@
         :key="dormitory.dormitoryName"
         :dormitory="dormitory"
         @update="(updated) => updateDormitory(index, updated)"
-        @remove="removeDormitory(index)"
+        @remove="handleRemoveDormitory(index)"
       />
     </div>
   </div>
@@ -48,10 +48,10 @@ function updateDormitory(index: number, updatedDormitory: Dormitory) {
   dormitoryStore.dormitories[index] = updatedDormitory
 }
 
-function removeDormitory(index: number) {
-  if (confirm(`Remove dormitory "${dormitories.value[index].dormitoryName}"? This will also remove all its rooms and beds.`)) {
-    dormitoryStore.dormitories.splice(index, 1)
-  }
+// DormitoryConfigSection handles the confirmation dialog and guest unassignment
+// This is called after user confirms the removal
+function handleRemoveDormitory(index: number) {
+  dormitoryStore.dormitories.splice(index, 1)
 }
 
 function addDormitory() {

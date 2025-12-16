@@ -19,14 +19,14 @@
           <input
             type="checkbox"
             v-model="localRoom.active"
-            @change="handleUpdate"
+            @change="handleActiveChange"
           />
           <span>Active</span>
         </label>
         <button @click="addBed" class="btn-add" title="Add bed">
           + Bed
         </button>
-        <button @click="$emit('remove')" class="btn-remove" title="Remove room">
+        <button @click="handleRemoveRoom" class="btn-remove" title="Remove room">
           ✕
         </button>
       </div>
@@ -41,12 +41,26 @@
         @remove="removeBed(index)"
       />
     </div>
+
+    <ConfirmDialog
+      v-model="showConfirmDialog"
+      :title="confirmDialogTitle"
+      :message="confirmDialogMessage"
+      :description="confirmDialogDescription"
+      :variant="confirmDialogVariant"
+      confirm-text="Yes, proceed"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import BedConfigItem from './BedConfigItem.vue'
+import { ConfirmDialog } from '@/shared/components'
+import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useGuestStore } from '@/stores/guestStore'
 import type { Room, Bed } from '@/types'
 
 interface Props {
@@ -60,7 +74,19 @@ const emit = defineEmits<{
   remove: []
 }>()
 
+const assignmentStore = useAssignmentStore()
+const guestStore = useGuestStore()
+
 const localRoom = ref<Room>({ ...props.room, beds: [...props.room.beds] })
+
+// Confirmation dialog state
+const showConfirmDialog = ref(false)
+const confirmDialogTitle = ref('Confirm Action')
+const confirmDialogMessage = ref('')
+const confirmDialogDescription = ref('')
+const confirmDialogVariant = ref<'danger' | 'warning'>('danger')
+const pendingAction = ref<(() => void) | null>(null)
+const previousActiveState = ref(true)
 
 watch(() => props.room, (newRoom) => {
   localRoom.value = { ...newRoom, beds: [...newRoom.beds] }
@@ -70,14 +96,139 @@ function handleUpdate() {
   emit('update', { ...localRoom.value })
 }
 
+function getAssignedGuestNames(bedId: string): string[] {
+  const guestIds = assignmentStore.getGuestsAssignedToBed(bedId)
+  return guestIds.map(id => {
+    const guest = guestStore.guests.find(g => g.id === id)
+    return guest ? `${guest.preferredName || guest.firstName} ${guest.lastName}` : 'Unknown'
+  })
+}
+
 function updateBed(index: number, updatedBed: Bed) {
+  const originalBed = localRoom.value.beds[index]
+
+  // Check if bed is being deactivated and has assigned guests
+  if (originalBed.active && !updatedBed.active) {
+    const assignedGuests = getAssignedGuestNames(updatedBed.bedId)
+    if (assignedGuests.length > 0) {
+      confirmDialogTitle.value = 'Deactivate Bed'
+      confirmDialogMessage.value = 'Deactivate this bed?'
+      confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to this bed. Deactivating will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+      confirmDialogVariant.value = 'warning'
+      pendingAction.value = () => {
+        assignmentStore.unassignGuestsFromBed(updatedBed.bedId)
+        localRoom.value.beds[index] = updatedBed
+        handleUpdate()
+      }
+      showConfirmDialog.value = true
+      return
+    }
+  }
+
   localRoom.value.beds[index] = updatedBed
   handleUpdate()
 }
 
 function removeBed(index: number) {
-  localRoom.value.beds.splice(index, 1)
+  const bed = localRoom.value.beds[index]
+  const assignedGuests = getAssignedGuestNames(bed.bedId)
+
+  confirmDialogTitle.value = 'Remove Bed'
+  if (assignedGuests.length > 0) {
+    confirmDialogMessage.value = 'Remove this bed?'
+    confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to this bed. Removing will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+  } else {
+    confirmDialogMessage.value = 'Remove this bed?'
+    confirmDialogDescription.value = 'This action cannot be undone.'
+  }
+  confirmDialogVariant.value = 'danger'
+
+  pendingAction.value = () => {
+    if (assignedGuests.length > 0) {
+      assignmentStore.unassignGuestsFromBed(bed.bedId)
+    }
+    localRoom.value.beds.splice(index, 1)
+    handleUpdate()
+  }
+  showConfirmDialog.value = true
+}
+
+function handleConfirm() {
+  if (pendingAction.value) {
+    pendingAction.value()
+  }
+  showConfirmDialog.value = false
+  pendingAction.value = null
+}
+
+function handleCancel() {
+  showConfirmDialog.value = false
+  pendingAction.value = null
+  // Revert active state if canceling room deactivation
+  if (localRoom.value.active !== previousActiveState.value) {
+    localRoom.value.active = previousActiveState.value
+  }
+}
+
+// Room-level confirmation functions
+function getRoomBedIds(): string[] {
+  return localRoom.value.beds.map(bed => bed.bedId)
+}
+
+function getAssignedGuestNamesForRoom(): string[] {
+  const bedIds = getRoomBedIds()
+  const guestIds = assignmentStore.getGuestsAssignedToRoom(bedIds)
+  return guestIds.map(id => {
+    const guest = guestStore.guests.find(g => g.id === id)
+    return guest ? `${guest.preferredName || guest.firstName} ${guest.lastName}` : 'Unknown'
+  })
+}
+
+function handleActiveChange() {
+  previousActiveState.value = !localRoom.value.active // Store the opposite since it already changed
+
+  // Check if room is being deactivated and has assigned guests
+  if (!localRoom.value.active) {
+    const assignedGuests = getAssignedGuestNamesForRoom()
+    if (assignedGuests.length > 0) {
+      confirmDialogTitle.value = 'Deactivate Room'
+      confirmDialogMessage.value = 'Deactivate this room?'
+      confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to beds in this room. Deactivating will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+      confirmDialogVariant.value = 'warning'
+      pendingAction.value = () => {
+        const bedIds = getRoomBedIds()
+        assignmentStore.unassignGuestsFromRoom(bedIds)
+        handleUpdate()
+      }
+      showConfirmDialog.value = true
+      return
+    }
+  }
+
   handleUpdate()
+}
+
+function handleRemoveRoom() {
+  const assignedGuests = getAssignedGuestNamesForRoom()
+
+  confirmDialogTitle.value = 'Remove Room'
+  if (assignedGuests.length > 0) {
+    confirmDialogMessage.value = `Remove "${localRoom.value.roomName}"?`
+    confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to beds in this room. Removing will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+  } else {
+    confirmDialogMessage.value = `Remove "${localRoom.value.roomName}"?`
+    confirmDialogDescription.value = 'This will also remove all beds in this room. This action cannot be undone.'
+  }
+  confirmDialogVariant.value = 'danger'
+
+  pendingAction.value = () => {
+    if (assignedGuests.length > 0) {
+      const bedIds = getRoomBedIds()
+      assignmentStore.unassignGuestsFromRoom(bedIds)
+    }
+    emit('remove')
+  }
+  showConfirmDialog.value = true
 }
 
 function addBed() {
