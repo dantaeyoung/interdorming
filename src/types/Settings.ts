@@ -31,6 +31,7 @@ export interface Settings {
   warnings: WarningSettings
   display: DisplaySettings
   autoPlacement: AutoPlacementSettings
+  developerMode: boolean
   version: string
 }
 
@@ -67,5 +68,6 @@ export const DEFAULT_SETTINGS: Settings = {
     ],
     allowConstraintRelaxation: true,
   },
+  developerMode: false,
   version: '1.0',
 }

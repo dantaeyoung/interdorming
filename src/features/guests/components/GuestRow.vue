@@ -1,14 +1,35 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'has-suggestion': hasSuggestion }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'group-highlight': isGroupHighlighted }]"
     v-bind="draggableProps"
+    @click="handleRowClick"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
   >
+    <td class="actions-cell">
+      <button
+        @click.stop="handleStartLinking"
+        class="btn-link-guest"
+        :class="{ 'is-linking': isCurrentlyLinking, 'has-group': !!guest.groupName }"
+        :title="isCurrentlyLinking ? 'Click another guest to link' : 'Link with another guest'"
+      >
+        🔗
+      </button>
+      <button
+        v-if="guest.groupName"
+        @click.stop="handleUnlink"
+        class="btn-unlink-guest"
+        title="Remove from group"
+      >
+        ⛓️‍💥
+      </button>
+      <button @click="handleEdit" class="btn-edit" title="Edit guest">
+        ✎
+      </button>
+    </td>
     <td class="order-cell">{{ guest.importOrder || '-' }}</td>
     <td>
       <div class="name-cell">
-        <div v-if="familyPosition !== 'none'" :class="['family-indicator', `family-${familyPosition}`]">
-          <div class="family-dot"></div>
-        </div>
         <span class="name-text">{{ displayName }}</span>
         <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
           ✨
@@ -26,7 +47,14 @@
       <span v-if="guest.lowerBunk" class="badge badge-info">Yes</span>
       <span v-else class="text-muted">No</span>
     </td>
-    <td>{{ guest.groupName || '-' }}</td>
+    <td class="group-cell" :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15 }">
+      {{ guest.groupName || '-' }}
+    </td>
+    <td class="group-lines-cell">
+      <div v-if="familyPosition !== 'none'" :class="['family-indicator', `family-${familyPosition}`]">
+        <div class="family-dot"></div>
+      </div>
+    </td>
     <td>{{ guest.arrival || '-' }}</td>
     <td>{{ guest.departure || '-' }}</td>
     <td>{{ guest.indivGrp || '-' }}</td>
@@ -51,11 +79,6 @@
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
     </td>
-    <td>
-      <button @click="handleEdit" class="btn-edit" title="Edit guest">
-        ✎
-      </button>
-    </td>
 
     <!-- Teleport notes modal to body -->
     <Teleport to="body">
@@ -69,6 +92,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
+import { useGroupLinking } from '../composables/useGroupLinking'
+import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useValidationStore } from '@/stores/validationStore'
 import { useUtils } from '@/shared/composables/useUtils'
@@ -90,12 +115,24 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
 const { createDisplayName } = useUtils()
 const { useDraggableGuest } = useDragDrop()
+const { isLinking, linkingGuestId, hoveredGroupName, startLinking, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 const displayName = computed(() => createDisplayName(props.guest))
+
+// Group linking computed
+const isCurrentlyLinking = computed(() => linkingGuestId.value === props.guest.id)
+const isLinkTarget = computed(() => isLinking.value && linkingGuestId.value !== props.guest.id)
+
+// Group hover highlighting
+const isGroupHighlighted = computed(() => {
+  if (!props.guest.groupName || !hoveredGroupName.value) return false
+  return props.guest.groupName === hoveredGroupName.value
+})
 
 const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.guest.id)
 
@@ -129,6 +166,36 @@ function handleNotesMouseEnter() {
 function handleEdit() {
   emit('edit', props.guest)
 }
+
+function handleStartLinking() {
+  if (isCurrentlyLinking.value) {
+    // Cancel if clicking the same guest's link button
+    cancelLinking()
+  } else {
+    startLinking(props.guest.id, displayName.value)
+  }
+}
+
+function handleRowClick() {
+  if (isLinkTarget.value) {
+    completeLinking(props.guest.id)
+  }
+}
+
+function handleMouseEnter() {
+  if (props.guest.groupName) {
+    setHoveredGroup(props.guest.groupName)
+  }
+}
+
+function handleMouseLeave() {
+  clearHoveredGroup()
+}
+
+function handleUnlink() {
+  // Remove guest from their group
+  guestStore.updateGuest(props.guest.id, { groupName: '' })
+}
 </script>
 
 <style scoped lang="scss">
@@ -153,6 +220,24 @@ function handleEdit() {
   &.dragging {
     opacity: 0.4;
   }
+
+  &.link-target {
+    cursor: pointer;
+    background-color: #fef3c7;
+
+    &:hover {
+      background-color: #fde68a;
+    }
+  }
+
+  &.group-highlight {
+    background-color: #f0fdf4;
+
+    .family-dot {
+      transform: scale(1.3);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.4);
+    }
+  }
 }
 
 .name-cell {
@@ -166,12 +251,21 @@ function handleEdit() {
   flex: 1;
 }
 
+.group-lines-cell {
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  padding: 0 !important;
+  position: relative;
+}
+
 .family-indicator {
   position: absolute;
-  left: -20px;
+  left: 50%;
   top: 0;
   bottom: 0;
   width: 12px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -179,9 +273,10 @@ function handleEdit() {
   &::before {
     content: '';
     position: absolute;
-    left: 5px;
+    left: 50%;
     width: 2px;
     background-color: #ef4444;
+    transform: translateX(-50%);
   }
 
   &.family-first::before {
@@ -272,10 +367,11 @@ td {
     text-align: center;
     width: 50px;
   }
+}
 
-  &:nth-child(2) {
-    padding-left: 30px;
-    position: relative;
+.group-cell {
+  &.long-group-name {
+    font-size: 0.7rem;
   }
 }
 
@@ -289,6 +385,69 @@ td {
     overflow: hidden;
     display: inline-block;
     max-width: 100%;
+  }
+}
+
+.actions-cell {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 100px;
+}
+
+.btn-link-guest {
+  padding: 4px 6px;
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #fef3c7;
+    color: #d97706;
+    border-color: #fcd34d;
+  }
+
+  &.is-linking {
+    background: #fde68a;
+    color: #92400e;
+    border-color: #f59e0b;
+    animation: pulse-link 1s infinite;
+  }
+
+  &.has-group {
+    background: #f0fdf4;
+    color: #16a34a;
+    border-color: #86efac;
+  }
+}
+
+.btn-unlink-guest {
+  padding: 4px 6px;
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fca5a5;
+  }
+}
+
+@keyframes pulse-link {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0);
   }
 }
 

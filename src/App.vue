@@ -2,13 +2,22 @@
   <div id="app" class="app-container">
     <!-- Header -->
     <div class="header">
-      <h1>
-        Interdorming: Dorm Assignment Tool
-        <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
-          ({{ currentBranch }} branch)
-        </span>
-      </h1>
-      <p>Drag and drop guests to assign them to dormitory beds</p>
+      <div class="header-left">
+        <h1>
+          Interdorming: Dorm Assignment Tool
+          <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
+            ({{ currentBranch }} branch)
+          </span>
+        </h1>
+      </div>
+      <div class="header-right">
+        <Transition name="status-fade">
+          <div v-if="statusMessage" class="header-status" :class="statusMessageType">
+            {{ statusMessage }}
+          </div>
+        </Transition>
+        <AssignmentStats class="header-stats" />
+      </div>
     </div>
 
     <!-- Tab Navigation -->
@@ -37,16 +46,6 @@
         </div>
       </div>
 
-      <!-- Stats and Status Bar -->
-      <div class="stats-status-bar">
-        <AssignmentStats />
-        <div class="status-message-area">
-          <div v-if="statusMessage" class="status-message" :class="statusMessageType">
-            {{ statusMessage }}
-          </div>
-        </div>
-      </div>
-
       <!-- Two-Panel Layout -->
       <div class="layout-grid">
         <!-- Left Panel: Unassigned Guests -->
@@ -57,14 +56,16 @@
               <span class="card-subtitle">({{ unassignedCount }})</span>
             </div>
             <div class="card-body">
-              <!-- Search - Fixed at top -->
+              <!-- Search and Add Guest - Fixed at top -->
               <div class="search-section">
                 <GuestSearch />
+                <button class="btn-add-guest-sm" @click="handleAddGuestClick">+ Add</button>
               </div>
 
               <!-- Guest List - Scrollable -->
               <div class="panel-content">
                 <GuestList
+                  ref="guestListRef"
                   :show-assigned="false"
                   empty-title="No guests loaded"
                   empty-message="Upload a CSV file to begin assigning guests to dormitory beds."
@@ -241,6 +242,13 @@ const confirmDialog = ref({
 // Computed properties
 const unassignedCount = computed(() => assignmentStore.unassignedCount)
 const assignedCount = computed(() => assignmentStore.assignedCount)
+
+// Guest list ref for add guest modal
+const guestListRef = ref<InstanceType<typeof GuestList> | null>(null)
+
+function handleAddGuestClick() {
+  guestListRef.value?.openAddModal()
+}
 
 // Tab handlers
 function handleTabChange(tabId: string) {
@@ -577,11 +585,13 @@ function stopResize() {
   padding: 8px 16px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+}
 
+.header-left {
   h1 {
     margin: 0;
     font-size: 1.125rem;
@@ -594,10 +604,52 @@ function stopResize() {
       margin-left: 8px;
     }
   }
+}
 
-  p {
-    display: none;
+.header-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.header-status {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &.success {
+    background-color: rgba(209, 250, 229, 0.95);
+    color: #065f46;
+    border: 1px solid rgba(110, 231, 183, 0.8);
   }
+
+  &.error {
+    background-color: rgba(254, 226, 226, 0.95);
+    color: #991b1b;
+    border: 1px solid rgba(252, 165, 165, 0.8);
+  }
+
+  &.info {
+    background-color: rgba(219, 234, 254, 0.95);
+    color: #1e40af;
+    border: 1px solid rgba(147, 197, 253, 0.8);
+  }
+}
+
+// Status fade transition - fast in (300ms), slow out (2s)
+.status-fade-enter-active {
+  transition: opacity 0.3s ease-out;
+}
+
+.status-fade-leave-active {
+  transition: opacity 2s ease-in;
+}
+
+.status-fade-enter-from,
+.status-fade-leave-to {
+  opacity: 0;
 }
 
 .tab-content {
@@ -626,50 +678,6 @@ function stopResize() {
 
 .toolbar-right-section {
   flex: 1;
-}
-
-.stats-status-bar {
-  display: flex;
-  gap: 12px;
-  background-color: white;
-  border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
-  align-items: center;
-  min-height: 60px;
-}
-
-.status-message-area {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  min-height: 60px;
-}
-
-.status-message {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  flex: 1;
-
-  &.success {
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #6ee7b7;
-  }
-
-  &.error {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fca5a5;
-  }
-
-  &.info {
-    background-color: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #93c5fd;
-  }
 }
 
 .layout-grid {
@@ -793,6 +801,26 @@ function stopResize() {
   background: white;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-add-guest-sm {
+  padding: 6px 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #2563eb;
+  }
 }
 
 .panel-content {

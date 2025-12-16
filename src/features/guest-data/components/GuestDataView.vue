@@ -30,7 +30,7 @@
       {{ statusMessage }}
     </div>
 
-    <!-- Search and Filters -->
+    <!-- Search and Add Guest Row -->
     <div class="filters-bar">
       <GuestSearch />
       <div class="filter-stats">
@@ -38,11 +38,13 @@
           Showing {{ guestStore.filteredGuests.length }} of {{ guestStore.guests.length }}
         </span>
       </div>
+      <button class="btn-add-guest" @click="handleAddGuest">+ Add Guest</button>
     </div>
 
     <!-- Guest Table -->
     <div class="guest-table-container">
       <GuestList
+        ref="guestListRef"
         :show-assigned="true"
         empty-title="No guests loaded"
         empty-message="Upload a CSV file or load test data to get started."
@@ -67,6 +69,22 @@
       @confirm="handleConfirmDialogConfirm"
       @cancel="handleConfirmDialogCancel"
     />
+
+    <!-- Group Linking Cursor Tooltip -->
+    <Teleport to="body">
+      <div
+        v-if="groupLinking.isLinking.value"
+        class="linking-cursor-tooltip"
+        :style="{
+          left: `${groupLinking.mousePosition.value.x + 15}px`,
+          top: `${groupLinking.mousePosition.value.y + 15}px`
+        }"
+      >
+        <span class="link-icon">🔗</span>
+        <span class="link-text">Link {{ groupLinking.linkingGuestName.value }} with ?</span>
+        <span class="link-hint">(click a guest or press Esc)</span>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -77,12 +95,21 @@ import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { GuestCSVUpload } from '@/features/csv/components'
 import { GuestList, GuestSearch } from '@/features/guests/components'
+import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import { ConfirmDialog } from '@/shared/components'
 import type { Guest } from '@/types'
 
 const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
+const groupLinking = useGroupLinking()
+
+// Ref to GuestList for triggering add modal
+const guestListRef = ref<InstanceType<typeof GuestList> | null>(null)
+
+function handleAddGuest() {
+  guestListRef.value?.openAddModal()
+}
 
 // Status message
 const statusMessage = ref('')
@@ -327,6 +354,24 @@ function handleDeleteAll() {
 .filter-stats {
   font-size: 0.875rem;
   color: #6b7280;
+  flex: 1;
+}
+
+.btn-add-guest {
+  padding: 6px 14px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #2563eb;
+  }
 }
 
 .guest-table-container {
@@ -334,6 +379,49 @@ function handleDeleteAll() {
   overflow: hidden;
   padding: 0 16px 16px;
   background: #f3f4f6;
+}
+
+.linking-cursor-tooltip {
+  position: fixed;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 99999;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: tooltip-appear 0.2s ease-out;
+
+  .link-icon {
+    font-size: 1rem;
+  }
+
+  .link-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #92400e;
+    white-space: nowrap;
+  }
+
+  .link-hint {
+    font-size: 0.75rem;
+    color: #b45309;
+    opacity: 0.8;
+  }
+}
+
+@keyframes tooltip-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .group-linking-section {
