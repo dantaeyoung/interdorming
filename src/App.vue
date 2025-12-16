@@ -14,6 +14,11 @@
     <!-- Tab Navigation -->
     <TabNavigation v-model="activeTab" :tabs="tabs" @change="handleTabChange" />
 
+    <!-- Guest Data Tab -->
+    <div v-show="activeTab === 'guest-data'" class="tab-content">
+      <GuestDataView @status="handleGuestDataStatus" />
+    </div>
+
     <!-- Guest Assignment Tab -->
     <div v-show="activeTab === 'assignment'" class="tab-content">
       <!-- Combined Upload & Toolbar Section -->
@@ -192,6 +197,7 @@ import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/compo
 import { SettingsPanel } from '@/features/settings/components'
 import { PrintView } from '@/features/print/components'
 import { TimelineView } from '@/features/timeline/components'
+import { GuestDataView } from '@/features/guest-data/components'
 
 // Composables
 import { useCSV } from '@/features/csv/composables/useCSV'
@@ -214,8 +220,9 @@ onMounted(() => {
 })
 
 // Tab state
-const activeTab = ref('assignment')
+const activeTab = ref('guest-data')
 const tabs: Tab[] = [
+  { id: 'guest-data', label: 'Guest Data' },
   { id: 'assignment', label: 'Guest Assignment' },
   { id: 'timeline', label: 'Timeline View' },
   { id: 'configuration', label: 'Room Configuration' },
@@ -249,6 +256,11 @@ const assignedCount = computed(() => assignmentStore.assignedCount)
 // Tab handlers
 function handleTabChange(tabId: string) {
   activeTab.value = tabId
+}
+
+// Guest Data tab handlers
+function handleGuestDataStatus(message: string, type: 'success' | 'error' | 'info') {
+  showStatus(message, type)
 }
 
 // CSV Upload handlers
