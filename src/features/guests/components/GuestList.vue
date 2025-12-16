@@ -119,6 +119,7 @@ import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
+import { useSortConfig, type SortableField } from '@/shared/composables/useSortConfig'
 import GuestRow from './GuestRow.vue'
 import GuestFormModal from './GuestFormModal.vue'
 import GroupLinesOverlay from './GroupLinesOverlay.vue'
@@ -164,11 +165,44 @@ const guests = computed(() => {
   return filtered.filter(g => !assignmentStore.assignments.has(g.id))
 })
 
-const sortColumn = computed(() => guestStore.sortColumn)
-const sortDirection = computed(() => guestStore.sortDirection)
+// Sort configuration
+const { sortLevels, clearAllLevels, addLevel } = useSortConfig()
+
+// Get the first sort level's column and direction for the header indicators
+const sortColumn = computed(() => {
+  if (sortLevels.value.length === 0) return null
+  return sortLevels.value[0].field
+})
+
+const sortDirection = computed(() => {
+  if (sortLevels.value.length === 0) return 'asc'
+  return sortLevels.value[0].direction
+})
 
 function handleSort(column: keyof Guest) {
-  guestStore.setSortColumn(column)
+  // Check if this column is a valid sortable field
+  const validFields: SortableField[] = [
+    'firstName', 'lastName', 'preferredName', 'gender', 'age',
+    'groupName', 'arrival', 'departure', 'retreat', 'ratePerNight',
+    'priceQuoted', 'amountPaid', 'importOrder'
+  ]
+
+  if (!validFields.includes(column as SortableField)) {
+    return
+  }
+
+  const sortableColumn = column as SortableField
+
+  // If clicking the same column, toggle direction
+  if (sortLevels.value.length === 1 && sortLevels.value[0].field === sortableColumn) {
+    const currentDirection = sortLevels.value[0].direction
+    clearAllLevels()
+    addLevel(sortableColumn, currentDirection === 'asc' ? 'desc' : 'asc')
+  } else {
+    // Set new single-column sort
+    clearAllLevels()
+    addLevel(sortableColumn, 'asc')
+  }
 }
 
 function handleUnassign(guestId: string) {
