@@ -2,30 +2,6 @@
   <div class="assignment-toolbar">
     <div class="toolbar-section">
       <button
-        v-if="hasSuggestions"
-        class="btn"
-        @click="$emit('accept-all')"
-      >
-        Accept All
-      </button>
-      <button
-        v-if="hasSuggestions"
-        class="btn"
-        @click="$emit('clear-suggestions')"
-      >
-        Clear Suggestions
-      </button>
-    </div>
-
-    <div class="toolbar-section">
-      <button
-        class="btn"
-        :disabled="!canUndo"
-        @click="$emit('undo')"
-      >
-        Undo
-      </button>
-      <button
         class="btn"
         :disabled="!hasGuests"
         @click="$emit('export')"
@@ -39,20 +15,6 @@
       >
         Export Excel
       </button>
-      <button
-        class="btn"
-        :disabled="!hasAssignments"
-        @click="$emit('reset-assignments')"
-      >
-        Reset All Assignments
-      </button>
-      <button
-        class="btn btn-danger"
-        :disabled="!hasGuests"
-        @click="$emit('delete-all')"
-      >
-        Delete All People Data
-      </button>
     </div>
   </div>
 </template>
@@ -60,34 +22,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
-import { useAssignmentStore } from '@/stores/assignmentStore'
-
-interface Props {
-  autoPlaceDisabled?: boolean
-}
-
-withDefaults(defineProps<Props>(), {
-  autoPlaceDisabled: false,
-})
 
 defineEmits<{
-  'auto-place': []
-  'accept-all': []
-  'clear-suggestions': []
-  'undo': []
   'export': []
   'export-excel': []
-  'reset-assignments': []
-  'delete-all': []
 }>()
 
 const guestStore = useGuestStore()
-const assignmentStore = useAssignmentStore()
 
 const hasGuests = computed(() => guestStore.guests.length > 0)
-const hasAssignments = computed(() => assignmentStore.assignedCount > 0)
-const hasSuggestions = computed(() => assignmentStore.hasSuggestions)
-const canUndo = computed(() => assignmentStore.canUndo)
 </script>
 
 <style scoped lang="scss">

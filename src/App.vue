@@ -34,14 +34,8 @@
       <div class="combined-toolbar">
         <div class="toolbar-right-section">
           <AssignmentToolbar
-            @auto-place="handleAutoPlace"
-            @accept-all="handleAcceptAll"
-            @clear-suggestions="handleClearSuggestions"
-            @undo="handleUndo"
             @export="handleExport"
             @export-excel="handleExportExcel"
-            @reset-assignments="handleResetAssignments"
-            @delete-all="handleDeleteAll"
           />
         </div>
       </div>
@@ -169,6 +163,15 @@
       @confirm="handleConfirmDialogConfirm"
       @cancel="handleConfirmDialogCancel"
     />
+
+    <!-- Floating Action Bar - visible on Table View and Timeline View -->
+    <FloatingActionBar
+      v-if="activeTab === 'assignment' || activeTab === 'timeline'"
+      @undo="handleUndo"
+      @reset-assignments="handleResetAssignments"
+      @accept-all="handleAcceptAll"
+      @clear-suggestions="handleClearSuggestions"
+    />
   </div>
 </template>
 
@@ -177,7 +180,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 
 // Shared components
-import { TabNavigation, ConfirmDialog } from '@/shared/components'
+import { TabNavigation, ConfirmDialog, FloatingActionBar } from '@/shared/components'
 
 // Feature components
 import { GuestList, GuestSearch } from '@/features/guests/components'
@@ -213,7 +216,7 @@ onMounted(() => {
 const activeTab = ref('guest-data')
 const tabs: Tab[] = [
   { id: 'guest-data', label: 'Guest Data' },
-  { id: 'assignment', label: 'Guest Assignment' },
+  { id: 'assignment', label: 'Table View' },
   { id: 'timeline', label: 'Timeline View' },
   { id: 'configuration', label: 'Room Configuration' },
   { id: 'print', label: 'Print' },
