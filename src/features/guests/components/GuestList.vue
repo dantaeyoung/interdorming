@@ -104,7 +104,7 @@
       <GroupLinesOverlay
         v-if="guests.length > 0"
         :guests="guests"
-        :row-height="rowHeight"
+        :row-positions="rowPositions"
         :style="overlayStyle"
         class="group-lines-svg"
       />
@@ -144,8 +144,8 @@ const { useDroppableUnassignedArea } = useDragDrop()
 const tableWrapperRef = ref<HTMLDivElement | null>(null)
 const tableRef = ref<HTMLTableElement | null>(null)
 
-// Row height for overlay positioning
-const rowHeight = ref(49)
+// Row positions for overlay
+const rowPositions = ref<number[]>([])
 const overlayLeft = ref(0)
 const overlayTop = ref(0)
 
@@ -232,11 +232,17 @@ function updateOverlayPosition() {
     overlayTop.value = thead.offsetHeight
   }
 
-  // Measure actual row height from first data row
-  const firstRow = tableRef.value.querySelector('tbody tr') as HTMLElement
-  if (firstRow) {
-    rowHeight.value = firstRow.offsetHeight
-  }
+  // Measure actual row positions (center of each row)
+  const rows = tableRef.value.querySelectorAll('tbody tr:not(.empty-row)')
+  const positions: number[] = []
+  rows.forEach((row) => {
+    const htmlRow = row as HTMLElement
+    // Calculate center Y position relative to tbody
+    const rowTop = htmlRow.offsetTop
+    const rowHeight = htmlRow.offsetHeight
+    positions.push(rowTop + rowHeight / 2)
+  })
+  rowPositions.value = positions
 
   // Get current scroll position
   scrollLeft.value = tableRef.value.scrollLeft
@@ -253,14 +259,29 @@ watch(guests, () => {
   nextTick(updateOverlayPosition)
 })
 
+// ResizeObserver to detect row height changes
+let resizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
   nextTick(updateOverlayPosition)
   // Re-measure on window resize
   window.addEventListener('resize', updateOverlayPosition)
+
+  // Observe tbody for size changes (row height changes)
+  if (tableRef.value) {
+    const tbody = tableRef.value.querySelector('tbody')
+    if (tbody) {
+      resizeObserver = new ResizeObserver(() => {
+        updateOverlayPosition()
+      })
+      resizeObserver.observe(tbody)
+    }
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateOverlayPosition)
+  resizeObserver?.disconnect()
 })
 
 // Family grouping logic

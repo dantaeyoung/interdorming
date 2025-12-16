@@ -5,7 +5,7 @@
     :width="width"
     :height="height"
   >
-    <g v-for="group in groupPaths" :key="group.name">
+    <g v-for="group in groupPaths" :key="group.name + '-' + updateKey">
       <path
         :d="group.path"
         :class="['group-path', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
@@ -37,14 +37,17 @@ import type { Guest } from '@/types'
 
 interface Props {
   guests: Guest[]
-  rowHeight?: number
+  rowPositions?: number[] // Y center positions for each row
   columnWidth?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  rowHeight: 49,
+  rowPositions: () => [],
   columnWidth: 30
 })
+
+// Update key to force re-render when positions change
+const updateKey = ref(0)
 
 const { hoveredGroupName } = useGroupLinking()
 
@@ -145,10 +148,13 @@ const groupPaths = computed(() => {
     const dots: Array<{ x: number, y: number }> = []
     const sortedIndices = [...group.indices].sort((a, b) => a - b)
 
-    // Calculate Y positions for each member
+    // Calculate Y positions for each member using actual row positions if available
     const yPositions = sortedIndices.map(index => {
-      // Account for header row and calculate center of each row
-      return (index * props.rowHeight) + (props.rowHeight / 2)
+      if (props.rowPositions.length > index) {
+        return props.rowPositions[index]
+      }
+      // Fallback to estimated position
+      return (index * 49) + 24.5
     })
 
     // Build dots array
@@ -182,13 +188,25 @@ const groupPaths = computed(() => {
   return paths
 })
 
-// Update height based on number of guests
+// Update height based on row positions or guest count
 function updateDimensions() {
-  height.value = props.guests.length * props.rowHeight
+  if (props.rowPositions.length > 0) {
+    // Use the last row position plus some padding
+    const lastPos = props.rowPositions[props.rowPositions.length - 1]
+    height.value = lastPos + 50
+  } else {
+    height.value = props.guests.length * 49
+  }
+  updateKey.value++
 }
 
 // Watch for guest changes
 watch(() => props.guests, () => {
+  nextTick(updateDimensions)
+}, { deep: true })
+
+// Watch for row position changes
+watch(() => props.rowPositions, () => {
   nextTick(updateDimensions)
 }, { deep: true })
 
