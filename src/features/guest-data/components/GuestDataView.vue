@@ -25,11 +25,6 @@
       </div>
     </div>
 
-    <!-- Status Message -->
-    <div v-if="statusMessage" class="status-message" :class="statusMessageType">
-      {{ statusMessage }}
-    </div>
-
     <!-- Search and Add Guest Row -->
     <div class="filters-bar">
       <GuestSearch />
@@ -123,8 +118,8 @@ const showSortModal = ref(false)
 
 function handleSortApply() {
   // Sort is applied automatically through the guestStore's filteredGuests computed
-  // Just show a status message
-  showStatus('Sort applied', 'success')
+  // Just show a status message in the header
+  emit('status', 'Sort applied', 'success')
 }
 
 // Ref to GuestList for triggering add modal
@@ -133,10 +128,6 @@ const guestListRef = ref<InstanceType<typeof GuestList> | null>(null)
 function handleAddGuest() {
   guestListRef.value?.openAddModal()
 }
-
-// Status message
-const statusMessage = ref('')
-const statusMessageType = ref<'success' | 'error' | 'info'>('info')
 
 // Confirm dialog state
 const showConfirmDialog = ref(false)
@@ -154,14 +145,7 @@ const emit = defineEmits<{
 }>()
 
 function showStatus(message: string, type: 'success' | 'error' | 'info' = 'info') {
-  statusMessage.value = message
-  statusMessageType.value = type
   emit('status', message, type)
-
-  // Auto-hide after 5 seconds
-  setTimeout(() => {
-    statusMessage.value = ''
-  }, 5000)
 }
 
 function confirmAction(
@@ -334,33 +318,6 @@ function handleDeleteAll() {
     &:hover:not(:disabled) {
       background-color: #dc2626;
     }
-  }
-}
-
-.status-message {
-  margin: 0 16px;
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  flex-shrink: 0;
-
-  &.success {
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #6ee7b7;
-  }
-
-  &.error {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fca5a5;
-  }
-
-  &.info {
-    background-color: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #93c5fd;
   }
 }
 
