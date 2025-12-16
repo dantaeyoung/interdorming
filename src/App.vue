@@ -21,19 +21,8 @@
 
     <!-- Guest Assignment Tab -->
     <div v-show="activeTab === 'assignment'" class="tab-content">
-      <!-- Combined Upload & Toolbar Section -->
+      <!-- Toolbar Section -->
       <div class="combined-toolbar">
-        <div class="toolbar-left-section">
-          <GuestCSVUpload
-            label=""
-            :show-load-test="true"
-            @upload-success="handleUploadSuccess"
-            @upload-error="handleUploadError"
-            @load-test-data="handleLoadTestData"
-            @request-reset-confirmation="handleRequestResetConfirmation"
-          />
-        </div>
-
         <div class="toolbar-right-section">
           <AssignmentToolbar
             @auto-place="handleAutoPlace"
@@ -192,7 +181,7 @@ import { TabNavigation, ConfirmDialog } from '@/shared/components'
 // Feature components
 import { GuestList, GuestSearch } from '@/features/guests/components'
 import { RoomList, ConfigRoomList } from '@/features/dormitories/components'
-import { GuestCSVUpload, RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
+import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
 import { PrintView } from '@/features/print/components'
@@ -261,45 +250,6 @@ function handleTabChange(tabId: string) {
 // Guest Data tab handlers
 function handleGuestDataStatus(message: string, type: 'success' | 'error' | 'info') {
   showStatus(message, type)
-}
-
-// CSV Upload handlers
-function handleUploadSuccess(guests: Guest[]) {
-  showStatus(`Successfully loaded ${guests.length} guests`, 'success')
-}
-
-function handleUploadError(error: string) {
-  showStatus(`Error: ${error}`, 'error')
-}
-
-async function handleLoadTestData() {
-  try {
-    // Fetch test guest data from public folder
-    const response = await fetch('/test_guests.csv')
-    if (!response.ok) {
-      throw new Error('Failed to fetch test data')
-    }
-
-    const csvText = await response.text()
-
-    // Parse CSV using the CSV composable
-    const { useCSV } = await import('@/features/csv/composables/useCSV')
-    const { parseGuestCSV } = useCSV()
-    const result = parseGuestCSV(csvText)
-
-    // Import guests into store
-    guestStore.importGuests(result.guests)
-
-    // Initialize default dormitories if none exist
-    if (dormitoryStore.dormitories.length === 0) {
-      dormitoryStore.initializeDefaultDormitories()
-    }
-
-    showStatus(`Successfully loaded ${result.guests.length} test guests and default room configuration`, 'success')
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to load test data'
-    showStatus(`Error loading test data: ${errorMessage}`, 'error')
-  }
 }
 
 // Assignment toolbar handlers
@@ -436,22 +386,6 @@ function handleDeleteAll() {
       assignmentStore.clearAllAssignments()
       showStatus('All guest data deleted', 'success')
     }
-  )
-}
-
-function handleRequestResetConfirmation(callback: () => void) {
-  confirmAction(
-    'Reset and Replace',
-    'Are you sure you want to clear all existing guests and assignments? This will replace them with the new CSV data. This cannot be undone.',
-    () => {
-      // Clear all assignments first
-      assignmentStore.clearAllAssignments()
-      // Execute the callback (which imports the new CSV)
-      callback()
-      showStatus('Guests replaced with new CSV data', 'success')
-    },
-    'Reset and Replace',
-    'Cancel'
   )
 }
 
