@@ -50,7 +50,10 @@
       "Bash(npm test:*)",
       "Bash(npm install:*)",
       "Bash(git push:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(git merge feature/xlsx-export --no-ff -m \"$(cat <<''EOF''\nMerge feature/xlsx-export: Add Excel export functionality\n\nFeatures:\n- Export Timeline view as Excel with beds as rows, dates as columns\n- Export Assignments view with all guest details and room assignments\n- Merged cells for guest stay periods with medium borders\n- Thin gray grid lines between all cells\n- Alternating white/gray backgrounds between rooms\n- Dormitory colors on first 5 columns\n- Full guest names (preferredName/firstName + lastName)\n- Dates formatted with 4-digit years (MM/DD/YYYY)\n- Summary and Unassigned sheets included\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git stash:*)",
+      "Bash(git stash pop:*)"
     ],
     "deny": []
   }
