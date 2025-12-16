@@ -288,6 +288,7 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
+import { useSortConfig } from '@/shared/composables/useSortConfig'
 import TimelineHeader from './TimelineHeader.vue'
 import GuestBlob from './GuestBlob.vue'
 import { GuestFormModal } from '@/features/guests/components'
@@ -299,6 +300,7 @@ const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const dormitoryStore = useDormitoryStore()
 const { autoPlaceGuestsInRoom } = useAutoPlacement()
+const { sortGuests } = useSortConfig()
 const { dateColumns, monthGroups, bedRows, getGuestBlobsForBed } = useTimelineData()
 const {
   startDrag,
@@ -411,12 +413,17 @@ const unassignedGuestBlobs = computed((): GuestBlobData[] => {
   const rangeEnd = new Date(timelineStore.config.dateRangeEnd)
   rangeEnd.setHours(0, 0, 0, 0)
 
-  assignmentStore.unassignedGuestIds.forEach(guestId => {
-    // Skip if guest has a suggested assignment (they'll show in the bed row instead)
-    if (assignmentStore.suggestedAssignments.has(guestId)) return
+  // Get unassigned guests as Guest objects and sort them
+  const unassignedGuests = assignmentStore.unassignedGuestIds
+    .map(guestId => guestStore.getGuestById(guestId))
+    .filter((guest): guest is Guest => guest !== undefined)
 
-    const guest = guestStore.getGuestById(guestId)
-    if (!guest) return
+  // Apply the same sort as Table View
+  const sortedUnassignedGuests = sortGuests(unassignedGuests)
+
+  sortedUnassignedGuests.forEach(guest => {
+    // Skip if guest has a suggested assignment (they'll show in the bed row instead)
+    if (assignmentStore.suggestedAssignments.has(guest.id)) return
 
     // Only show guests with arrival/departure dates
     if (!guest.arrival || !guest.departure) return
@@ -455,7 +462,7 @@ const unassignedGuestBlobs = computed((): GuestBlobData[] => {
     const spanCount = visibleEndIndex - visibleStartIndex + 1
 
     blobs.push({
-      guestId,
+      guestId: guest.id,
       displayName: guest.preferredName || guest.firstName,
       bedId: 'unassigned',
       startColIndex: visibleStartIndex,
