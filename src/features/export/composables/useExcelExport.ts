@@ -10,12 +10,16 @@ import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useTimelineStore } from '@/stores/timelineStore'
 import type { Guest } from '@/types'
 
-// Helper to convert hex color to Excel ARGB format (without the # and with alpha)
-function hexToExcelColor(hex: string): string {
-  // Remove # if present
-  const cleanHex = hex.replace('#', '')
-  // Return as ARGB (alpha = FF for fully opaque)
-  return cleanHex.toUpperCase()
+// Thin gray border style for grid lines
+const thinBorder = {
+  style: 'thin',
+  color: { rgb: 'D1D5DB' }
+}
+
+// Medium border for guest blob outlines
+const mediumBorder = {
+  style: 'medium',
+  color: { rgb: '6B7280' }
 }
 
 // Helper to lighten a hex color for Excel backgrounds
@@ -25,7 +29,6 @@ function lightenHexColor(hex: string, factor: number = 0.7): string {
   const g = parseInt(cleanHex.substring(2, 4), 16)
   const b = parseInt(cleanHex.substring(4, 6), 16)
 
-  // Lighten by mixing with white
   const newR = Math.round(r + (255 - r) * factor)
   const newG = Math.round(g + (255 - g) * factor)
   const newB = Math.round(b + (255 - b) * factor)
@@ -44,11 +47,65 @@ function getGuestFullName(guest: Guest): string {
   return `${firstName} ${lastName}`.trim()
 }
 
+// Convert column number to Excel column letter (0 = A, 1 = B, etc.)
+function colToLetter(col: number): string {
+  let letter = ''
+  let temp = col
+  while (temp >= 0) {
+    letter = String.fromCharCode((temp % 26) + 65) + letter
+    temp = Math.floor(temp / 26) - 1
+  }
+  return letter
+}
+
+// Get cell reference like "A1", "B2", etc.
+function cellRef(row: number, col: number): string {
+  return `${colToLetter(col)}${row + 1}`
+}
+
 export function useExcelExport() {
   const guestStore = useGuestStore()
   const dormitoryStore = useDormitoryStore()
   const assignmentStore = useAssignmentStore()
   const timelineStore = useTimelineStore()
+
+  /**
+   * Get guest stays for a bed - returns array of {guest, startCol, endCol}
+   */
+  function getGuestStaysForBed(bedId: string, dates: Date[], dateStartCol: number): Array<{guest: Guest, startCol: number, endCol: number}> {
+    const stays: Array<{guest: Guest, startCol: number, endCol: number}> = []
+
+    assignmentStore.assignments.forEach((assignedBedId, guestId) => {
+      if (assignedBedId !== bedId) return
+
+      const guest = guestStore.getGuestById(guestId)
+      if (!guest || !guest.arrival || !guest.departure) return
+
+      const arrival = new Date(guest.arrival)
+      arrival.setHours(0, 0, 0, 0)
+      const departure = new Date(guest.departure)
+      departure.setHours(0, 0, 0, 0)
+
+      let startCol = -1
+      let endCol = -1
+
+      dates.forEach((date, idx) => {
+        const targetDate = new Date(date)
+        targetDate.setHours(0, 0, 0, 0)
+
+        if (targetDate >= arrival && targetDate <= departure) {
+          if (startCol === -1) startCol = dateStartCol + idx
+          endCol = dateStartCol + idx
+        }
+      })
+
+      if (startCol !== -1) {
+        stays.push({ guest, startCol, endCol })
+      }
+    })
+
+    return stays
+  }
 
   /**
    * Export Timeline view as Excel file
@@ -71,28 +128,42 @@ export function useExcelExport() {
       currentDate.setDate(currentDate.getDate() + 1)
     }
 
+    const DATE_START_COL = 5 // Columns A-E are fixed, dates start at F (index 5)
+
     // Create header row
     const headers = ['Dormitory', 'Room', 'Gender', 'Bed', 'Type']
     dates.forEach(date => {
       headers.push(formatDateHeader(date))
     })
 
-    // Create data rows with styling info
-    const rows: any[][] = []
+    // Build the worksheet data
+    const wsData: any[][] = []
+    const merges: Array<{s: {r: number, c: number}, e: {r: number, c: number}}> = []
+
+    // Track which cells are part of a guest blob for border application
+    const guestBlobCells: Map<string, {isStart: boolean, isEnd: boolean, isTop: boolean, isBottom: boolean}> = new Map()
 
     // Add header row with styling
-    const headerRow = headers.map(h => ({
+    const headerRow = headers.map((h, colIdx) => ({
       v: h,
+      t: 's',
       s: {
         font: { bold: true },
         fill: { fgColor: { rgb: 'E5E7EB' } },
-        alignment: { horizontal: 'center' }
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: thinBorder,
+          bottom: thinBorder,
+          left: thinBorder,
+          right: thinBorder
+        }
       }
     }))
-    rows.push(headerRow)
+    wsData.push(headerRow)
 
     // Track room index for alternating colors
     let roomIndex = 0
+    let currentRow = 1 // Row 0 is header
 
     dormitoryStore.dormitories.forEach(dorm => {
       if (!dorm.active) return
@@ -103,7 +174,6 @@ export function useExcelExport() {
       dorm.rooms.forEach(room => {
         if (!room.active) return
 
-        // Alternate between white and light gray for date columns
         const isEvenRoom = roomIndex % 2 === 0
         const dateColumnBg = isEvenRoom ? 'FFFFFF' : 'F3F4F6'
         roomIndex++
@@ -111,68 +181,122 @@ export function useExcelExport() {
         room.beds.forEach(bed => {
           if (bed.active === false) return
 
+          // Get guest stays for this bed
+          const guestStays = getGuestStaysForBed(bed.bedId, dates, DATE_START_COL)
+
           const row: any[] = [
-            // Dormitory column with color
+            // Fixed columns with dormitory color
             {
               v: dorm.dormitoryName,
+              t: 's',
               s: {
                 fill: { fgColor: { rgb: lightDormColor } },
-                alignment: { horizontal: 'left' }
+                alignment: { horizontal: 'left', vertical: 'center' },
+                border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder }
               }
             },
-            // Room column with color
             {
               v: room.roomName,
+              t: 's',
               s: {
                 fill: { fgColor: { rgb: lightDormColor } },
-                alignment: { horizontal: 'left' }
+                alignment: { horizontal: 'left', vertical: 'center' },
+                border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder }
               }
             },
-            // Gender column with color
             {
               v: room.roomGender,
+              t: 's',
               s: {
                 fill: { fgColor: { rgb: lightDormColor } },
-                alignment: { horizontal: 'center' }
+                alignment: { horizontal: 'center', vertical: 'center' },
+                border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder }
               }
             },
-            // Bed column with color
             {
               v: String(bed.position),
+              t: 's',
               s: {
                 fill: { fgColor: { rgb: lightDormColor } },
-                alignment: { horizontal: 'center' }
+                alignment: { horizontal: 'center', vertical: 'center' },
+                border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder }
               }
             },
-            // Type column with color
             {
               v: bed.bedType,
+              t: 's',
               s: {
                 fill: { fgColor: { rgb: lightDormColor } },
-                alignment: { horizontal: 'center' }
+                alignment: { horizontal: 'center', vertical: 'center' },
+                border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder }
               }
             },
           ]
 
-          // Fill in guest names for each date with alternating room background
-          dates.forEach(date => {
-            const guestName = getGuestOnBedForDate(bed.bedId, date)
-            row.push({
-              v: guestName,
-              s: {
-                fill: { fgColor: { rgb: dateColumnBg } },
-                alignment: { horizontal: 'left' }
-              }
-            })
+          // Create a map of column -> guest for this row
+          const colToGuest: Map<number, Guest> = new Map()
+          guestStays.forEach(stay => {
+            for (let c = stay.startCol; c <= stay.endCol; c++) {
+              colToGuest.set(c, stay.guest)
+            }
           })
 
-          rows.push(row)
+          // Fill in date columns
+          for (let i = 0; i < dates.length; i++) {
+            const colIdx = DATE_START_COL + i
+            const guest = colToGuest.get(colIdx)
+
+            // Find if this is part of a guest stay
+            const stay = guestStays.find(s => colIdx >= s.startCol && colIdx <= s.endCol)
+
+            // Determine border styles for this cell
+            const isGuestCell = !!stay
+            const isStartOfStay = stay && colIdx === stay.startCol
+            const isEndOfStay = stay && colIdx === stay.endCol
+
+            // Guest blob uses a slightly darker background
+            const cellBg = isGuestCell ? 'E5E7EB' : dateColumnBg
+
+            const cellStyle: any = {
+              fill: { fgColor: { rgb: cellBg } },
+              alignment: { horizontal: 'left', vertical: 'center' },
+              border: {
+                top: isGuestCell ? mediumBorder : thinBorder,
+                bottom: isGuestCell ? mediumBorder : thinBorder,
+                left: isStartOfStay ? mediumBorder : thinBorder,
+                right: isEndOfStay ? mediumBorder : thinBorder
+              }
+            }
+
+            // Only show name in first cell of stay (will be merged)
+            const cellValue = isStartOfStay && guest ? getGuestFullName(guest) : ''
+
+            row.push({
+              v: cellValue,
+              t: 's',
+              s: cellStyle
+            })
+
+            // Add merge for guest stays (merge from start to end)
+            if (isStartOfStay && stay && stay.endCol > stay.startCol) {
+              merges.push({
+                s: { r: currentRow, c: stay.startCol },
+                e: { r: currentRow, c: stay.endCol }
+              })
+            }
+          }
+
+          wsData.push(row)
+          currentRow++
         })
       })
     })
 
-    // Create worksheet from array of arrays
-    const ws = XLSX.utils.aoa_to_sheet(rows)
+    // Create worksheet
+    const ws = XLSX.utils.aoa_to_sheet(wsData)
+
+    // Apply merges
+    ws['!merges'] = merges
 
     // Set column widths
     const colWidths = [
@@ -183,19 +307,19 @@ export function useExcelExport() {
       { wch: 8 },  // Type
     ]
     dates.forEach(() => {
-      colWidths.push({ wch: 18 }) // Wider for full names
+      colWidths.push({ wch: 14 }) // Date columns
     })
     ws['!cols'] = colWidths
 
-    // Freeze first row (header) and first 5 columns using Excel views format
-    if (!ws['!views']) ws['!views'] = []
-    ws['!views'].push({
-      state: 'frozen',
-      xSplit: 5,
-      ySplit: 1,
-      topLeftCell: 'F2',
-      activeCell: 'F2'
-    })
+    // Set row heights
+    const rowHeights: Array<{hpt: number}> = []
+    for (let i = 0; i < currentRow; i++) {
+      rowHeights.push({ hpt: 20 }) // 20 points height
+    }
+    ws['!rows'] = rowHeights
+
+    // Freeze panes - try the SheetJS pane structure
+    ws['!freeze'] = { xSplit: 5, ySplit: 1 }
 
     XLSX.utils.book_append_sheet(wb, ws, 'Timeline')
 
@@ -235,17 +359,24 @@ export function useExcelExport() {
 
     const headerRow = headers.map(h => ({
       v: h,
+      t: 's',
       s: {
         font: { bold: true },
         fill: { fgColor: { rgb: 'E5E7EB' } },
-        alignment: { horizontal: 'center' }
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: thinBorder,
+          bottom: thinBorder,
+          left: thinBorder,
+          right: thinBorder
+        }
       }
     }))
 
     // Create data rows
     const rows: any[][] = [headerRow]
 
-    // Add assigned guests
+    // Add guests
     guestStore.guests.forEach(guest => {
       const bedId = assignmentStore.getAssignmentByGuest(guest.id)
       const room = bedId ? dormitoryStore.getRoomByBedId(bedId) : undefined
@@ -255,33 +386,42 @@ export function useExcelExport() {
       const dormColor = dorm?.color || '#f8f9fa'
       const lightDormColor = bedId ? lightenHexColor(dormColor, 0.7) : 'FFFFFF'
 
+      const cellBorder = {
+        top: thinBorder,
+        bottom: thinBorder,
+        left: thinBorder,
+        right: thinBorder
+      }
+
       rows.push([
-        guest.firstName || '',
-        guest.lastName || '',
-        guest.preferredName || '',
-        guest.gender || '',
-        guest.age || '',
-        guest.groupName || '',
-        guest.lowerBunk ? 'Yes' : 'No',
-        guest.arrival || '',
-        guest.departure || '',
-        // Dormitory with color
+        { v: guest.firstName || '', t: 's', s: { border: cellBorder } },
+        { v: guest.lastName || '', t: 's', s: { border: cellBorder } },
+        { v: guest.preferredName || '', t: 's', s: { border: cellBorder } },
+        { v: guest.gender || '', t: 's', s: { border: cellBorder } },
+        { v: guest.age || '', t: 's', s: { border: cellBorder } },
+        { v: guest.groupName || '', t: 's', s: { border: cellBorder } },
+        { v: guest.lowerBunk ? 'Yes' : 'No', t: 's', s: { border: cellBorder } },
+        { v: guest.arrival || '', t: 's', s: { border: cellBorder } },
+        { v: guest.departure || '', t: 's', s: { border: cellBorder } },
         {
           v: dorm?.dormitoryName || '',
-          s: bedId ? {
-            fill: { fgColor: { rgb: lightDormColor } }
-          } : {}
+          t: 's',
+          s: {
+            fill: bedId ? { fgColor: { rgb: lightDormColor } } : undefined,
+            border: cellBorder
+          }
         },
-        // Room with color
         {
           v: room?.roomName || '',
-          s: bedId ? {
-            fill: { fgColor: { rgb: lightDormColor } }
-          } : {}
+          t: 's',
+          s: {
+            fill: bedId ? { fgColor: { rgb: lightDormColor } } : undefined,
+            border: cellBorder
+          }
         },
-        bedId || '',
-        bed?.bedType || '',
-        bedId ? 'Assigned' : 'Unassigned',
+        { v: bedId || '', t: 's', s: { border: cellBorder } },
+        { v: bed?.bedType || '', t: 's', s: { border: cellBorder } },
+        { v: bedId ? 'Assigned' : 'Unassigned', t: 's', s: { border: cellBorder } },
       ])
     })
 
@@ -306,15 +446,8 @@ export function useExcelExport() {
       { wch: 10 }, // Status
     ]
 
-    // Freeze header row using Excel views format
-    if (!ws['!views']) ws['!views'] = []
-    ws['!views'].push({
-      state: 'frozen',
-      xSplit: 0,
-      ySplit: 1,
-      topLeftCell: 'A2',
-      activeCell: 'A2'
-    })
+    // Freeze header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
 
     XLSX.utils.book_append_sheet(wb, ws, 'Assignments')
 
@@ -329,45 +462,6 @@ export function useExcelExport() {
     // Download file
     const filename = generateFilename('assignments')
     XLSX.writeFile(wb, filename)
-  }
-
-  /**
-   * Get guest full name assigned to a bed on a specific date
-   */
-  function getGuestOnBedForDate(bedId: string, date: Date): string {
-    const targetDate = new Date(date)
-    targetDate.setHours(0, 0, 0, 0)
-
-    // Find all guests assigned to this bed
-    const guestsOnBed: Guest[] = []
-
-    assignmentStore.assignments.forEach((assignedBedId, guestId) => {
-      if (assignedBedId !== bedId) return
-
-      const guest = guestStore.getGuestById(guestId)
-      if (!guest) return
-
-      // Check if guest's date range includes target date
-      if (guest.arrival && guest.departure) {
-        const arrival = new Date(guest.arrival)
-        arrival.setHours(0, 0, 0, 0)
-        const departure = new Date(guest.departure)
-        departure.setHours(0, 0, 0, 0)
-
-        if (targetDate >= arrival && targetDate <= departure) {
-          guestsOnBed.push(guest)
-        }
-      }
-    })
-
-    if (guestsOnBed.length === 0) {
-      return ''
-    } else if (guestsOnBed.length === 1) {
-      return getGuestFullName(guestsOnBed[0])
-    } else {
-      // Multiple guests = conflict
-      return guestsOnBed.map(g => getGuestFullName(g)).join(' / ') + ' ⚠️'
-    }
   }
 
   /**
@@ -417,29 +511,43 @@ export function useExcelExport() {
 
     const headerRow = headers.map(h => ({
       v: h,
+      t: 's',
       s: {
         font: { bold: true },
         fill: { fgColor: { rgb: 'E5E7EB' } },
-        alignment: { horizontal: 'center' }
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: thinBorder,
+          bottom: thinBorder,
+          left: thinBorder,
+          right: thinBorder
+        }
       }
     }))
 
     const rows: any[][] = [headerRow]
+
+    const cellBorder = {
+      top: thinBorder,
+      bottom: thinBorder,
+      left: thinBorder,
+      right: thinBorder
+    }
 
     assignmentStore.unassignedGuestIds.forEach(guestId => {
       const guest = guestStore.getGuestById(guestId)
       if (!guest) return
 
       rows.push([
-        guest.firstName || '',
-        guest.lastName || '',
-        guest.preferredName || '',
-        guest.gender || '',
-        guest.age || '',
-        guest.groupName || '',
-        guest.lowerBunk ? 'Yes' : 'No',
-        guest.arrival || '',
-        guest.departure || '',
+        { v: guest.firstName || '', t: 's', s: { border: cellBorder } },
+        { v: guest.lastName || '', t: 's', s: { border: cellBorder } },
+        { v: guest.preferredName || '', t: 's', s: { border: cellBorder } },
+        { v: guest.gender || '', t: 's', s: { border: cellBorder } },
+        { v: guest.age || '', t: 's', s: { border: cellBorder } },
+        { v: guest.groupName || '', t: 's', s: { border: cellBorder } },
+        { v: guest.lowerBunk ? 'Yes' : 'No', t: 's', s: { border: cellBorder } },
+        { v: guest.arrival || '', t: 's', s: { border: cellBorder } },
+        { v: guest.departure || '', t: 's', s: { border: cellBorder } },
       ])
     })
 
@@ -456,15 +564,8 @@ export function useExcelExport() {
       { wch: 12 },
     ]
 
-    // Freeze header row using Excel views format
-    if (!ws['!views']) ws['!views'] = []
-    ws['!views'].push({
-      state: 'frozen',
-      xSplit: 0,
-      ySplit: 1,
-      topLeftCell: 'A2',
-      activeCell: 'A2'
-    })
+    // Freeze header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
 
     return ws
   }

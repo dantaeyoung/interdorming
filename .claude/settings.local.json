@@ -46,7 +46,11 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nUI: Make unassigned guests header sticky and add resizable divider\n\n- Restructure unassigned section with fixed label on left side\n- Add draggable divider between unassigned guests and dorms sections\n- Divider can be resized between 100px and 500px by dragging\n- Header stays in place during vertical/horizontal scroll\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git commit -m \"$(cat <<''EOF''\nFeature: Add click-to-pick guest assignment in Timeline View\n\n- Add click-to-pick mode as alternative to drag-and-drop\n- Click on a guest blob to \"pick\" it (shows yellow highlight)\n- Click on a bed cell to place the picked guest\n- Press Escape or click same guest to cancel pick\n- Use shared singleton state for pick state across components\n- Stop click propagation to prevent immediate placement\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "mcp__playwright__browser_hover",
-      "mcp__playwright__browser_press_key"
+      "mcp__playwright__browser_press_key",
+      "Bash(npm test:*)",
+      "Bash(npm install:*)",
+      "Bash(git push:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": []
   }
