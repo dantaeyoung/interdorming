@@ -33,6 +33,13 @@
         Export CSV
       </button>
       <button
+        class="btn btn-excel"
+        :disabled="!hasGuests"
+        @click="$emit('export-excel')"
+      >
+        Export Excel
+      </button>
+      <button
         class="btn"
         :disabled="!hasAssignments"
         @click="$emit('reset-assignments')"
@@ -69,6 +76,7 @@ defineEmits<{
   'clear-suggestions': []
   'undo': []
   'export': []
+  'export-excel': []
   'reset-assignments': []
   'delete-all': []
 }>()
@@ -136,6 +144,16 @@ const canUndo = computed(() => assignmentStore.canUndo)
 
     &:hover:not(:disabled) {
       background-color: #dc2626;
+    }
+  }
+
+  &.btn-excel {
+    background-color: #10b981;
+    color: white;
+    border-color: #10b981;
+
+    &:hover:not(:disabled) {
+      background-color: #059669;
     }
   }
 }
