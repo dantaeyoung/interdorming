@@ -1,5 +1,5 @@
 <template>
-  <Modal :show="show" title="Custom Sort" @close="handleClose">
+  <Modal v-model="showModal" title="Custom Sort" @close="handleClose">
     <div class="sort-config-modal">
       <!-- Toolbar -->
       <div class="sort-toolbar">
@@ -124,9 +124,20 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
+  'update:show': [value: boolean]
   close: []
   apply: []
 }>()
+
+// Create a computed that syncs with the show prop for v-model on Modal
+const showModal = computed({
+  get: () => props.show,
+  set: (value: boolean) => {
+    if (!value) {
+      emit('close')
+    }
+  }
+})
 
 const { sortLevels, addLevel, removeLevel, updateLevel, moveLevelUp, moveLevelDown, clearAllLevels } = useSortConfig()
 
@@ -134,8 +145,8 @@ const selectedLevelId = ref<string | null>(null)
 const fieldOptions = SORT_FIELD_OPTIONS
 
 // Auto-select first level when modal opens
-watch(() => props.show, (show) => {
-  if (show && sortLevels.value.length > 0) {
+watch(() => props.show, (isShown) => {
+  if (isShown && sortLevels.value.length > 0) {
     selectedLevelId.value = sortLevels.value[0].id
   }
 })
