@@ -47,6 +47,24 @@ function getGuestFullName(guest: Guest): string {
   return `${firstName} ${lastName}`.trim()
 }
 
+// Format date string to ensure 4-digit year (MM/DD/YYYY)
+function formatDateWithFullYear(dateStr: string | undefined): string {
+  if (!dateStr) return ''
+
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return dateStr
+
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const year = date.getFullYear()
+
+    return `${month}/${day}/${year}`
+  } catch {
+    return dateStr
+  }
+}
+
 // Convert column number to Excel column letter (0 = A, 1 = B, etc.)
 function colToLetter(col: number): string {
   let letter = ''
@@ -401,8 +419,8 @@ export function useExcelExport() {
         { v: guest.age || '', t: 's', s: { border: cellBorder } },
         { v: guest.groupName || '', t: 's', s: { border: cellBorder } },
         { v: guest.lowerBunk ? 'Yes' : 'No', t: 's', s: { border: cellBorder } },
-        { v: guest.arrival || '', t: 's', s: { border: cellBorder } },
-        { v: guest.departure || '', t: 's', s: { border: cellBorder } },
+        { v: formatDateWithFullYear(guest.arrival), t: 's', s: { border: cellBorder } },
+        { v: formatDateWithFullYear(guest.departure), t: 's', s: { border: cellBorder } },
         {
           v: dorm?.dormitoryName || '',
           t: 's',
@@ -546,8 +564,8 @@ export function useExcelExport() {
         { v: guest.age || '', t: 's', s: { border: cellBorder } },
         { v: guest.groupName || '', t: 's', s: { border: cellBorder } },
         { v: guest.lowerBunk ? 'Yes' : 'No', t: 's', s: { border: cellBorder } },
-        { v: guest.arrival || '', t: 's', s: { border: cellBorder } },
-        { v: guest.departure || '', t: 's', s: { border: cellBorder } },
+        { v: formatDateWithFullYear(guest.arrival), t: 's', s: { border: cellBorder } },
+        { v: formatDateWithFullYear(guest.departure), t: 's', s: { border: cellBorder } },
       ])
     })
 
