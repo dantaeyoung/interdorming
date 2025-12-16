@@ -8,8 +8,8 @@
     <g v-for="group in groupPaths" :key="group.name">
       <path
         :d="group.path"
-        :class="['group-path', { highlighted: group.name === highlightedGroup }]"
-        :stroke="group.color"
+        :class="['group-path', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
+        :stroke="highlightedGroup && group.name !== highlightedGroup ? '#d1d5db' : group.color"
         fill="none"
         stroke-width="2"
         stroke-linecap="round"
@@ -21,8 +21,8 @@
         :cx="dot.x"
         :cy="dot.y"
         r="4"
-        :class="['group-dot', { highlighted: group.name === highlightedGroup }]"
-        :fill="group.color"
+        :class="['group-dot', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
+        :fill="highlightedGroup && group.name !== highlightedGroup ? '#d1d5db' : group.color"
         :stroke="group.name === highlightedGroup ? '#fff' : 'none'"
         stroke-width="2"
       />
@@ -207,22 +207,30 @@ onMounted(() => {
 }
 
 .group-path {
-  transition: stroke-width 0.2s, opacity 0.2s;
+  transition: stroke-width 0.2s, opacity 0.2s, stroke 0.2s;
   opacity: 0.6;
 
   &.highlighted {
     stroke-width: 3;
     opacity: 1;
   }
+
+  &.dimmed {
+    opacity: 0.3;
+  }
 }
 
 .group-dot {
-  transition: r 0.2s, opacity 0.2s;
+  transition: r 0.2s, opacity 0.2s, fill 0.2s;
   opacity: 0.8;
 
   &.highlighted {
     r: 5;
     opacity: 1;
+  }
+
+  &.dimmed {
+    opacity: 0.3;
   }
 }
 </style>
