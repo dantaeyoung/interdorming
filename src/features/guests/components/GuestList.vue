@@ -1,12 +1,9 @@
 <template>
   <div class="guest-list" v-bind="dropzoneProps">
-    <div class="guest-list-header">
-      <button @click="handleAddGuest" class="btn-add-guest">+ Add Guest</button>
-    </div>
-
     <table class="table">
       <thead>
         <tr>
+          <th>Actions</th>
           <th @click="handleSort('importOrder')">
             #
             <SortIndicator :active="sortColumn === 'importOrder'" :direction="sortDirection" />
@@ -76,7 +73,6 @@
             <SortIndicator :active="sortColumn === 'roomPreference'" :direction="sortDirection" />
           </th>
           <th>Warnings</th>
-          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -188,6 +184,11 @@ function handleSubmitGuest(guestData: Partial<Guest>) {
   handleCloseModal()
 }
 
+// Expose method to open add modal from parent
+defineExpose({
+  openAddModal: handleAddGuest,
+})
+
 // Family grouping logic
 function getFamilyPosition(guest: Guest, index: number): 'none' | 'first' | 'middle' | 'last' | 'only' {
   if (!guest.groupName) return 'none'
@@ -240,32 +241,6 @@ export { SortIndicator }
     background-color: #f0f9ff;
     outline: 2px dashed #3b82f6;
     outline-offset: -2px;
-  }
-}
-
-.guest-list-header {
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 0;
-}
-
-.btn-add-guest {
-  padding: 8px 16px;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #2563eb;
-  }
-
-  &:active {
-    transform: scale(0.98);
   }
 }
 
@@ -364,13 +339,16 @@ export { SortIndicator }
       }
 
       &:first-child {
-        width: 50px;
-        text-align: center;
-        padding-left: 10px;
+        width: 100px;
       }
 
       &:nth-child(2) {
-        padding-left: 30px;
+        width: 50px;
+        text-align: center;
+      }
+
+      &:nth-child(3) {
+        padding-left: 22px;
       }
     }
   }
