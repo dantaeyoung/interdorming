@@ -21,7 +21,7 @@
         class="btn-unlink-guest"
         title="Remove from group"
       >
-        ✕
+        ⛓️‍💥
       </button>
       <button @click="handleEdit" class="btn-edit" title="Edit guest">
         ✎
