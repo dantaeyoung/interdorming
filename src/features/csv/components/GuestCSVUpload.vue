@@ -10,7 +10,7 @@
         class="form-input"
         @change="handleFileChange"
       />
-      <button v-if="showLoadTest" class="btn btn-load-test" @click="$emit('load-test-data')">
+      <button v-if="showLoadTest && settingsStore.settings.developerMode" class="btn btn-load-test" @click="$emit('load-test-data')">
         Load Test Data
       </button>
     </div>
@@ -38,6 +38,7 @@
 import { ref } from 'vue'
 import { useCSV } from '../composables/useCSV'
 import { useGuestStore } from '@/stores/guestStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import type { Guest } from '@/types'
 import CSVWarningModal from './CSVWarningModal.vue'
 import CSVImportModeModal from './CSVImportModeModal.vue'
@@ -63,6 +64,7 @@ const emit = defineEmits<{
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const guestStore = useGuestStore()
+const settingsStore = useSettingsStore()
 const { parseGuestCSV } = useCSV()
 
 // Modal state

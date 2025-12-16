@@ -63,6 +63,10 @@ export const useSettingsStore = defineStore(
       settings.value.autoPlacement.allowConstraintRelaxation = value
     }
 
+    function toggleDeveloperMode(value: boolean) {
+      settings.value.developerMode = value
+    }
+
     function resetToDefaults() {
       settings.value = { ...DEFAULT_SETTINGS }
     }
@@ -77,6 +81,7 @@ export const useSettingsStore = defineStore(
       updateAutoPlacementEnabled,
       updateAutoPlacementPriority,
       updateConstraintRelaxation,
+      toggleDeveloperMode,
       resetToDefaults,
     }
   },
