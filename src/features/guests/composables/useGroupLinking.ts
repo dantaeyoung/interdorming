@@ -52,46 +52,49 @@ export function useGroupLinking() {
       return
     }
 
-    // Determine the group name to use
-    let groupName: string
+    // Collect all guests that will be in this group
+    const groupMemberIds = new Set<string>([linkingGuestId.value, targetGuestId])
 
-    if (sourceGuest.groupName && targetGuest.groupName) {
-      // Both have groups - merge into source's group
-      const oldGroupName = targetGuest.groupName
-      groupName = sourceGuest.groupName
-
-      // Update all guests with target's old group to source's group
+    // Add existing group members from both guests
+    if (sourceGuest.groupName) {
       guestStore.guests.forEach(g => {
-        if (g.groupName === oldGroupName) {
-          guestStore.updateGuest(g.id, { groupName })
+        if (g.groupName === sourceGuest.groupName) {
+          groupMemberIds.add(g.id)
         }
       })
-    } else if (sourceGuest.groupName) {
-      // Source has a group, add target to it
-      groupName = sourceGuest.groupName
-      guestStore.updateGuest(targetGuestId, { groupName })
-    } else if (targetGuest.groupName) {
-      // Target has a group, add source to it
-      groupName = targetGuest.groupName
-      guestStore.updateGuest(linkingGuestId.value, { groupName })
-    } else {
-      // Neither has a group - create new one
-      groupName = generateGroupName(sourceGuest.lastName, targetGuest.lastName)
-      guestStore.updateGuest(linkingGuestId.value, { groupName })
-      guestStore.updateGuest(targetGuestId, { groupName })
     }
+    if (targetGuest.groupName) {
+      guestStore.guests.forEach(g => {
+        if (g.groupName === targetGuest.groupName) {
+          groupMemberIds.add(g.id)
+        }
+      })
+    }
+
+    // Get all group members and their last names
+    const groupMembers = guestStore.guests.filter(g => groupMemberIds.has(g.id))
+    const groupName = generateGroupNameFromMembers(groupMembers.map(g => g.lastName))
+
+    // Update all group members with the new group name
+    groupMemberIds.forEach(id => {
+      guestStore.updateGuest(id, { groupName })
+    })
 
     cancelLinking()
   }
 
-  function generateGroupName(lastName1: string, lastName2: string): string {
-    // If same last name, use that
-    if (lastName1.toLowerCase() === lastName2.toLowerCase()) {
-      return `${lastName1} Family`
+  function generateGroupNameFromMembers(lastNames: string[]): string {
+    // Get unique last names (case-insensitive)
+    const uniqueNames = [...new Set(lastNames.map(n => n.toLowerCase()))]
+      .map(lower => lastNames.find(n => n.toLowerCase() === lower)!)
+
+    if (uniqueNames.length === 1) {
+      return `${uniqueNames[0]} Family`
     }
 
-    // Otherwise combine both
-    return `${lastName1}-${lastName2} Group`
+    // Sort alphabetically and join
+    uniqueNames.sort((a, b) => a.localeCompare(b))
+    return `${uniqueNames.join('-')} Group`
   }
 
   function handleMouseMove(e: MouseEvent) {

@@ -50,7 +50,9 @@
       <span v-if="guest.lowerBunk" class="badge badge-info">Yes</span>
       <span v-else class="text-muted">No</span>
     </td>
-    <td>{{ guest.groupName || '-' }}</td>
+    <td class="group-cell" :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15 }">
+      {{ guest.groupName || '-' }}
+    </td>
     <td>{{ guest.arrival || '-' }}</td>
     <td>{{ guest.departure || '-' }}</td>
     <td>{{ guest.indivGrp || '-' }}</td>
@@ -357,6 +359,12 @@ td {
   &:nth-child(3) {
     padding-left: 22px;
     position: relative;
+  }
+}
+
+.group-cell {
+  &.long-group-name {
+    font-size: 0.7rem;
   }
 }
 
