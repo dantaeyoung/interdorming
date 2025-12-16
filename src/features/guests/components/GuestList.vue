@@ -1,8 +1,9 @@
 <template>
   <div class="guest-list" v-bind="dropzoneProps">
-    <table class="table">
-      <thead>
-        <tr>
+    <div class="table-wrapper" ref="tableWrapperRef">
+      <table class="table" ref="tableRef" @scroll="handleTableScroll">
+        <thead>
+          <tr>
           <th>Actions</th>
           <th @click="handleSort('importOrder')">
             #
@@ -98,20 +99,29 @@
             </div>
           </td>
         </tr>
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+      <GroupLinesOverlay
+        v-if="guests.length > 0"
+        :guests="guests"
+        :row-positions="rowPositions"
+        :style="overlayStyle"
+        class="group-lines-svg"
+      />
+    </div>
 
     <GuestFormModal :show="showModal" :guest="editingGuest" @close="handleCloseModal" @submit="handleSubmitGuest" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import GuestRow from './GuestRow.vue'
 import GuestFormModal from './GuestFormModal.vue'
+import GroupLinesOverlay from './GroupLinesOverlay.vue'
 import type { Guest } from '@/types'
 
 interface Props {
@@ -129,6 +139,15 @@ const props = withDefaults(defineProps<Props>(), {
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const { useDroppableUnassignedArea } = useDragDrop()
+
+// Template refs
+const tableWrapperRef = ref<HTMLDivElement | null>(null)
+const tableRef = ref<HTMLTableElement | null>(null)
+
+// Row positions for overlay
+const rowPositions = ref<number[]>([])
+const overlayLeft = ref(0)
+const overlayTop = ref(0)
 
 // Modal state
 const showModal = ref(false)
@@ -190,6 +209,81 @@ defineExpose({
   openAddModal: handleAddGuest,
 })
 
+// Overlay positioning
+const scrollLeft = ref(0)
+
+const overlayStyle = computed(() => ({
+  left: `${overlayLeft.value - scrollLeft.value}px`,
+  top: `${overlayTop.value}px`,
+}))
+
+function updateOverlayPosition() {
+  if (!tableRef.value) return
+
+  // Find the group-lines-header column to get its position
+  const header = tableRef.value.querySelector('.group-lines-header') as HTMLElement
+  if (header) {
+    overlayLeft.value = header.offsetLeft
+  }
+
+  // Get the thead height for top offset
+  const thead = tableRef.value.querySelector('thead') as HTMLElement
+  if (thead) {
+    overlayTop.value = thead.offsetHeight
+  }
+
+  // Measure actual row positions (center of each row)
+  const rows = tableRef.value.querySelectorAll('tbody tr:not(.empty-row)')
+  const positions: number[] = []
+  rows.forEach((row) => {
+    const htmlRow = row as HTMLElement
+    // Calculate center Y position relative to tbody
+    const rowTop = htmlRow.offsetTop
+    const rowHeight = htmlRow.offsetHeight
+    positions.push(rowTop + rowHeight / 2)
+  })
+  rowPositions.value = positions
+
+  // Get current scroll position
+  scrollLeft.value = tableRef.value.scrollLeft
+}
+
+// Handle table scroll to sync overlay
+function handleTableScroll() {
+  if (tableRef.value) {
+    scrollLeft.value = tableRef.value.scrollLeft
+  }
+}
+
+watch(guests, () => {
+  nextTick(updateOverlayPosition)
+})
+
+// ResizeObserver to detect row height changes
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  nextTick(updateOverlayPosition)
+  // Re-measure on window resize
+  window.addEventListener('resize', updateOverlayPosition)
+
+  // Observe tbody for size changes (row height changes)
+  if (tableRef.value) {
+    const tbody = tableRef.value.querySelector('tbody')
+    if (tbody) {
+      resizeObserver = new ResizeObserver(() => {
+        updateOverlayPosition()
+      })
+      resizeObserver.observe(tbody)
+    }
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateOverlayPosition)
+  resizeObserver?.disconnect()
+})
+
 // Family grouping logic
 function getFamilyPosition(guest: Guest, index: number): 'none' | 'first' | 'middle' | 'last' | 'only' {
   if (!guest.groupName) return 'none'
@@ -243,6 +337,18 @@ export { SortIndicator }
     outline: 2px dashed #3b82f6;
     outline-offset: -2px;
   }
+}
+
+.table-wrapper {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.group-lines-svg {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
 }
 
 .empty-row {
@@ -349,9 +455,9 @@ export { SortIndicator }
       }
 
       &.group-lines-header {
-        width: 20px;
-        min-width: 20px;
-        max-width: 20px;
+        width: 30px;
+        min-width: 30px;
+        max-width: 30px;
         padding: 0;
         cursor: default;
 
