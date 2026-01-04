@@ -695,7 +695,7 @@ function stopResize() {
     margin: 0;
     font-size: 1.125rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -713,7 +713,7 @@ function stopResize() {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
   border: none;
   color: white;
   font-size: 1rem;
@@ -723,11 +723,11 @@ function stopResize() {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 4px rgba(180, 83, 9, 0.3);
 
   &:hover {
     transform: scale(1.1);
-    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 8px rgba(180, 83, 9, 0.4);
   }
 
   &:active {

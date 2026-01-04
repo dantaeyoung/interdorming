@@ -50,8 +50,8 @@ const availableBeds = computed(() => totalBeds.value - assignedCount.value)
 
 .stat-card {
   padding: 4px 12px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.08) 0%, rgba(146, 64, 14, 0.08) 100%);
+  border: 1px solid rgba(180, 83, 9, 0.2);
   border-radius: 6px;
   text-align: center;
   display: flex;
@@ -72,7 +72,7 @@ const availableBeds = computed(() => totalBeds.value - assignedCount.value)
 .stat-value {
   font-size: 1rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
