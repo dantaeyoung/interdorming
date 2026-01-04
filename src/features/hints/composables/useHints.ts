@@ -75,7 +75,7 @@ export function useHints() {
     const hasGuests = guestStore.guests.length > 0
     const assignmentCount = assignmentStore.assignments.size
     const guestCount = guestStore.guests.length
-    const warnings = validationStore.getAllWarnings
+    const warnings = validationStore.getAllWarnings || {}
     const warningCount = Object.keys(warnings).length
 
     // Check each condition in priority order
