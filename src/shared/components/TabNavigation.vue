@@ -42,7 +42,7 @@ function selectTab(tabId: string) {
 <style scoped lang="scss">
 .tabs {
   background-color: #f9fafb;
-  border-bottom: 3px solid #d1d5db;
+  border-bottom: 3px solid #9ca3af;
   flex-shrink: 0;
   position: relative;
 }
@@ -76,7 +76,7 @@ function selectTab(tabId: string) {
   &.active {
     color: #1f2937;
     background-color: white;
-    border-color: #d1d5db;
+    border-color: #9ca3af;
     // White bottom border overlaps the container's gray border
     border-bottom: 3px solid white;
     font-weight: 600;
