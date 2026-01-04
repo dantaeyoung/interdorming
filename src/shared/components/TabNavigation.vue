@@ -42,37 +42,44 @@ function selectTab(tabId: string) {
 <style scoped lang="scss">
 .tabs {
   background-color: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #d1d5db;
   flex-shrink: 0;
+  position: relative;
 }
 
 .tab-list {
   display: flex;
-  gap: 2px;
+  gap: 0;
   padding: 0 12px;
+  // Offset tabs down by 1px so active tab can overlap the border
+  margin-bottom: -1px;
 }
 
 .tab {
-  background: none;
-  border: none;
-  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  padding: 10px 20px;
   font-size: 0.875rem;
   font-weight: 500;
   color: #6b7280;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   position: relative;
+  border-radius: 6px 6px 0 0;
 
-  &:hover {
-    color: #1f2937;
-    background-color: #f3f4f6;
+  &:hover:not(.active) {
+    color: #374151;
+    background-color: rgba(0, 0, 0, 0.03);
   }
 
   &.active {
-    color: #2563eb;
-    border-bottom-color: #2563eb;
+    color: #1f2937;
     background-color: white;
+    border-color: #d1d5db;
+    // White bottom border overlaps the container's gray border
+    border-bottom: 1px solid white;
+    font-weight: 600;
   }
 
   &:focus {
@@ -84,15 +91,17 @@ function selectTab(tabId: string) {
     animation: tab-pulse 1.5s ease-in-out infinite;
     background-color: #ecfdf5;
     color: #059669;
-    border-bottom-color: #10b981;
+    border-color: #6ee7b7;
+    border-bottom: 1px solid #ecfdf5;
 
     &::after {
       content: '';
       position: absolute;
-      inset: 0;
-      border-radius: 4px;
+      inset: -2px;
+      border-radius: 8px 8px 0 0;
       box-shadow: 0 0 0 2px #10b981;
       animation: tab-glow 1.5s ease-in-out infinite;
+      pointer-events: none;
     }
   }
 }
