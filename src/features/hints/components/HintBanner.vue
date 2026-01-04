@@ -71,8 +71,8 @@ function handleDismiss() {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  border-bottom: 1px solid #c7d2fe;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-bottom: 1px solid #6ee7b7;
   gap: 12px;
 }
 
@@ -91,7 +91,7 @@ function handleDismiss() {
 
 .hint-message {
   font-size: 0.875rem;
-  color: #3730a3;
+  color: #065f46;
   font-weight: 500;
 }
 
@@ -112,21 +112,21 @@ function handleDismiss() {
   border: none;
 
   &.hint-btn-primary {
-    background: #4f46e5;
+    background: #10b981;
     color: white;
 
     &:hover {
-      background: #4338ca;
+      background: #059669;
     }
   }
 
   &.hint-btn-secondary {
     background: white;
-    color: #4f46e5;
-    border: 1px solid #c7d2fe;
+    color: #059669;
+    border: 1px solid #6ee7b7;
 
     &:hover {
-      background: #f5f3ff;
+      background: #ecfdf5;
     }
   }
 }
@@ -134,7 +134,7 @@ function handleDismiss() {
 .hint-dismiss {
   background: none;
   border: none;
-  color: #6366f1;
+  color: #10b981;
   font-size: 1.25rem;
   cursor: pointer;
   padding: 4px 8px;
@@ -143,7 +143,7 @@ function handleDismiss() {
   flex-shrink: 0;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(16, 185, 129, 0.1);
   }
 }
 
@@ -154,7 +154,7 @@ function handleDismiss() {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   cursor: pointer;
@@ -166,7 +166,7 @@ function handleDismiss() {
 
   &:hover {
     transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
   }
 
   .hint-icon {
