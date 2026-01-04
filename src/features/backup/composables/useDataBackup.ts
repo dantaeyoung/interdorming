@@ -223,8 +223,26 @@ export function useDataBackup() {
 
     try {
       const text = await file.text()
-      const data = JSON.parse(text)
 
+      // Parse JSON with specific error handling
+      let data: unknown
+      try {
+        data = JSON.parse(text)
+      } catch (parseError) {
+        const message =
+          parseError instanceof SyntaxError
+            ? `Invalid JSON in backup file: ${parseError.message}`
+            : 'Failed to parse backup file'
+        lastError.value = message
+        return {
+          isValid: false,
+          errors: [message],
+          warnings: [],
+          summary: { guestCount: 0, dormitoryCount: 0, roomCount: 0, bedCount: 0, assignmentCount: 0 },
+        }
+      }
+
+      // Validate BEFORE modifying any stores
       const validation = validateBackup(data)
 
       if (!validation.isValid) {
@@ -233,8 +251,19 @@ export function useDataBackup() {
 
       const backup = data as BackupData
 
-      // Clear existing data and import new data
-      await restoreFromBackup(backup)
+      // Snapshot current state for rollback on failure
+      const previousState = createBackup()
+
+      try {
+        // Clear existing data and import new data
+        await restoreFromBackup(backup)
+      } catch (restoreError) {
+        // Rollback to previous state on failure
+        console.error('Restore failed, rolling back:', restoreError)
+        await restoreFromBackup(previousState)
+        const message = restoreError instanceof Error ? restoreError.message : 'Failed to restore backup'
+        throw new Error(`Import failed and was rolled back: ${message}`)
+      }
 
       return validation
     } catch (error) {
