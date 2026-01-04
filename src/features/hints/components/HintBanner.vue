@@ -1,6 +1,6 @@
 <template>
   <Transition name="hint-slide">
-    <div v-if="currentHint && !isCollapsed" class="hint-banner">
+    <div v-if="currentHint && !isCollapsed" class="hint-banner" data-tour="hint-banner">
       <div class="hint-content">
         <span class="hint-icon">{{ currentHint.icon }}</span>
         <span class="hint-message">{{ currentHint.message }}</span>

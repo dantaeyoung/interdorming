@@ -5,6 +5,7 @@
         v-for="tab in tabs"
         :key="tab.id"
         :class="['tab', { active: modelValue === tab.id, highlighted: highlightedTab === tab.id }]"
+        :data-tour="'tab-' + tab.id"
         @click="selectTab(tab.id)"
       >
         {{ tab.label }}

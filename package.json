@@ -10,6 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "driver.js": "^1.4.0",
     "pinia": "^3.0.1",
     "pinia-plugin-persistedstate": "^4.2.0",
     "vue": "^3.5.13",

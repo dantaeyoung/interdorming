@@ -9,6 +9,9 @@
             ({{ currentBranch }} branch)
           </span>
         </h1>
+        <button class="tour-btn" @click="startTour" title="Take a guided tour">
+          ?
+        </button>
       </div>
       <div class="header-right">
         <Transition name="status-fade">
@@ -16,7 +19,7 @@
             {{ statusMessage }}
           </div>
         </Transition>
-        <AssignmentStats class="header-stats" />
+        <AssignmentStats class="header-stats" data-tour="header-stats" />
       </div>
     </div>
 
@@ -211,6 +214,7 @@ import { useSortConfig } from '@/shared/composables/useSortConfig'
 // Feature components
 import { HintBanner } from '@/features/hints/components'
 import { useHints } from '@/features/hints/composables/useHints'
+import { useTour } from '@/features/hints/composables/useTour'
 import { GuestList, GuestSearch } from '@/features/guests/components'
 import { RoomList, ConfigRoomList } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
@@ -249,6 +253,9 @@ const activeTab = ref('guest-data')
 
 // Hints - get highlightedTab for TabNavigation
 const { highlightedTab } = useHints(activeTab)
+
+// Tour
+const { startTour, hasSeenTour } = useTour()
 const tabs: Tab[] = [
   { id: 'guest-data', label: 'Guest Data' },
   { id: 'assignment', label: 'Table View' },
@@ -680,6 +687,10 @@ function stopResize() {
 }
 
 .header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
   h1 {
     margin: 0;
     font-size: 1.125rem;
@@ -691,6 +702,32 @@ function stopResize() {
       font-weight: 500;
       margin-left: 8px;
     }
+  }
+}
+
+.tour-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 }
 
@@ -977,5 +1014,77 @@ function stopResize() {
   overflow-y: auto;
   padding: 12px 16px;
   background-color: #f3f4f6;
+}
+</style>
+
+<!-- Global styles for Driver.js tour popover -->
+<style lang="scss">
+.driver-popover.dorm-tour-popover {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+
+  .driver-popover-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .driver-popover-description {
+    color: #4b5563;
+    font-size: 0.925rem;
+    line-height: 1.5;
+  }
+
+  .driver-popover-progress-text {
+    color: #9ca3af;
+    font-size: 0.8rem;
+  }
+
+  .driver-popover-prev-btn,
+  .driver-popover-next-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+
+  .driver-popover-prev-btn {
+    background: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #d1d5db;
+
+    &:hover {
+      background: #e5e7eb;
+    }
+  }
+
+  .driver-popover-next-btn,
+  .driver-popover-close-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+
+    &:hover {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+  }
+
+  .driver-popover-close-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+
+  .driver-popover-arrow-side-left,
+  .driver-popover-arrow-side-right,
+  .driver-popover-arrow-side-top,
+  .driver-popover-arrow-side-bottom {
+    &.driver-popover-arrow {
+      border-color: white;
+    }
+  }
 }
 </style>
