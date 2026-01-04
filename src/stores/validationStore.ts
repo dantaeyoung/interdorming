@@ -61,7 +61,7 @@ export const useValidationStore = defineStore('validation', () => {
     const warnings: Record<string, string[]> = {}
 
     for (const [guestId, bedId] of assignmentStore.assignments.entries()) {
-      const bedWarnings = getWarningsForBed(bedId)
+      const bedWarnings = getWarningsForBed.value(bedId)
       if (bedWarnings.length > 0) {
         warnings[bedId] = bedWarnings
       }
