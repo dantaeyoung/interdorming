@@ -165,7 +165,7 @@ export function useCSV() {
         continue
       }
 
-      const guest: any = { id: `guest_${Date.now()}_${i}` }
+      const guest: any = { id: crypto.randomUUID() }
 
       // Map data using the column mappings
       Object.keys(columnMap).forEach(field => {

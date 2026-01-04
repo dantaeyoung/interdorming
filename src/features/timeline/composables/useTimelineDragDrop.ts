@@ -29,6 +29,10 @@ const pickState = ref<{
   hoverBedId: null,
 })
 
+// Reference counter for keyboard listener (singleton pattern)
+let keyboardListenerCount = 0
+let keyboardListenerAttached = false
+
 export function useTimelineDragDrop() {
   const assignmentStore = useAssignmentStore()
 
@@ -280,14 +284,32 @@ export function useTimelineDragDrop() {
     }
   }
 
-  // Set up keyboard listener
+  // Set up keyboard listener with reference counting to prevent memory leaks
   function setupKeyboardListener() {
-    document.addEventListener('keydown', handleKeyDown)
+    keyboardListenerCount++
+    if (!keyboardListenerAttached) {
+      document.addEventListener('keydown', handleKeyDown)
+      keyboardListenerAttached = true
+    }
   }
 
   function cleanupKeyboardListener() {
-    document.removeEventListener('keydown', handleKeyDown)
+    keyboardListenerCount--
+    if (keyboardListenerCount <= 0 && keyboardListenerAttached) {
+      document.removeEventListener('keydown', handleKeyDown)
+      keyboardListenerAttached = false
+      keyboardListenerCount = 0 // Reset to prevent negative counts
+    }
   }
+
+  // Automatically manage keyboard listener lifecycle
+  onMounted(() => {
+    setupKeyboardListener()
+  })
+
+  onUnmounted(() => {
+    cleanupKeyboardListener()
+  })
 
   return {
     // Drag state and functions

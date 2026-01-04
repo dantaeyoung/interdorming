@@ -34,12 +34,6 @@ export const useGuestStore = defineStore(
       return groups
     })
 
-    const unassignedGuests = computed(() => {
-      // This will be populated by assignment store
-      // For now, return all guests
-      return guests.value
-    })
-
     // Get sortGuests from useSortConfig composable
     const { sortGuests } = useSortConfig()
 
@@ -122,7 +116,6 @@ export const useGuestStore = defineStore(
       // Getters
       getGuestById,
       guestsByGroup,
-      unassignedGuests,
       filteredGuests,
 
       // Actions
