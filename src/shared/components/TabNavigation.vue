@@ -67,8 +67,11 @@ function selectTab(tabId: string) {
   transition: all 0.15s ease;
   position: relative;
   border-radius: 8px 8px 0 0;
-  // Overlap borders between tabs
-  margin-right: -3px;
+  // Gap between tabs
+  margin-right: 4px;
+  // Fixed height to prevent layout shift when font-weight changes
+  height: 38px;
+  box-sizing: border-box;
 
   &:hover:not(.active):not(.highlighted) {
     color: #374151;
@@ -88,6 +91,9 @@ function selectTab(tabId: string) {
 
   &:focus {
     outline: none;
+  }
+
+  &:focus-visible {
     box-shadow: inset 0 0 0 2px #93c5fd;
   }
 
