@@ -23,6 +23,12 @@
     <!-- Tab Navigation -->
     <TabNavigation v-model="activeTab" :tabs="tabs" @change="handleTabChange" />
 
+    <!-- Contextual Hints Banner -->
+    <HintBanner
+      @navigate="handleHintNavigate"
+      @action="handleHintAction"
+    />
+
     <!-- Guest Data Tab -->
     <div v-show="activeTab === 'guest-data'" class="tab-content">
       <GuestDataView @status="handleGuestDataStatus" />
@@ -198,6 +204,7 @@ import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal } from
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 
 // Feature components
+import { HintBanner } from '@/features/hints/components'
 import { GuestList, GuestSearch } from '@/features/guests/components'
 import { RoomList, ConfigRoomList } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
@@ -275,6 +282,71 @@ function handleAddGuestClick() {
 // Tab handlers
 function handleTabChange(tabId: string) {
   activeTab.value = tabId
+}
+
+// Hint banner handlers
+function handleHintNavigate(tab: string) {
+  // Map hint tab names to actual tab IDs
+  const tabMap: Record<string, string> = {
+    'guest-data': 'guest-data',
+    'guest-assignment': 'assignment',
+    'room-config': 'configuration',
+    'timeline': 'timeline',
+    'settings': 'settings',
+    'print': 'print',
+    'assignment': 'assignment',
+    'configuration': 'configuration',
+    'export': 'assignment', // Export is on assignment tab
+  }
+  const targetTab = tabMap[tab] || tab
+  activeTab.value = targetTab
+}
+
+function handleHintAction(action: string) {
+  switch (action) {
+    case 'upload-csv':
+      // Navigate to guest data tab where upload is
+      activeTab.value = 'guest-data'
+      break
+    case 'load-sample':
+      // Load sample data
+      handleLoadSampleData()
+      break
+    case 'export':
+      // Trigger export
+      handleExport()
+      break
+    default:
+      // For tab navigation, handleHintNavigate will handle it
+      break
+  }
+}
+
+async function handleLoadSampleData() {
+  try {
+    // First load default rooms if none exist
+    if (dormitoryStore.dormitories.length === 0) {
+      await handleLoadDefaultRooms()
+    }
+
+    // Then load sample guests
+    const sampleGuests = [
+      { id: crypto.randomUUID(), firstName: 'John', lastName: 'Smith', gender: 'M' as const, age: 45, groupName: 'Smith Family', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Jane', lastName: 'Smith', gender: 'F' as const, age: 42, groupName: 'Smith Family', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Tommy', lastName: 'Smith', gender: 'M' as const, age: 12, groupName: 'Smith Family', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Sarah', lastName: 'Johnson', gender: 'F' as const, age: 65, groupName: '', lowerBunk: true, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Michael', lastName: 'Chen', gender: 'M' as const, age: 35, groupName: '', lowerBunk: false, preferredName: 'Mike', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Emily', lastName: 'Davis', gender: 'F' as const, age: 28, groupName: 'Davis Sisters', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Anna', lastName: 'Davis', gender: 'F' as const, age: 25, groupName: 'Davis Sisters', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Robert', lastName: 'Wilson', gender: 'M' as const, age: 55, groupName: '', lowerBunk: true, preferredName: 'Bob', arrival: '', departure: '' },
+    ]
+
+    guestStore.importGuests(sampleGuests)
+    showStatus(`Loaded ${sampleGuests.length} sample guests`, 'success')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load sample data'
+    showStatus(`Error: ${errorMessage}`, 'error')
+  }
 }
 
 // Guest Data tab handlers
