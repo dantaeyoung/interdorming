@@ -82,11 +82,21 @@ function selectTab(tabId: string) {
     color: #1f2937;
     background-color: white;
     border-color: #9ca3af;
-    // White bottom border overlaps the container's gray border
-    border-bottom: 3px solid white;
+    border-bottom: none;
     font-weight: 600;
     // Bring active tab to front
     z-index: 1;
+
+    // White bar that extends beyond tab to cover the bottom border line
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: -1px;
+      right: -1px;
+      height: 3px;
+      background: white;
+    }
   }
 
   &:focus {
