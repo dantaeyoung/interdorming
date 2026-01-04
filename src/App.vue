@@ -675,15 +675,15 @@ function stopResize() {
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: white;
   padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .header-left {
@@ -694,10 +694,14 @@ function stopResize() {
   h1 {
     margin: 0;
     font-size: 1.125rem;
-    font-weight: 600;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 
     .branch-indicator {
-      color: #ff6b6b;
+      -webkit-text-fill-color: #ff6b6b;
       font-size: 0.875rem;
       font-weight: 500;
       margin-left: 8px;
@@ -709,8 +713,8 @@ function stopResize() {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
   color: white;
   font-size: 1rem;
   font-weight: 600;
@@ -719,11 +723,11 @@ function stopResize() {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.6);
     transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
   }
 
   &:active {

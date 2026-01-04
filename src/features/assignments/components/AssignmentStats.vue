@@ -44,42 +44,50 @@ const availableBeds = computed(() => totalBeds.value - assignedCount.value)
 <style scoped lang="scss">
 .assignment-stats {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .stat-card {
-  padding: 2px 10px;
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 6px;
   text-align: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-width: 60px;
+  min-width: 70px;
 }
 
 .stat-label {
-  font-size: 0.55rem;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.6rem;
+  color: #6b7280;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 
 .stat-value {
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   line-height: 1;
 
   &.text-warning {
-    color: #fcd34d;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
   }
 
   &.text-success {
-    color: #6ee7b7;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
   }
 }
 </style>
