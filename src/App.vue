@@ -21,11 +21,16 @@
     </div>
 
     <!-- Tab Navigation -->
-    <TabNavigation v-model="activeTab" :tabs="tabs" @change="handleTabChange" />
+    <TabNavigation
+      v-model="activeTab"
+      :tabs="tabs"
+      :highlighted-tab="highlightedTab"
+      @change="handleTabChange"
+    />
 
     <!-- Contextual Hints Banner -->
     <HintBanner
-      @navigate="handleHintNavigate"
+      :current-tab="activeTab"
       @action="handleHintAction"
     />
 
@@ -205,6 +210,7 @@ import { useSortConfig } from '@/shared/composables/useSortConfig'
 
 // Feature components
 import { HintBanner } from '@/features/hints/components'
+import { useHints } from '@/features/hints/composables/useHints'
 import { GuestList, GuestSearch } from '@/features/guests/components'
 import { RoomList, ConfigRoomList } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
@@ -240,6 +246,9 @@ onMounted(() => {
 
 // Tab state
 const activeTab = ref('guest-data')
+
+// Hints - get highlightedTab for TabNavigation
+const { highlightedTab } = useHints(activeTab)
 const tabs: Tab[] = [
   { id: 'guest-data', label: 'Guest Data' },
   { id: 'assignment', label: 'Table View' },
@@ -285,23 +294,6 @@ function handleTabChange(tabId: string) {
 }
 
 // Hint banner handlers
-function handleHintNavigate(tab: string) {
-  // Map hint tab names to actual tab IDs
-  const tabMap: Record<string, string> = {
-    'guest-data': 'guest-data',
-    'guest-assignment': 'assignment',
-    'room-config': 'configuration',
-    'timeline': 'timeline',
-    'settings': 'settings',
-    'print': 'print',
-    'assignment': 'assignment',
-    'configuration': 'configuration',
-    'export': 'assignment', // Export is on assignment tab
-  }
-  const targetTab = tabMap[tab] || tab
-  activeTab.value = targetTab
-}
-
 function handleHintAction(action: string) {
   switch (action) {
     case 'upload-csv':
@@ -315,9 +307,6 @@ function handleHintAction(action: string) {
     case 'export':
       // Trigger export
       handleExport()
-      break
-    default:
-      // For tab navigation, handleHintNavigate will handle it
       break
   }
 }

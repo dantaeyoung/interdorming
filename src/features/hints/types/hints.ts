@@ -5,8 +5,11 @@
 
 export type HintId =
   | 'no-rooms'
+  | 'no-rooms-on-config'
   | 'no-guests'
+  | 'no-guests-on-data'
   | 'no-assignments'
+  | 'no-assignments-on-table'
   | 'partial-assignments'
   | 'has-warnings'
   | 'all-assigned'
@@ -24,6 +27,8 @@ export interface Hint {
   action?: HintAction
   secondaryAction?: HintAction
   priority: number
+  /** Tab to highlight (instead of navigating) */
+  targetTab?: string
 }
 
 export interface HintState {

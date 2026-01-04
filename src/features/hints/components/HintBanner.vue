@@ -37,23 +37,25 @@
 </template>
 
 <script setup lang="ts">
+import { toRef } from 'vue'
 import { useHints } from '../composables/useHints'
 import type { HintAction } from '../types/hints'
 
+const props = defineProps<{
+  currentTab: string
+}>()
+
 const emit = defineEmits<{
-  navigate: [tab: string]
   action: [action: string]
 }>()
 
-const { currentHint, isCollapsed, dismissHint, collapseHints, expandHints } = useHints()
+const { currentHint, isCollapsed, dismissHint, collapseHints, expandHints } = useHints(toRef(props, 'currentTab'))
 
 function handleAction(action: HintAction) {
-  emit('action', action.action)
-
-  // Navigate to tab if it's a tab action
-  const tabActions = ['guest-data', 'guest-assignment', 'room-config', 'timeline', 'settings', 'print', 'assignment', 'configuration']
-  if (tabActions.includes(action.action)) {
-    emit('navigate', action.action)
+  // For 'highlight-tab' actions, the tab is already highlighted via useHints
+  // Just emit for non-highlight actions like 'upload-csv', 'load-sample', 'export'
+  if (action.action !== 'highlight-tab') {
+    emit('action', action.action)
   }
 }
 
