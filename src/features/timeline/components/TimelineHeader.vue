@@ -1,53 +1,54 @@
 <template>
   <div class="timeline-header">
-    <div class="header-left">
-      <h2 class="timeline-title">Timeline View</h2>
-      <div class="preset-buttons">
-        <button @click="setPreset('auto-detect')" class="btn-preset" :class="{ active: isAutoDetect }">
-          Auto-detect
-        </button>
-      </div>
-      <div class="date-pickers">
-        <div class="date-picker-group">
-          <label for="start-date">Start:</label>
-          <input
-            id="start-date"
-            type="date"
-            :value="startDateString"
-            @change="onStartDateChange"
-            class="date-input"
-          />
-        </div>
-        <div class="date-picker-group">
-          <label for="end-date">End:</label>
-          <input
-            id="end-date"
-            type="date"
-            :value="endDateString"
-            @change="onEndDateChange"
-            class="date-input"
-          />
-        </div>
-        <div class="date-range-info">{{ totalDays }} days</div>
-      </div>
-      <div class="zoom-control">
-        <label for="zoom-slider">Zoom:</label>
+    <h3 class="settings-title">Settings</h3>
+
+    <div class="settings-section">
+      <label class="section-label">Date Range</label>
+      <button @click="setPreset('auto-detect')" class="btn-preset" :class="{ active: isAutoDetect }">
+        Auto-detect
+      </button>
+      <div class="date-picker-group">
+        <label for="start-date">Start</label>
         <input
-          id="zoom-slider"
-          type="range"
-          min="10"
-          max="100"
-          step="10"
-          :value="columnWidth"
-          @input="onZoomChange"
-          class="zoom-slider"
+          id="start-date"
+          type="date"
+          :value="startDateString"
+          @change="onStartDateChange"
+          class="date-input"
         />
       </div>
+      <div class="date-picker-group">
+        <label for="end-date">End</label>
+        <input
+          id="end-date"
+          type="date"
+          :value="endDateString"
+          @change="onEndDateChange"
+          class="date-input"
+        />
+      </div>
+      <div class="date-range-info">{{ totalDays }} days</div>
+    </div>
+
+    <div class="settings-section">
+      <label class="section-label" for="zoom-slider">Zoom</label>
+      <input
+        id="zoom-slider"
+        type="range"
+        min="20"
+        max="100"
+        step="10"
+        :value="columnWidth"
+        @input="onZoomChange"
+        class="zoom-slider"
+      />
+    </div>
+
+    <div class="settings-section">
       <button @click="handleExportExcel" class="btn-export">
         Export Excel
       </button>
     </div>
-
   </div>
 </template>
 
@@ -184,47 +185,48 @@ function handleExportExcel() {
 
 <style scoped lang="scss">
 .timeline-header {
-  padding: 6px 20px;
+  padding: 12px;
   background-color: white;
-  border-bottom: 1px solid #e5e7eb;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex: 1;
-}
-
-.timeline-title {
+.settings-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #111827;
-  white-space: nowrap;
+  text-align: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.preset-buttons {
+.settings-section {
   display: flex;
+  flex-direction: column;
   gap: 6px;
-  flex-wrap: nowrap;
+}
+
+.section-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .btn-preset {
-  padding: 4px 10px;
-  font-size: 0.75rem;
+  padding: 4px 8px;
+  font-size: 0.65rem;
   font-weight: 500;
   color: #374151;
   background-color: #f3f4f6;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
   transition: all 0.2s;
-  white-space: nowrap;
+  width: 100%;
 
   &:hover {
     background-color: #e5e7eb;
@@ -238,34 +240,28 @@ function handleExportExcel() {
   }
 }
 
-.date-pickers {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: nowrap;
-}
-
 .date-picker-group {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
 
   label {
-    font-size: 0.75rem;
+    font-size: 0.6rem;
     font-weight: 500;
     color: #374151;
   }
 }
 
 .date-input {
-  padding: 4px 8px;
-  font-size: 0.75rem;
+  padding: 4px 6px;
+  font-size: 0.65rem;
   color: #111827;
   background-color: white;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
   transition: all 0.2s;
+  width: 100%;
 
   &:hover {
     border-color: #9ca3af;
@@ -274,34 +270,22 @@ function handleExportExcel() {
   &:focus {
     outline: none;
     border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
   }
 }
 
 .date-range-info {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: #6b7280;
   font-weight: 500;
-  padding: 4px 10px;
+  padding: 4px 8px;
   background-color: #f9fafb;
-  border-radius: 4px;
-}
-
-.zoom-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #374151;
-    white-space: nowrap;
-  }
+  border-radius: 3px;
+  text-align: center;
 }
 
 .zoom-slider {
-  width: 100px;
+  width: 100%;
   height: 4px;
   border-radius: 2px;
   background: #d1d5db;
@@ -340,16 +324,16 @@ function handleExportExcel() {
 }
 
 .btn-export {
-  padding: 4px 12px;
-  font-size: 0.75rem;
+  padding: 6px 10px;
+  font-size: 0.65rem;
   font-weight: 500;
   color: white;
   background-color: #10b981;
   border: 1px solid #10b981;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
   transition: all 0.2s;
-  white-space: nowrap;
+  width: 100%;
 
   &:hover {
     background-color: #059669;
