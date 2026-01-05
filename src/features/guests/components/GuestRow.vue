@@ -396,7 +396,10 @@ td {
   display: flex;
   gap: 4px;
   align-items: center;
+  justify-content: center;
   min-width: 100px;
+  vertical-align: middle;
+  border-bottom: none;
 }
 
 .btn-link-guest {
