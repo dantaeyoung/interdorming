@@ -1,6 +1,6 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'group-highlight': isGroupHighlighted }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'group-highlight': isGroupHighlighted, 'is-unassigned': isUnassigned }]"
     v-bind="draggableProps"
     @click="handleRowClick"
     @mouseenter="handleMouseEnter"
@@ -153,6 +153,8 @@ const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.gues
 
 const hasSuggestion = computed(() => assignmentStore.suggestedAssignments.has(props.guest.id))
 
+const isUnassigned = computed(() => !assignmentStore.assignments.has(props.guest.id))
+
 const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.id))
 
 const draggableProps = useDraggableGuest(props.guest.id)
@@ -251,6 +253,27 @@ function handleUnlink() {
     .family-dot {
       transform: scale(1.3);
       box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.4);
+    }
+  }
+
+  &.is-unassigned {
+    background: #fff0d9;
+    border: 2px dashed #9ca3af;
+    border-radius: 6px;
+
+    td {
+      background: transparent;
+      border-bottom: none;
+    }
+
+    td:first-child {
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+    }
+
+    td:last-child {
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
     }
   }
 }
