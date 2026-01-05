@@ -2,7 +2,11 @@
   <div class="config-room-list">
     <div class="config-header">
       <h3>Configure Dormitories & Rooms</h3>
-      <button @click="addDormitory" class="btn-add-dorm">
+      <button
+        @click="addDormitory"
+        class="btn-add-dorm"
+        :class="{ highlighted: highlightedElement === 'add-dormitory' }"
+      >
         + Add Dormitory
       </button>
     </div>
@@ -18,7 +22,7 @@
         :key="dormitory.dormitoryName"
         :dormitory="dormitory"
         @update="(updated) => updateDormitory(index, updated)"
-        @remove="removeDormitory(index)"
+        @remove="handleRemoveDormitory(index)"
       />
     </div>
   </div>
@@ -27,6 +31,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { useHints } from '@/features/hints/composables/useHints'
 import DormitoryConfigSection from './DormitoryConfigSection.vue'
 import type { Dormitory } from '@/types'
 
@@ -41,6 +46,7 @@ withDefaults(defineProps<Props>(), {
 })
 
 const dormitoryStore = useDormitoryStore()
+const { highlightedElement } = useHints()
 
 const dormitories = computed(() => dormitoryStore.dormitories)
 
@@ -48,10 +54,10 @@ function updateDormitory(index: number, updatedDormitory: Dormitory) {
   dormitoryStore.dormitories[index] = updatedDormitory
 }
 
-function removeDormitory(index: number) {
-  if (confirm(`Remove dormitory "${dormitories.value[index].dormitoryName}"? This will also remove all its rooms and beds.`)) {
-    dormitoryStore.dormitories.splice(index, 1)
-  }
+// DormitoryConfigSection handles the confirmation dialog and guest unassignment
+// This is called after user confirms the removal
+function handleRemoveDormitory(index: number) {
+  dormitoryStore.dormitories.splice(index, 1)
 }
 
 function addDormitory() {
@@ -94,10 +100,29 @@ function addDormitory() {
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 
   &:hover {
     background: #2563eb;
+  }
+
+  &.highlighted {
+    background: #10b981;
+    animation: btn-pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+
+    &:hover {
+      background: #059669;
+    }
+  }
+}
+
+@keyframes btn-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.2);
   }
 }
 

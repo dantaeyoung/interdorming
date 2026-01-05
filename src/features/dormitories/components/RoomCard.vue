@@ -9,12 +9,20 @@
       </div>
       <div class="room-actions">
         <button
+          v-if="roomSuggestionCount > 0"
+          @click="handleAcceptRoomSuggestions"
+          class="accept-room-btn"
+          title="Accept all suggestions for this room"
+        >
+          Accept ({{ roomSuggestionCount }})
+        </button>
+        <button
           v-if="hasAvailableBeds"
           @click="handleAutoPlaceRoom"
           class="auto-place-btn"
           title="Auto-place guests in this room only"
         >
-          Auto-fill
+          Auto-place
         </button>
         <div class="room-info">
           {{ occupiedCount }}/{{ room.beds.length }} beds
@@ -55,6 +63,12 @@ const hasAvailableBeds = computed(() => {
   return props.room.beds.some(bed => !bed.assignedGuestId && bed.active !== false)
 })
 
+const roomBedIds = computed(() => props.room.beds.map(bed => bed.bedId))
+
+const roomSuggestionCount = computed(() => {
+  return assignmentStore.getSuggestionsCountForRoom(roomBedIds.value)
+})
+
 const assignedGuests = computed(() => {
   return props.room.beds
     .filter(bed => bed.assignedGuestId)
@@ -86,6 +100,10 @@ function handleAutoPlaceRoom() {
   suggestions.forEach((bedId, guestId) => {
     assignmentStore.suggestedAssignments.set(guestId, bedId)
   })
+}
+
+function handleAcceptRoomSuggestions() {
+  assignmentStore.acceptSuggestionsForRoom(roomBedIds.value)
 }
 </script>
 
@@ -163,6 +181,28 @@ function handleAutoPlaceRoom() {
   &:hover {
     background: #3b82f6;
     color: white;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.accept-room-btn {
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: white;
+  background: #10b981;
+  border: 1px solid #10b981;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #059669;
+    border-color: #059669;
   }
 
   &:active {

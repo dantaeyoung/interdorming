@@ -21,14 +21,19 @@
           <input
             type="checkbox"
             v-model="localDormitory.active"
-            @change="handleUpdate"
+            @change="handleActiveChange"
           />
           <span>Active</span>
         </label>
-        <button @click="addRoom" class="btn-add" title="Add room">
+        <button
+          @click="addRoom"
+          class="btn-add"
+          :class="{ highlighted: highlightedElement === 'add-room' }"
+          title="Add room"
+        >
           + Room
         </button>
-        <button @click="$emit('remove')" class="btn-remove" title="Remove dormitory">
+        <button @click="handleRemoveDormitory" class="btn-remove" title="Remove dormitory">
           ✕ Dorm
         </button>
       </div>
@@ -43,12 +48,27 @@
         @remove="removeRoom(index)"
       />
     </div>
+
+    <ConfirmDialog
+      v-model="showConfirmDialog"
+      :title="confirmDialogTitle"
+      :message="confirmDialogMessage"
+      :description="confirmDialogDescription"
+      :variant="confirmDialogVariant"
+      confirm-text="Yes, proceed"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import RoomConfigCard from './RoomConfigCard.vue'
+import { ConfirmDialog } from '@/shared/components'
+import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useGuestStore } from '@/stores/guestStore'
+import { useHints } from '@/features/hints/composables/useHints'
 import type { Dormitory, Room } from '@/types'
 
 interface Props {
@@ -62,10 +82,23 @@ const emit = defineEmits<{
   remove: []
 }>()
 
+const assignmentStore = useAssignmentStore()
+const guestStore = useGuestStore()
+const { highlightedElement } = useHints()
+
 const localDormitory = ref<Dormitory>({
   ...props.dormitory,
   rooms: [...props.dormitory.rooms]
 })
+
+// Confirmation dialog state
+const showConfirmDialog = ref(false)
+const confirmDialogTitle = ref('Confirm Action')
+const confirmDialogMessage = ref('')
+const confirmDialogDescription = ref('')
+const confirmDialogVariant = ref<'danger' | 'warning'>('danger')
+const pendingAction = ref<(() => void) | null>(null)
+const previousActiveState = ref(true)
 
 watch(() => props.dormitory, (newDormitory) => {
   localDormitory.value = { ...newDormitory, rooms: [...newDormitory.rooms] }
@@ -73,6 +106,90 @@ watch(() => props.dormitory, (newDormitory) => {
 
 function handleUpdate() {
   emit('update', { ...localDormitory.value })
+}
+
+// Get all bed IDs in this dormitory
+function getDormitoryBedIds(): string[] {
+  const bedIds: string[] = []
+  for (const room of localDormitory.value.rooms) {
+    for (const bed of room.beds) {
+      bedIds.push(bed.bedId)
+    }
+  }
+  return bedIds
+}
+
+function getAssignedGuestNames(): string[] {
+  const bedIds = getDormitoryBedIds()
+  const guestIds = assignmentStore.getGuestsAssignedToDormitory(bedIds)
+  return guestIds.map(id => {
+    const guest = guestStore.guests.find(g => g.id === id)
+    return guest ? `${guest.preferredName || guest.firstName} ${guest.lastName}` : 'Unknown'
+  })
+}
+
+function handleConfirm() {
+  if (pendingAction.value) {
+    pendingAction.value()
+  }
+  showConfirmDialog.value = false
+  pendingAction.value = null
+}
+
+function handleCancel() {
+  showConfirmDialog.value = false
+  pendingAction.value = null
+  // Revert active state if canceling dormitory deactivation
+  if (localDormitory.value.active !== previousActiveState.value) {
+    localDormitory.value.active = previousActiveState.value
+  }
+}
+
+function handleActiveChange() {
+  previousActiveState.value = !localDormitory.value.active // Store the opposite since it already changed
+
+  // Check if dormitory is being deactivated and has assigned guests
+  if (!localDormitory.value.active) {
+    const assignedGuests = getAssignedGuestNames()
+    if (assignedGuests.length > 0) {
+      confirmDialogTitle.value = 'Deactivate Dormitory'
+      confirmDialogMessage.value = 'Deactivate this dormitory?'
+      confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to beds in this dormitory. Deactivating will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+      confirmDialogVariant.value = 'warning'
+      pendingAction.value = () => {
+        const bedIds = getDormitoryBedIds()
+        assignmentStore.unassignGuestsFromDormitory(bedIds)
+        handleUpdate()
+      }
+      showConfirmDialog.value = true
+      return
+    }
+  }
+
+  handleUpdate()
+}
+
+function handleRemoveDormitory() {
+  const assignedGuests = getAssignedGuestNames()
+
+  confirmDialogTitle.value = 'Remove Dormitory'
+  if (assignedGuests.length > 0) {
+    confirmDialogMessage.value = `Remove "${localDormitory.value.dormitoryName}"?`
+    confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to beds in this dormitory. Removing will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+  } else {
+    confirmDialogMessage.value = `Remove "${localDormitory.value.dormitoryName}"?`
+    confirmDialogDescription.value = 'This will also remove all rooms and beds in this dormitory. This action cannot be undone.'
+  }
+  confirmDialogVariant.value = 'danger'
+
+  pendingAction.value = () => {
+    if (assignedGuests.length > 0) {
+      const bedIds = getDormitoryBedIds()
+      assignmentStore.unassignGuestsFromDormitory(bedIds)
+    }
+    emit('remove')
+  }
+  showConfirmDialog.value = true
 }
 
 function updateRoom(index: number, updatedRoom: Room) {
@@ -181,11 +298,25 @@ function addRoom() {
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
   white-space: nowrap;
 
   &:hover {
     background: #059669;
+  }
+
+  &.highlighted {
+    animation: btn-pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+  }
+}
+
+@keyframes btn-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.3);
   }
 }
 

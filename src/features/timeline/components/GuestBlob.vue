@@ -1,11 +1,12 @@
 <template>
   <div
     class="guest-blob"
-    :class="{ 'has-warnings': hasWarnings, 'has-conflict': hasConflict }"
+    :class="{ 'has-warnings': hasWarnings, 'has-conflict': hasConflict, 'is-suggested': isSuggested, 'is-picked': props.isPicked }"
     :style="blobStyle"
     :draggable="true"
     @dragstart="onDragStart"
     @dragend="onDragEnd"
+    @click.stop="onBlobClick"
     @mouseenter="handleBlobMouseEnter"
     @mouseleave="handleBlobMouseLeave"
   >
@@ -15,6 +16,7 @@
         genderCode
       }}</span>
       <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
+      <span v-if="isSuggested" class="suggestion-badge">Suggested</span>
     </div>
     <!-- Warning icon - positioned on left edge -->
     <div v-if="hasWarnings" class="warning-icon" ref="warningIconRef">
@@ -22,6 +24,14 @@
     </div>
 
     <div class="guest-actions">
+      <div v-if="isSuggested" class="suggestion-actions">
+        <button @click.stop="acceptSuggestion" class="btn-accept" title="Accept suggestion">
+          ✓
+        </button>
+        <button @click.stop="rejectSuggestion" class="btn-reject" title="Reject suggestion">
+          ✗
+        </button>
+      </div>
       <button
         v-if="hasNotes"
         ref="notesButtonRef"
@@ -33,6 +43,7 @@
         📝
       </button>
       <button
+        v-if="!isSuggested"
         class="icon-button edit-icon"
         title="View/Edit guest details"
         @click.stop="onEditClick"
@@ -58,6 +69,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useValidationStore } from '@/stores/validationStore'
+import { useAssignmentStore } from '@/stores/assignmentStore'
 import type { GuestBlobData } from '../types/timeline'
 
 interface Props {
@@ -65,6 +77,7 @@ interface Props {
   hasConflict?: boolean
   stackPosition?: number
   stackCount?: number
+  isPicked?: boolean
 }
 
 const props = defineProps<Props>()
@@ -73,6 +86,7 @@ const emit = defineEmits<{
   dragStart: [guestId: string, bedId: string]
   dragEnd: []
   editGuest: [guestId: string]
+  pick: [guestId: string, bedId: string]
 }>()
 
 const showNotesTooltip = ref(false)
@@ -84,6 +98,12 @@ const warningTooltipPosition = ref({ top: '0px', left: '0px' })
 const warningIconRef = ref<HTMLDivElement | null>(null)
 
 const validationStore = useValidationStore()
+const assignmentStore = useAssignmentStore()
+
+const isSuggested = computed(() => {
+  const guestId = props.guestBlob.guestId
+  return assignmentStore.suggestedAssignments.has(guestId)
+})
 
 const warnings = computed(() => {
   const guestId = props.guestBlob.guestId
@@ -208,6 +228,27 @@ function handleBlobMouseEnter() {
 function handleBlobMouseLeave() {
   showWarningTooltip.value = false
 }
+
+function acceptSuggestion() {
+  assignmentStore.acceptSuggestion(props.guestBlob.guestId)
+}
+
+function rejectSuggestion() {
+  assignmentStore.suggestedAssignments.delete(props.guestBlob.guestId)
+}
+
+/**
+ * Handle click on the blob for pick-to-place functionality
+ */
+function onBlobClick(event: MouseEvent) {
+  // Don't trigger pick if clicking on buttons or if it's a suggested guest
+  const target = event.target as HTMLElement
+  if (target.closest('button') || isSuggested.value) {
+    return
+  }
+
+  emit('pick', props.guestBlob.guestId, props.guestBlob.bedId)
+}
 </script>
 
 <style scoped lang="scss">
@@ -243,6 +284,35 @@ function handleBlobMouseLeave() {
     background: #fef2f2;
     border: 2px solid #ef4444;
     color: #991b1b;
+  }
+
+  &.is-suggested {
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+    border: 2px solid #93c5fd;
+    opacity: 0.85;
+
+    &:hover {
+      opacity: 1;
+      border-color: #3b82f6;
+    }
+  }
+
+  &.is-picked {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 3px solid #f59e0b;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
+    transform: scale(1.05);
+    z-index: 100;
+    animation: pulse-pick 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-pick {
+    0%, 100% {
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.8), 0 6px 12px rgba(0, 0, 0, 0.4);
+    }
   }
 
   &:hover {
@@ -310,6 +380,19 @@ function handleBlobMouseLeave() {
   font-weight: 500;
 }
 
+.suggestion-badge {
+  display: inline-block;
+  background-color: #3b82f6;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .guest-actions {
   display: flex;
   gap: 4px;
@@ -328,6 +411,48 @@ function handleBlobMouseLeave() {
 .guest-blob:hover {
   .guest-actions .edit-icon {
     opacity: 1;
+  }
+}
+
+.suggestion-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-accept,
+.btn-reject {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+.btn-accept {
+  background-color: #10b981;
+  color: white;
+
+  &:hover {
+    background-color: #059669;
+  }
+}
+
+.btn-reject {
+  background-color: #ef4444;
+  color: white;
+
+  &:hover {
+    background-color: #dc2626;
   }
 }
 

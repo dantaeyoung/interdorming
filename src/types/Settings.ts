@@ -31,6 +31,7 @@ export interface Settings {
   warnings: WarningSettings
   display: DisplaySettings
   autoPlacement: AutoPlacementSettings
+  developerMode: boolean
   version: string
 }
 
@@ -50,7 +51,6 @@ export const DEFAULT_SETTINGS: Settings = {
   autoPlacement: {
     enabled: true,
     priorities: [
-      { name: 'gender', weight: 10, enabled: true, label: 'Gender Matching' },
       {
         name: 'genderedRoomPreference',
         weight: 9,
@@ -64,10 +64,10 @@ export const DEFAULT_SETTINGS: Settings = {
         enabled: true,
         label: 'Fill Up As Few Dorms As Possible',
       },
-      { name: 'bunkPreference', weight: 6, enabled: true, label: 'Bunk Preferences' },
       { name: 'ageCompatibility', weight: 4, enabled: false, label: 'Age Compatibility' },
     ],
     allowConstraintRelaxation: true,
   },
+  developerMode: false,
   version: '1.0',
 }

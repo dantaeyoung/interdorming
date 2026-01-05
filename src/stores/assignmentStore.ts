@@ -18,6 +18,7 @@ export const useAssignmentStore = defineStore(
     const assignments = ref<AssignmentMap>(new Map())
     const suggestedAssignments = ref<SuggestedAssignmentMap>(new Map())
     const assignmentHistory = ref<HistoryState[]>([])
+    const redoHistory = ref<HistoryState[]>([])
     const pickedUpGuestId = ref<string | null>(null)
 
     // Getters
@@ -39,6 +40,7 @@ export const useAssignmentStore = defineStore(
     })
 
     const canUndo = computed(() => assignmentHistory.value.length > 0)
+    const canRedo = computed(() => redoHistory.value.length > 0)
 
     const unassignedGuestIds = computed(() => {
       const guestStore = useGuestStore()
@@ -53,6 +55,57 @@ export const useAssignmentStore = defineStore(
     })
 
     const hasSuggestions = computed(() => suggestedAssignments.value.size > 0)
+
+    // Get all guests assigned to a specific bed
+    function getGuestsAssignedToBed(bedId: string): string[] {
+      const guests: string[] = []
+      for (const [guestId, assignedBedId] of assignments.value.entries()) {
+        if (assignedBedId === bedId) {
+          guests.push(guestId)
+        }
+      }
+      return guests
+    }
+
+    // Get all guests assigned to beds in a specific room
+    function getGuestsAssignedToRoom(roomBedIds: string[]): string[] {
+      const guests: string[] = []
+      for (const [guestId, assignedBedId] of assignments.value.entries()) {
+        if (roomBedIds.includes(assignedBedId)) {
+          guests.push(guestId)
+        }
+      }
+      return guests
+    }
+
+    // Get all guests assigned to beds in a specific dormitory
+    function getGuestsAssignedToDormitory(dormitoryBedIds: string[]): string[] {
+      const guests: string[] = []
+      for (const [guestId, assignedBedId] of assignments.value.entries()) {
+        if (dormitoryBedIds.includes(assignedBedId)) {
+          guests.push(guestId)
+        }
+      }
+      return guests
+    }
+
+    // Unassign all guests from a specific bed
+    function unassignGuestsFromBed(bedId: string) {
+      const guests = getGuestsAssignedToBed(bedId)
+      guests.forEach(guestId => unassignGuest(guestId, true))
+    }
+
+    // Unassign all guests from beds in a room
+    function unassignGuestsFromRoom(roomBedIds: string[]) {
+      const guests = getGuestsAssignedToRoom(roomBedIds)
+      guests.forEach(guestId => unassignGuest(guestId, true))
+    }
+
+    // Unassign all guests from beds in a dormitory
+    function unassignGuestsFromDormitory(dormitoryBedIds: string[]) {
+      const guests = getGuestsAssignedToDormitory(dormitoryBedIds)
+      guests.forEach(guestId => unassignGuest(guestId, true))
+    }
 
     // Actions
     function assignGuestToBed(guestId: string, bedId: string, skipHistory = false) {
@@ -192,6 +245,9 @@ export const useAssignmentStore = defineStore(
 
       assignmentHistory.value.push(state)
 
+      // Clear redo history when new action is taken
+      redoHistory.value = []
+
       // Limit history size
       if (assignmentHistory.value.length > HISTORY_SIZE) {
         assignmentHistory.value.shift()
@@ -202,6 +258,14 @@ export const useAssignmentStore = defineStore(
       if (assignmentHistory.value.length === 0) return
 
       const dormitoryStore = useDormitoryStore()
+
+      // Save current state to redo history before undoing
+      const currentState: HistoryState = {
+        assignments: new Map(assignments.value),
+        rooms: JSON.parse(JSON.stringify(dormitoryStore.getAllRooms)),
+        dormitories: JSON.parse(JSON.stringify(dormitoryStore.dormitories)),
+      }
+      redoHistory.value.push(currentState)
 
       const previousState = assignmentHistory.value.pop()!
 
@@ -216,8 +280,66 @@ export const useAssignmentStore = defineStore(
       }
     }
 
+    function redo() {
+      if (redoHistory.value.length === 0) return
+
+      const dormitoryStore = useDormitoryStore()
+
+      // Save current state to undo history before redoing
+      const currentState: HistoryState = {
+        assignments: new Map(assignments.value),
+        rooms: JSON.parse(JSON.stringify(dormitoryStore.getAllRooms)),
+        dormitories: JSON.parse(JSON.stringify(dormitoryStore.dormitories)),
+      }
+      assignmentHistory.value.push(currentState)
+
+      const nextState = redoHistory.value.pop()!
+
+      // Restore assignments
+      assignments.value = new Map(nextState.assignments)
+
+      // Restore dormitory structure
+      if (nextState.dormitories) {
+        dormitoryStore.importDormitories(
+          JSON.parse(JSON.stringify(nextState.dormitories))
+        )
+      }
+    }
+
     function clearHistory() {
       assignmentHistory.value = []
+      redoHistory.value = []
+    }
+
+    // Accept suggestions only for beds in a specific room
+    function acceptSuggestionsForRoom(roomBedIds: string[]) {
+      const suggestionsToAccept: [string, string][] = []
+
+      for (const [guestId, bedId] of suggestedAssignments.value.entries()) {
+        if (roomBedIds.includes(bedId)) {
+          suggestionsToAccept.push([guestId, bedId])
+        }
+      }
+
+      if (suggestionsToAccept.length === 0) return
+
+      saveToHistory()
+
+      for (const [guestId, bedId] of suggestionsToAccept) {
+        assignGuestToBed(guestId, bedId, true)
+        suggestedAssignments.value.delete(guestId)
+      }
+    }
+
+    // Get count of suggestions for a specific room
+    function getSuggestionsCountForRoom(roomBedIds: string[]): number {
+      let count = 0
+      for (const [, bedId] of suggestedAssignments.value.entries()) {
+        if (roomBedIds.includes(bedId)) {
+          count++
+        }
+      }
+      return count
     }
 
     // Auto-placement using weighted scoring algorithm
@@ -253,6 +375,7 @@ export const useAssignmentStore = defineStore(
       getAssignmentByGuest,
       getAssignmentByBed,
       canUndo,
+      canRedo,
       unassignedGuestIds,
       assignedCount,
       unassignedCount,
@@ -271,8 +394,17 @@ export const useAssignmentStore = defineStore(
       clearSuggestions,
       saveToHistory,
       undo,
+      redo,
       clearHistory,
       autoPlace,
+      acceptSuggestionsForRoom,
+      getSuggestionsCountForRoom,
+      getGuestsAssignedToBed,
+      getGuestsAssignedToRoom,
+      getGuestsAssignedToDormitory,
+      unassignGuestsFromBed,
+      unassignGuestsFromRoom,
+      unassignGuestsFromDormitory,
     }
   },
   {

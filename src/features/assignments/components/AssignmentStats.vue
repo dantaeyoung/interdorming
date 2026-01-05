@@ -44,20 +44,20 @@ const availableBeds = computed(() => totalBeds.value - assignedCount.value)
 <style scoped lang="scss">
 .assignment-stats {
   display: flex;
-  gap: 6px;
-  padding: 4px 12px;
-  background-color: white;
-  border-bottom: 1px solid #e5e7eb;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .stat-card {
-  flex: 1;
-  padding: 3px 8px;
-  background-color: #f9fafb;
-  border-radius: 4px;
-  border: 1px solid #e5e7eb;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.08) 0%, rgba(146, 64, 14, 0.08) 100%);
+  border: 1px solid rgba(180, 83, 9, 0.2);
+  border-radius: 6px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 70px;
 }
 
 .stat-label {
@@ -66,20 +66,28 @@ const availableBeds = computed(() => totalBeds.value - assignedCount.value)
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 
 .stat-value {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: #1f2937;
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
 
   &.text-warning {
-    color: #f59e0b;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
   }
 
   &.text-success {
-    color: #10b981;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
   }
 }
 </style>

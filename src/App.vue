@@ -2,46 +2,62 @@
   <div id="app" class="app-container">
     <!-- Header -->
     <div class="header">
-      <h1>Dorm Assignment Tool</h1>
-      <p>Drag and drop guests to assign them to dormitory beds</p>
+      <div class="header-left">
+        <h1>
+          Interdorming: Dorm Assignment Tool
+          <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
+            ({{ currentBranch }} branch)
+          </span>
+        </h1>
+        <button class="tour-btn" @click="startTour" title="Take a guided tour">
+          ?
+        </button>
+        <!-- Contextual Hints Toast -->
+        <HintBanner
+          :current-tab="activeTab"
+          @action="handleHintAction"
+        />
+      </div>
+      <div class="header-right">
+        <Transition name="status-fade">
+          <div v-if="statusMessage" class="header-status" :class="statusMessageType">
+            {{ statusMessage }}
+          </div>
+        </Transition>
+        <AssignmentStats class="header-stats" data-tour="header-stats" />
+      </div>
     </div>
 
     <!-- Tab Navigation -->
-    <TabNavigation v-model="activeTab" :tabs="tabs" @change="handleTabChange" />
+    <TabNavigation
+      v-model="activeTab"
+      :tabs="tabs"
+      :highlighted-tab="highlightedTab"
+      @change="handleTabChange"
+    />
+
+    <!-- Guest Data Tab -->
+    <div v-show="activeTab === 'guest-data'" class="tab-content">
+      <GuestDataView @status="handleGuestDataStatus" />
+    </div>
 
     <!-- Guest Assignment Tab -->
     <div v-show="activeTab === 'assignment'" class="tab-content">
-      <!-- Combined Upload & Toolbar Section -->
+      <!-- Toolbar Section -->
       <div class="combined-toolbar">
         <div class="toolbar-left-section">
-          <GuestCSVUpload
-            label=""
-            :show-load-test="true"
-            @upload-success="handleUploadSuccess"
-            @upload-error="handleUploadError"
-            @load-test-data="handleLoadTestData"
-          />
+          <button class="btn-sort" @click="showSortModal = true" :title="sortDescription">
+            <span class="sort-icon">↕</span>
+            Sort
+            <span v-if="hasSortLevels" class="sort-indicator">*</span>
+          </button>
         </div>
-
         <div class="toolbar-right-section">
           <AssignmentToolbar
-            @auto-place="handleAutoPlace"
-            @accept-all="handleAcceptAll"
-            @clear-suggestions="handleClearSuggestions"
-            @undo="handleUndo"
             @export="handleExport"
-            @reset-assignments="handleResetAssignments"
-            @delete-all="handleDeleteAll"
+            @export-excel="handleExportExcel"
           />
         </div>
-      </div>
-
-      <!-- Assignment Stats -->
-      <AssignmentStats />
-
-      <!-- Status Message -->
-      <div v-if="statusMessage" class="status-message" :class="statusMessageType">
-        {{ statusMessage }}
       </div>
 
       <!-- Two-Panel Layout -->
@@ -54,14 +70,16 @@
               <span class="card-subtitle">({{ unassignedCount }})</span>
             </div>
             <div class="card-body">
-              <!-- Search - Fixed at top -->
+              <!-- Search and Add Guest - Fixed at top -->
               <div class="search-section">
                 <GuestSearch />
+                <button class="btn-add-guest-sm" @click="handleAddGuestClick">+ Add</button>
               </div>
 
               <!-- Guest List - Scrollable -->
               <div class="panel-content">
                 <GuestList
+                  ref="guestListRef"
                   :show-assigned="false"
                   empty-title="No guests loaded"
                   empty-message="Upload a CSV file to begin assigning guests to dormitory beds."
@@ -83,8 +101,17 @@
         <div class="panel right-panel" :style="{ flexBasis: `calc(${rightPanelWidth}% - 4px)` }">
           <div class="card">
             <div class="card-header">
-              <h3 class="card-title">Room Assignments</h3>
-              <span class="card-subtitle">({{ assignedCount }})</span>
+              <div class="card-header-left">
+                <h3 class="card-title">Room Assignments</h3>
+                <span class="card-subtitle">({{ assignedCount }})</span>
+                <button
+                  class="btn btn-auto-place"
+                  :disabled="guestStore.guests.length === 0"
+                  @click="handleAutoPlace"
+                >
+                  Auto-place
+                </button>
+              </div>
             </div>
             <div class="card-body">
               <div class="panel-content">
@@ -156,27 +183,49 @@
       @confirm="handleConfirmDialogConfirm"
       @cancel="handleConfirmDialogCancel"
     />
+
+    <!-- Sort Config Modal -->
+    <SortConfigModal
+      :show="showSortModal"
+      @close="showSortModal = false"
+    />
+
+    <!-- Floating Action Bar - visible on Table View and Timeline View -->
+    <FloatingActionBar
+      v-if="activeTab === 'assignment' || activeTab === 'timeline'"
+      @undo="handleUndo"
+      @redo="handleRedo"
+      @reset-assignments="handleResetAssignments"
+      @accept-all="handleAcceptAll"
+      @clear-suggestions="handleClearSuggestions"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 
 // Shared components
-import { TabNavigation, ConfirmDialog } from '@/shared/components'
+import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal } from '@/shared/components'
+import { useSortConfig } from '@/shared/composables/useSortConfig'
 
 // Feature components
+import { HintBanner } from '@/features/hints/components'
+import { useHints } from '@/features/hints/composables/useHints'
+import { useTour } from '@/features/hints/composables/useTour'
 import { GuestList, GuestSearch } from '@/features/guests/components'
 import { RoomList, ConfigRoomList } from '@/features/dormitories/components'
-import { GuestCSVUpload, RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
+import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
 import { PrintView } from '@/features/print/components'
 import { TimelineView } from '@/features/timeline/components'
+import { GuestDataView } from '@/features/guest-data/components'
 
 // Composables
 import { useCSV } from '@/features/csv/composables/useCSV'
+import { useExcelExport } from '@/features/export/composables/useExcelExport'
 
 import type { Guest } from '@/types'
 import type { Tab } from '@/shared/components/TabNavigation.vue'
@@ -186,10 +235,34 @@ const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
 
-// Tab state
-const activeTab = ref('assignment')
+// Sort configuration
+const { hasSortLevels, sortDescription } = useSortConfig()
+const showSortModal = ref(false)
+
+// Git branch detection
+const currentBranch = ref<string | null>(null)
+
+onMounted(() => {
+  // Try to detect git branch from environment variable (set during build)
+  currentBranch.value = import.meta.env.VITE_GIT_BRANCH || null
+})
+
+// Tab state - restore from localStorage or default to 'guest-data'
+const ACTIVE_TAB_KEY = 'dormAssignments-activeTab'
+const savedTab = localStorage.getItem(ACTIVE_TAB_KEY)
+const validTabs = ['guest-data', 'assignment', 'timeline', 'configuration', 'print', 'settings']
+const activeTab = ref(savedTab && validTabs.includes(savedTab) ? savedTab : 'guest-data')
+
+// Hints - get highlightedTab for TabNavigation
+const { highlightedTab } = useHints(activeTab)
+
+// Tour - pass handleTabChange so tour can switch tabs when highlighting them
+const { startTour, hasSeenTour } = useTour({
+  switchTab: (tabId: string) => handleTabChange(tabId)
+})
 const tabs: Tab[] = [
-  { id: 'assignment', label: 'Guest Assignment' },
+  { id: 'guest-data', label: 'Guest Data' },
+  { id: 'assignment', label: 'Table View' },
   { id: 'timeline', label: 'Timeline View' },
   { id: 'configuration', label: 'Room Configuration' },
   { id: 'print', label: 'Print' },
@@ -219,48 +292,68 @@ const confirmDialog = ref({
 const unassignedCount = computed(() => assignmentStore.unassignedCount)
 const assignedCount = computed(() => assignmentStore.assignedCount)
 
+// Guest list ref for add guest modal
+const guestListRef = ref<InstanceType<typeof GuestList> | null>(null)
+
+function handleAddGuestClick() {
+  guestListRef.value?.openAddModal()
+}
+
 // Tab handlers
 function handleTabChange(tabId: string) {
   activeTab.value = tabId
+  // Persist to localStorage
+  localStorage.setItem(ACTIVE_TAB_KEY, tabId)
 }
 
-// CSV Upload handlers
-function handleUploadSuccess(guests: Guest[]) {
-  showStatus(`Successfully loaded ${guests.length} guests`, 'success')
-}
-
-function handleUploadError(error: string) {
-  showStatus(`Error: ${error}`, 'error')
-}
-
-async function handleLoadTestData() {
-  try {
-    // Fetch test guest data from public folder
-    const response = await fetch('/test_guests.csv')
-    if (!response.ok) {
-      throw new Error('Failed to fetch test data')
-    }
-
-    const csvText = await response.text()
-
-    // Parse CSV using the CSV composable
-    const { useCSV } = await import('@/features/csv/composables/useCSV')
-    const { parseGuestCSV } = useCSV()
-    const guests = parseGuestCSV(csvText)
-
-    // Import guests into store
-    guestStore.importGuests(guests)
-
-    // Initialize default dormitories if none exist
-    if (dormitoryStore.dormitories.length === 0) {
-      dormitoryStore.initializeDefaultDormitories()
-    }
-
-    showStatus(`Successfully loaded ${guests.length} test guests and default room configuration`, 'success')
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to load test data'
-    showStatus(`Error loading test data: ${errorMessage}`, 'error')
+// Hint banner handlers
+function handleHintAction(action: string) {
+  switch (action) {
+    case 'upload-csv':
+      // Navigate to guest data tab where upload is
+      handleTabChange('guest-data')
+      break
+    case 'load-sample':
+      // Load sample data
+      handleLoadSampleData()
+      break
+    case 'export':
+      // Trigger export
+      handleExport()
+      break
   }
+}
+
+async function handleLoadSampleData() {
+  try {
+    // First load default rooms if none exist
+    if (dormitoryStore.dormitories.length === 0) {
+      await handleLoadDefaultRooms()
+    }
+
+    // Then load sample guests
+    const sampleGuests = [
+      { id: crypto.randomUUID(), firstName: 'John', lastName: 'Smith', gender: 'M' as const, age: 45, groupName: 'Smith Family', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Jane', lastName: 'Smith', gender: 'F' as const, age: 42, groupName: 'Smith Family', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Tommy', lastName: 'Smith', gender: 'M' as const, age: 12, groupName: 'Smith Family', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Sarah', lastName: 'Johnson', gender: 'F' as const, age: 65, groupName: '', lowerBunk: true, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Michael', lastName: 'Chen', gender: 'M' as const, age: 35, groupName: '', lowerBunk: false, preferredName: 'Mike', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Emily', lastName: 'Davis', gender: 'F' as const, age: 28, groupName: 'Davis Sisters', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Anna', lastName: 'Davis', gender: 'F' as const, age: 25, groupName: 'Davis Sisters', lowerBunk: false, preferredName: '', arrival: '', departure: '' },
+      { id: crypto.randomUUID(), firstName: 'Robert', lastName: 'Wilson', gender: 'M' as const, age: 55, groupName: '', lowerBunk: true, preferredName: 'Bob', arrival: '', departure: '' },
+    ]
+
+    guestStore.importGuests(sampleGuests)
+    showStatus(`Loaded ${sampleGuests.length} sample guests`, 'success')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load sample data'
+    showStatus(`Error: ${errorMessage}`, 'error')
+  }
+}
+
+// Guest Data tab handlers
+function handleGuestDataStatus(message: string, type: 'success' | 'error' | 'info') {
+  showStatus(message, type)
 }
 
 // Assignment toolbar handlers
@@ -269,15 +362,15 @@ function handleAutoPlace() {
     const result = assignmentStore.autoPlace()
 
     if (result.placedCount === 0) {
-      showStatus('No placements made. Check settings or room availability.', 'info')
+      showStatus('No suggestions made. Check settings or room availability.', 'info')
     } else if (result.unplacedCount === 0) {
       showStatus(
-        `Auto-placement complete! All ${result.placedCount} guests successfully assigned.`,
+        `${result.placedCount} suggested placements created. Accept or adjust them, then click "Accept All".`,
         'success'
       )
     } else {
       showStatus(
-        `Auto-placement complete: ${result.placedCount} guests assigned, ${result.unplacedCount} remaining unplaced.`,
+        `${result.placedCount} suggestions created, ${result.unplacedCount} guests could not be placed.`,
         'info'
       )
     }
@@ -314,6 +407,11 @@ function handleClearSuggestions() {
 function handleUndo() {
   assignmentStore.undo()
   showStatus('Undone', 'success')
+}
+
+function handleRedo() {
+  assignmentStore.redo()
+  showStatus('Redone', 'success')
 }
 
 function handleExport() {
@@ -363,6 +461,17 @@ function handleExport() {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to export CSV'
     showStatus(`Error exporting CSV: ${errorMessage}`, 'error')
+  }
+}
+
+function handleExportExcel() {
+  try {
+    const { exportAssignmentsToExcel } = useExcelExport()
+    exportAssignmentsToExcel()
+    showStatus('Excel file exported successfully', 'success')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to export Excel'
+    showStatus(`Error exporting Excel: ${errorMessage}`, 'error')
   }
 }
 
@@ -572,25 +681,110 @@ function stopResize() {
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: white;
   padding: 8px 16px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 
   h1 {
     margin: 0;
     font-size: 1.125rem;
-    font-weight: 600;
+    font-weight: 700;
+    background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+
+    .branch-indicator {
+      -webkit-text-fill-color: #ff6b6b;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+  }
+}
+
+.tour-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+  border: none;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(180, 83, 9, 0.3);
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(180, 83, 9, 0.4);
   }
 
-  p {
-    display: none;
+  &:active {
+    transform: scale(0.95);
   }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.header-status {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &.success {
+    background-color: rgba(209, 250, 229, 0.95);
+    color: #065f46;
+    border: 1px solid rgba(110, 231, 183, 0.8);
+  }
+
+  &.error {
+    background-color: rgba(254, 226, 226, 0.95);
+    color: #991b1b;
+    border: 1px solid rgba(252, 165, 165, 0.8);
+  }
+
+  &.info {
+    background-color: rgba(219, 234, 254, 0.95);
+    color: #1e40af;
+    border: 1px solid rgba(147, 197, 253, 0.8);
+  }
+}
+
+// Status fade transition - fast in (300ms), slow out (2s)
+.status-fade-enter-active {
+  transition: opacity 0.3s ease-out;
+}
+
+.status-fade-leave-active {
+  transition: opacity 2s ease-in;
+}
+
+.status-fade-enter-from,
+.status-fade-leave-to {
+  opacity: 0;
 }
 
 .tab-content {
@@ -621,30 +815,33 @@ function stopResize() {
   flex: 1;
 }
 
-.status-message {
-  padding: 8px 16px;
-  margin: 8px 16px 0;
-  border-radius: 6px;
-  font-size: 0.875rem;
+.btn-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8rem;
   font-weight: 500;
-  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
 
-  &.success {
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #6ee7b7;
+  &:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
   }
 
-  &.error {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fca5a5;
+  .sort-icon {
+    font-size: 0.9rem;
   }
 
-  &.info {
-    background-color: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #93c5fd;
+  .sort-indicator {
+    color: #3b82f6;
+    font-weight: 700;
   }
 }
 
@@ -729,6 +926,34 @@ function stopResize() {
   font-weight: 500;
 }
 
+.card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-auto-place {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+  background-color: #3b82f6;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background-color: #2563eb;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 .card-body {
   flex: 1;
   overflow: hidden;
@@ -741,6 +966,26 @@ function stopResize() {
   background: white;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-add-guest-sm {
+  padding: 6px 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #2563eb;
+  }
 }
 
 .panel-content {
@@ -779,5 +1024,77 @@ function stopResize() {
   overflow-y: auto;
   padding: 12px 16px;
   background-color: #f3f4f6;
+}
+</style>
+
+<!-- Global styles for Driver.js tour popover -->
+<style lang="scss">
+.driver-popover.dorm-tour-popover {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+
+  .driver-popover-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .driver-popover-description {
+    color: #4b5563;
+    font-size: 0.925rem;
+    line-height: 1.5;
+  }
+
+  .driver-popover-progress-text {
+    color: #9ca3af;
+    font-size: 0.8rem;
+  }
+
+  .driver-popover-prev-btn,
+  .driver-popover-next-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+
+  .driver-popover-prev-btn {
+    background: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #d1d5db;
+
+    &:hover {
+      background: #e5e7eb;
+    }
+  }
+
+  .driver-popover-next-btn,
+  .driver-popover-close-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+
+    &:hover {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+  }
+
+  .driver-popover-close-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+
+  .driver-popover-arrow-side-left,
+  .driver-popover-arrow-side-right,
+  .driver-popover-arrow-side-top,
+  .driver-popover-arrow-side-bottom {
+    &.driver-popover-arrow {
+      border-color: white;
+    }
+  }
 }
 </style>

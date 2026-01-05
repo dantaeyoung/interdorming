@@ -8,7 +8,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useGuestStore } from './guestStore'
 import { useAssignmentStore } from './assignmentStore'
-import type { TimelineConfig, DateRangePreset } from '@/features/timeline/types/timeline'
+import type { TimelineConfig } from '@/features/timeline/types/timeline'
+import { DateRangePreset } from '@/features/timeline/types/timeline'
 
 export const useTimelineStore = defineStore(
   'timeline',
@@ -117,21 +118,27 @@ export const useTimelineStore = defineStore(
       guestStore.guests.forEach(guest => {
         if (guest.arrival) {
           const arrivalDate = new Date(guest.arrival)
-          if (!earliestArrival || arrivalDate < earliestArrival) {
-            earliestArrival = arrivalDate
+          arrivalDate.setHours(0, 0, 0, 0)
+          if (!isNaN(arrivalDate.getTime())) {
+            if (!earliestArrival || arrivalDate < earliestArrival) {
+              earliestArrival = arrivalDate
+            }
           }
         }
         if (guest.departure) {
           const departureDate = new Date(guest.departure)
-          if (!latestDeparture || departureDate > latestDeparture) {
-            latestDeparture = departureDate
+          departureDate.setHours(0, 0, 0, 0)
+          if (!isNaN(departureDate.getTime())) {
+            if (!latestDeparture || departureDate > latestDeparture) {
+              latestDeparture = departureDate
+            }
           }
         }
       })
 
       if (earliestArrival && latestDeparture) {
-        config.value.dateRangeStart = earliestArrival
-        config.value.dateRangeEnd = latestDeparture
+        config.value.dateRangeStart = new Date(earliestArrival)
+        config.value.dateRangeEnd = new Date(latestDeparture)
       } else {
         // Fallback to next 7 days
         setDateRangePreset(DateRangePreset.NEXT_7_DAYS)

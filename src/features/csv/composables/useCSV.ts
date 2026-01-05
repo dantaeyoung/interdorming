@@ -6,6 +6,15 @@
 import { CSV_FIELD_MAPPINGS } from '@/types'
 import type { Guest, GuestCSVRow } from '@/types'
 
+/**
+ * Result of CSV parsing with guests and any warnings
+ */
+export interface CSVParseResult {
+  guests: Guest[]
+  warnings: string[]
+  totalRows: number
+}
+
 export function useCSV() {
   /**
    * Parses a CSV row handling quoted fields and escaped quotes
@@ -118,7 +127,7 @@ export function useCSV() {
   /**
    * Parses CSV text into guest objects
    */
-  function parseGuestCSV(csvText: string): Guest[] {
+  function parseGuestCSV(csvText: string): CSVParseResult {
     const lines = csvText.trim().split('\n')
     if (lines.length < 2) {
       throw new Error('CSV must have at least a header row and one data row')
@@ -142,13 +151,21 @@ export function useCSV() {
     const invalidRows: string[] = []
 
     for (let i = 1; i < lines.length; i++) {
-      const values = parseCSVRow(lines[i])
+      const rawRow = lines[i]
+      const values = parseCSVRow(rawRow)
+
+      // Helper to get row preview for error messages
+      const getRowPreview = () => {
+        const preview = rawRow.substring(0, 40)
+        return preview.length < rawRow.length ? `${preview}...` : preview
+      }
+
       if (values.length !== headers.length) {
-        invalidRows.push(`Row ${i + 1}: Expected ${headers.length} columns, got ${values.length}`)
+        invalidRows.push(`Row ${i + 1} (${getRowPreview()}): Expected ${headers.length} columns, got ${values.length}`)
         continue
       }
 
-      const guest: any = { id: `guest_${Date.now()}_${i}` }
+      const guest: any = { id: crypto.randomUUID() }
 
       // Map data using the column mappings
       Object.keys(columnMap).forEach(field => {
@@ -159,9 +176,20 @@ export function useCSV() {
         }
       })
 
+      // Helper to get guest name for error messages
+      const getGuestIdentifier = () => {
+        const firstName = guest.firstName || ''
+        const lastName = guest.lastName || ''
+        if (firstName || lastName) {
+          const fullName = `${firstName} ${lastName}`.trim()
+          return `"${fullName}"`
+        }
+        return getRowPreview()
+      }
+
       // Validate required fields
       if (!guest.firstName || !guest.lastName) {
-        invalidRows.push(`Row ${i + 1}: Missing first name or last name`)
+        invalidRows.push(`Row ${i + 1} ${getGuestIdentifier()}: Missing first name or last name`)
         continue
       }
 
@@ -187,7 +215,7 @@ export function useCSV() {
         ].includes(guest.gender.trim())
       ) {
         invalidRows.push(
-          `Row ${i + 1}: Invalid gender '${guest.gender}'. Use M, F, Male, Female, Non-binary, or Other`
+          `Row ${i + 1} ${getGuestIdentifier()}: Invalid gender '${guest.gender}'. Use M, F, Male, Female, Non-binary, or Other`
         )
         continue
       }
@@ -213,7 +241,11 @@ export function useCSV() {
       throw new Error(debugInfo)
     }
 
-    return guests
+    return {
+      guests,
+      warnings: invalidRows,
+      totalRows: lines.length - 1,
+    }
   }
 
   /**

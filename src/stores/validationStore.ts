@@ -12,13 +12,15 @@ import { useSettingsStore } from './settingsStore'
 import type { Guest, Bed, FlatRoom } from '@/types'
 
 export const useValidationStore = defineStore('validation', () => {
+  // Initialize stores once at setup time (not inside computed)
+  const guestStore = useGuestStore()
+  const assignmentStore = useAssignmentStore()
+  const dormitoryStore = useDormitoryStore()
+  const settingsStore = useSettingsStore()
+
   // Getters
   const getWarningsForBed = computed(() => {
     return (bedId: string): string[] => {
-      const guestStore = useGuestStore()
-      const assignmentStore = useAssignmentStore()
-      const dormitoryStore = useDormitoryStore()
-
       const guestId = assignmentStore.getAssignmentByBed(bedId)
       if (!guestId) return []
 
@@ -37,10 +39,6 @@ export const useValidationStore = defineStore('validation', () => {
 
   const getWarningsForGuest = computed(() => {
     return (guestId: string): string[] => {
-      const guestStore = useGuestStore()
-      const assignmentStore = useAssignmentStore()
-      const dormitoryStore = useDormitoryStore()
-
       const bedId = assignmentStore.getAssignmentByGuest(guestId)
       if (!bedId) {
         return getUnassignedGuestWarnings(guestId)
@@ -61,10 +59,9 @@ export const useValidationStore = defineStore('validation', () => {
 
   const getAllWarnings = computed(() => {
     const warnings: Record<string, string[]> = {}
-    const assignmentStore = useAssignmentStore()
 
     for (const [guestId, bedId] of assignmentStore.assignments.entries()) {
-      const bedWarnings = getWarningsForBed(bedId)
+      const bedWarnings = getWarningsForBed.value(bedId)
       if (bedWarnings.length > 0) {
         warnings[bedId] = bedWarnings
       }
@@ -75,7 +72,6 @@ export const useValidationStore = defineStore('validation', () => {
 
   // Helper functions
   function getAssignmentWarnings(guest: Guest, bed: Bed, room: FlatRoom): string[] {
-    const settingsStore = useSettingsStore()
     const warnings: string[] = []
 
     // Check gender mismatch warnings (non-binary guests don't trigger warnings)
@@ -113,9 +109,6 @@ export const useValidationStore = defineStore('validation', () => {
   }
 
   function getUnassignedGuestWarnings(guestId: string): string[] {
-    const guestStore = useGuestStore()
-    const dormitoryStore = useDormitoryStore()
-    const settingsStore = useSettingsStore()
     const warnings: string[] = []
 
     if (!settingsStore.settings.warnings.roomAvailability) {
@@ -172,10 +165,6 @@ export const useValidationStore = defineStore('validation', () => {
   }
 
   function checkFamilySeparation(guest: Guest, currentRoom: FlatRoom): number {
-    const guestStore = useGuestStore()
-    const assignmentStore = useAssignmentStore()
-    const dormitoryStore = useDormitoryStore()
-
     if (!guest.groupName || !guest.groupName.trim()) {
       return 0
     }
