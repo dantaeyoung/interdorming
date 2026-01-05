@@ -204,7 +204,7 @@
             >
               <div class="room-content">
                 <span>{{ bedRow.room.name }}</span>
-                <span class="room-gender-badge" :class="`gender-${bedRow.room.gender}`">
+                <span class="room-gender-badge" :style="{ backgroundColor: getRoomGenderColor(bedRow.room.gender) }">
                   {{ getRoomGenderCode(bedRow.room.gender) }}
                 </span>
                 <button
@@ -312,6 +312,7 @@ import { useTimelineStore } from '@/stores/timelineStore'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 import TimelineHeader from './TimelineHeader.vue'
@@ -324,6 +325,7 @@ const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const dormitoryStore = useDormitoryStore()
+const settingsStore = useSettingsStore()
 const { autoPlaceGuestsInRoom } = useAutoPlacement()
 const { sortGuests } = useSortConfig()
 const { dateColumns, monthGroups, bedRows, getGuestBlobsForBed } = useTimelineData()
@@ -1007,6 +1009,13 @@ function getRoomGenderCode(gender: 'male' | 'female' | 'any'): string {
   return 'A' // Any gender
 }
 
+function getRoomGenderColor(gender: 'male' | 'female' | 'any'): string {
+  const colors = settingsStore.settings.genderColors
+  if (gender === 'male') return colors.male
+  if (gender === 'female') return colors.female
+  return '#d1d5db' // Gray for "any" gender
+}
+
 /**
  * Check if dormitory label should be shown for this row
  * Only show on the first bed of each dormitory
@@ -1155,21 +1164,23 @@ function getRoomRowspan(index: number): number {
   flex-direction: row;
   margin: 0;
   padding: 0;
-  background: white;
+  background: #e5e7eb;
   position: relative;
+  border: 2px solid #9ca3af;
+  border-radius: 4px;
 }
 
 .unassigned-label-fixed {
   width: 250px;
   min-width: 250px;
-  background-color: #bfdbfe;
-  color: #1e40af;
+  background-color: #d1d5db;
+  color: #1f2937;
   font-weight: 600;
   font-size: 0.875rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 2px solid #3b82f6;
+  border-right: 2px solid #9ca3af;
   position: sticky;
   left: 0;
   z-index: 15;
@@ -1179,7 +1190,7 @@ function getRoomRowspan(index: number): number {
   flex: 1;
   overflow-x: scroll; // Scrollable for JS sync
   overflow-y: auto; // Vertical scroll when needed
-  background: white;
+  background: #e5e7eb;
 
   // Hide only the horizontal scrollbar while keeping vertical
   &::-webkit-scrollbar {
@@ -1205,11 +1216,19 @@ function getRoomRowspan(index: number): number {
 .timeline-table.unassigned-table {
   width: max-content;
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 
   .unassigned-date-cell {
-    border: 1px solid #d1d5db;
-    background-color: white;
+    border: 1px solid #f3f4f6;
+    background-color: #e5e7eb;
+  }
+
+  // Make guest blobs in unassigned section dashed outline
+  :deep(.guest-blob) {
+    background: #fff0d9;
+    border: 1.5px dashed #513a06;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
 }
 
@@ -1492,18 +1511,6 @@ function getRoomRowspan(index: number): number {
           font-size: 0.55rem;
           font-weight: 600;
           color: #1f2937;
-
-          &.gender-male {
-            background-color: #93c5fd;
-          }
-
-          &.gender-female {
-            background-color: #f9a8d4;
-          }
-
-          &.gender-any {
-            background-color: #d1d5db;
-          }
         }
 
         .room-auto-place-btn {

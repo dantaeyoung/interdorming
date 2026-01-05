@@ -38,7 +38,7 @@
     </td>
     <td>{{ guest.lastName }}</td>
     <td>
-      <span :class="['badge', `badge-gender-${guest.gender.toLowerCase()}`]">
+      <span class="badge badge-gender" :style="genderBadgeStyle">
         {{ guest.gender }}
       </span>
     </td>
@@ -94,6 +94,7 @@ import { useGroupLinking } from '../composables/useGroupLinking'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useValidationStore } from '@/stores/validationStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useUtils } from '@/shared/composables/useUtils'
 import { ValidationWarning } from '@/shared/components'
 import type { Guest } from '@/types'
@@ -116,11 +117,27 @@ const emit = defineEmits<Emits>()
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
+const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { useDraggableGuest } = useDragDrop()
 const { isLinking, linkingGuestId, hoveredGroupName, startLinking, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 const displayName = computed(() => createDisplayName(props.guest))
+
+// Gender badge style from settings
+const genderBadgeStyle = computed(() => {
+  const colors = settingsStore.settings.genderColors
+  const gender = props.guest.gender.toLowerCase()
+  let bgColor: string
+  if (gender === 'm') {
+    bgColor = colors.male
+  } else if (gender === 'f') {
+    bgColor = colors.female
+  } else {
+    bgColor = colors.nonBinary
+  }
+  return { backgroundColor: bgColor }
+})
 
 // Group linking computed
 const isCurrentlyLinking = computed(() => linkingGuestId.value === props.guest.id)
@@ -329,19 +346,8 @@ function handleUnlink() {
   font-size: 0.75rem;
   font-weight: 500;
 
-  &.badge-gender-m {
-    background-color: #dbeafe;
-    color: #1e40af;
-  }
-
-  &.badge-gender-f {
-    background-color: #fce7f3;
-    color: #9f1239;
-  }
-
-  &.badge-gender-non-binary\/other {
-    background-color: #f3e8ff;
-    color: #6b21a8;
+  &.badge-gender {
+    color: #1f2937;
   }
 
   &.badge-info {

@@ -14,6 +14,12 @@ export interface DisplaySettings {
   showAgeHistograms: boolean
 }
 
+export interface GenderColorSettings {
+  male: string
+  female: string
+  nonBinary: string
+}
+
 export interface AutoPlacementPriority {
   name: string
   weight: number
@@ -31,6 +37,7 @@ export interface Settings {
   warnings: WarningSettings
   display: DisplaySettings
   autoPlacement: AutoPlacementSettings
+  genderColors: GenderColorSettings
   developerMode: boolean
   version: string
 }
@@ -47,6 +54,11 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   display: {
     showAgeHistograms: true,
+  },
+  genderColors: {
+    male: '#93c5fd',
+    female: '#f9a8d4',
+    nonBinary: '#c084fc',
   },
   autoPlacement: {
     enabled: true,

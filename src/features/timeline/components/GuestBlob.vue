@@ -12,7 +12,7 @@
   >
     <div class="guest-info">
       <span class="guest-name">{{ guestName }}</span>
-      <span class="gender-badge" :class="`gender-${props.guestBlob.guest.gender}`">{{
+      <span class="gender-badge" :style="{ backgroundColor: genderBadgeColor }">{{
         genderCode
       }}</span>
       <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
@@ -70,6 +70,7 @@
 import { computed, ref } from 'vue'
 import { useValidationStore } from '@/stores/validationStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import type { GuestBlobData } from '../types/timeline'
 
 interface Props {
@@ -99,6 +100,7 @@ const warningIconRef = ref<HTMLDivElement | null>(null)
 
 const validationStore = useValidationStore()
 const assignmentStore = useAssignmentStore()
+const settingsStore = useSettingsStore()
 
 const isSuggested = computed(() => {
   const guestId = props.guestBlob.guestId
@@ -126,6 +128,14 @@ const guestName = computed(() => {
 const genderCode = computed(() => {
   const guest = props.guestBlob.guest
   return guest.gender === 'male' ? 'M' : guest.gender === 'female' ? 'F' : 'NB'
+})
+
+const genderBadgeColor = computed(() => {
+  const guest = props.guestBlob.guest
+  const colors = settingsStore.settings.genderColors
+  if (guest.gender === 'male') return colors.male
+  if (guest.gender === 'female') return colors.female
+  return colors.nonBinary
 })
 
 const hasNotes = computed(() => {
@@ -257,7 +267,7 @@ function onBlobClick(event: MouseEvent) {
   top: 2px;
   bottom: 2px;
   padding: 4px 8px;
-  background: #9ca3af;
+  background: #E9B051;
   color: #1f2937;
   border-radius: 4px;
   font-size: 0.7rem;
@@ -356,18 +366,6 @@ function onBlobClick(event: MouseEvent) {
   font-size: 0.65rem;
   font-weight: 600;
   color: #1f2937;
-
-  &.gender-male {
-    background-color: #93c5fd;
-  }
-
-  &.gender-female {
-    background-color: #f9a8d4;
-  }
-
-  &.gender-non-binary {
-    background-color: #c084fc;
-  }
 
   .guest-blob.has-warnings & {
     border: 1px solid #991b1b;
