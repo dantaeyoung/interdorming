@@ -10,10 +10,17 @@ import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useValidationStore } from '@/stores/validationStore'
 import type { Hint, HintId } from '../types/hints'
 
+export interface ConflictDetail {
+  guestName: string
+  bedId: string
+  warnings: string[]
+}
+
 // Session state (not persisted)
 const dismissedThisSession = ref<Set<HintId>>(new Set())
 const isCollapsed = ref(false)
 const highlightedTab = ref<string | null>(null)
+const highlightedElement = ref<string | null>(null)
 
 export function useHints(currentTab?: Ref<string>) {
   const guestStore = useGuestStore()
@@ -36,8 +43,14 @@ export function useHints(currentTab?: Ref<string>) {
 
     let applicableHint: Hint | null = null
 
-    // Priority 1: No rooms
-    if (!hasRooms) {
+    // Check for rooms and beds
+    const hasDormitories = dormitoryStore.dormitories.length > 0
+    const totalRooms = dormitoryStore.dormitories.reduce((sum, d) => sum + d.rooms.length, 0)
+    const totalBeds = dormitoryStore.dormitories.reduce((sum, d) =>
+      sum + d.rooms.reduce((rSum, r) => rSum + r.beds.length, 0), 0)
+
+    // Priority 1: No dormitories
+    if (!hasDormitories) {
       if (activeTab === 'configuration') {
         // On Room Config tab - give specific instruction
         applicableHint = {
@@ -45,6 +58,7 @@ export function useHints(currentTab?: Ref<string>) {
           icon: '🏠',
           message: 'Click "Add Dormitory" to create your first building',
           priority: 1,
+          targetElement: 'add-dormitory',
         }
       } else {
         // On other tabs - highlight Room Config tab
@@ -52,13 +66,52 @@ export function useHints(currentTab?: Ref<string>) {
           id: 'no-rooms',
           icon: '🏠',
           message: 'Set up your dormitories and beds first',
-          action: { label: 'Go to Room Config', action: 'highlight-tab' },
           priority: 1,
           targetTab: 'configuration',
         }
       }
     }
-    // Priority 2: No guests (but has rooms)
+    // Priority 1b: Has dormitories but no rooms
+    else if (totalRooms === 0) {
+      if (activeTab === 'configuration') {
+        applicableHint = {
+          id: 'no-rooms-in-dorm',
+          icon: '🚪',
+          message: 'Click "Add Room" to add rooms to your dormitory',
+          priority: 1,
+          targetElement: 'add-room',
+        }
+      } else {
+        applicableHint = {
+          id: 'no-rooms',
+          icon: '🚪',
+          message: 'Add rooms to your dormitory',
+          priority: 1,
+          targetTab: 'configuration',
+        }
+      }
+    }
+    // Priority 1c: Has rooms but no beds
+    else if (totalBeds === 0) {
+      if (activeTab === 'configuration') {
+        applicableHint = {
+          id: 'no-beds-in-rooms',
+          icon: '🛏️',
+          message: 'Click "Add Bed" to add beds to your rooms',
+          priority: 1,
+          targetElement: 'add-bed',
+        }
+      } else {
+        applicableHint = {
+          id: 'no-beds',
+          icon: '🛏️',
+          message: 'Add beds to your rooms',
+          priority: 1,
+          targetTab: 'configuration',
+        }
+      }
+    }
+    // Priority 2: No guests (but has beds)
     else if (!hasGuests) {
       if (activeTab === 'guest-data') {
         // On Guest Data tab - give specific instruction
@@ -148,8 +201,9 @@ export function useHints(currentTab?: Ref<string>) {
       return null
     }
 
-    // Update highlighted tab based on current hint
+    // Update highlighted tab and element based on current hint
     highlightedTab.value = applicableHint?.targetTab || null
+    highlightedElement.value = applicableHint?.targetElement || null
 
     return applicableHint
   })
@@ -160,6 +214,7 @@ export function useHints(currentTab?: Ref<string>) {
   function dismissHint(hintId: HintId) {
     dismissedThisSession.value.add(hintId)
     highlightedTab.value = null
+    highlightedElement.value = null
   }
 
   /**
@@ -168,6 +223,7 @@ export function useHints(currentTab?: Ref<string>) {
   function collapseHints() {
     isCollapsed.value = true
     highlightedTab.value = null
+    highlightedElement.value = null
   }
 
   /**
@@ -203,12 +259,38 @@ export function useHints(currentTab?: Ref<string>) {
     return !hasRooms || !hasGuests || guestStore.guests.length > 0
   })
 
+  /**
+   * Get details of all assignment conflicts for tooltip display
+   */
+  const conflictDetails = computed((): ConflictDetail[] => {
+    const warnings = validationStore.getAllWarnings || {}
+    const details: ConflictDetail[] = []
+
+    for (const [bedId, bedWarnings] of Object.entries(warnings)) {
+      const guestId = assignmentStore.getAssignmentByBed(bedId)
+      if (guestId) {
+        const guest = guestStore.getGuestById(guestId)
+        if (guest) {
+          details.push({
+            guestName: `${guest.preferredName || guest.firstName} ${guest.lastName}`,
+            bedId,
+            warnings: bedWarnings
+          })
+        }
+      }
+    }
+
+    return details
+  })
+
   return {
     // State
     currentHint,
     isCollapsed,
     hasAnyHints,
     highlightedTab,
+    highlightedElement,
+    conflictDetails,
 
     // Actions
     dismissHint,

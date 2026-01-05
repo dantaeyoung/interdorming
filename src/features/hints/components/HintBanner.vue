@@ -1,27 +1,17 @@
 <template>
-  <Transition name="hint-slide">
-    <div v-if="currentHint && !isCollapsed" class="hint-banner" data-tour="hint-banner">
+  <Transition name="hint-toast">
+    <div v-if="currentHint && !isCollapsed" class="hint-toast" data-tour="hint-banner">
       <div class="hint-content">
         <span class="hint-icon">{{ currentHint.icon }}</span>
-        <span class="hint-message">{{ currentHint.message }}</span>
-        <div class="hint-actions">
-          <button
-            v-if="currentHint.action"
-            class="hint-btn hint-btn-primary"
-            @click="handleAction(currentHint.action)"
-          >
-            {{ currentHint.action.label }}
-          </button>
-          <button
-            v-if="currentHint.secondaryAction"
-            class="hint-btn hint-btn-secondary"
-            @click="handleAction(currentHint.secondaryAction)"
-          >
-            {{ currentHint.secondaryAction.label }}
-          </button>
-        </div>
+        <span
+          class="hint-message"
+          :class="{ 'has-tooltip': currentHint.id === 'has-warnings' && conflictDetails.length > 0 }"
+          :title="currentHint.id === 'has-warnings' ? conflictTooltip : undefined"
+        >
+          {{ currentHint.message }}
+        </span>
       </div>
-      <button class="hint-dismiss" @click="handleDismiss" title="Dismiss hint">
+      <button class="hint-dismiss" @click="handleDismiss" title="Dismiss">
         &times;
       </button>
     </div>
@@ -31,13 +21,14 @@
       @click="expandHints"
       title="Show hint"
     >
-      <span class="hint-icon">{{ currentHint.icon }}</span>
+      <span class="hint-collapsed-icon">💡</span>
+      <span class="hint-collapsed-text">Next</span>
     </button>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { toRef } from 'vue'
+import { toRef, computed } from 'vue'
 import { useHints } from '../composables/useHints'
 import type { HintAction } from '../types/hints'
 
@@ -49,7 +40,20 @@ const emit = defineEmits<{
   action: [action: string]
 }>()
 
-const { currentHint, isCollapsed, dismissHint, collapseHints, expandHints } = useHints(toRef(props, 'currentTab'))
+const { currentHint, isCollapsed, dismissHint, collapseHints, expandHints, conflictDetails } = useHints(toRef(props, 'currentTab'))
+
+/**
+ * Generate tooltip text for conflict warnings
+ */
+const conflictTooltip = computed(() => {
+  if (!conflictDetails.value || conflictDetails.value.length === 0) {
+    return ''
+  }
+
+  return conflictDetails.value
+    .map(detail => `${detail.guestName}: ${detail.warnings.join(', ')}`)
+    .join('\n')
+})
 
 function handleAction(action: HintAction) {
   // For 'highlight-tab' actions, the tab is already highlighted via useHints
@@ -60,139 +64,113 @@ function handleAction(action: HintAction) {
 }
 
 function handleDismiss() {
-  if (currentHint.value) {
-    dismissHint(currentHint.value.id)
-  }
+  // Just collapse the hint, don't dismiss it permanently
+  // This allows users to re-open it with the "Next" button
   collapseHints()
 }
 </script>
 
 <style scoped lang="scss">
-.hint-banner {
+.hint-toast {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-  border-bottom: 1px solid #6ee7b7;
-  gap: 12px;
+  gap: 10px;
+  padding: 6px 12px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  margin-left: 12px;
 }
 
 .hint-content {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
-  flex-wrap: wrap;
 }
 
 .hint-icon {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   flex-shrink: 0;
 }
 
 .hint-message {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: #065f46;
   font-weight: 500;
-}
+  line-height: 1.3;
 
-.hint-actions {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.hint-btn {
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-  border: none;
-
-  &.hint-btn-primary {
-    background: #10b981;
-    color: white;
-
-    &:hover {
-      background: #059669;
-    }
-  }
-
-  &.hint-btn-secondary {
-    background: white;
-    color: #059669;
-    border: 1px solid #6ee7b7;
-
-    &:hover {
-      background: #ecfdf5;
-    }
+  &.has-tooltip {
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+    cursor: help;
   }
 }
 
 .hint-dismiss {
   background: none;
   border: none;
-  color: #10b981;
-  font-size: 1.25rem;
+  color: #9ca3af;
+  font-size: 1.1rem;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 2px 6px;
   line-height: 1;
   border-radius: 4px;
   flex-shrink: 0;
 
   &:hover {
-    background: rgba(16, 185, 129, 0.1);
+    color: #6b7280;
+    background: #f3f4f6;
   }
 }
 
 .hint-collapsed {
-  position: fixed;
-  bottom: 80px;
-  right: 20px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: #10b981;
   border: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: transform 0.2s, box-shadow 0.2s;
-  z-index: 100;
+  gap: 4px;
+  transition: all 0.2s;
+  margin-left: 12px;
 
   &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    background: #059669;
+    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.4);
   }
 
-  .hint-icon {
-    font-size: 1.25rem;
-    filter: brightness(0) invert(1);
+  .hint-collapsed-icon {
+    font-size: 0.8rem;
+  }
+
+  .hint-collapsed-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
 }
 
 // Transition animations
-.hint-slide-enter-active {
+.hint-toast-enter-active {
   transition: all 0.3s ease-out;
 }
 
-.hint-slide-leave-active {
+.hint-toast-leave-active {
   transition: all 0.2s ease-in;
 }
 
-.hint-slide-enter-from {
+.hint-toast-enter-from {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateX(20px);
 }
 
-.hint-slide-leave-to {
+.hint-toast-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateX(20px);
 }
 </style>

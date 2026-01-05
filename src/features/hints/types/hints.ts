@@ -6,6 +6,9 @@
 export type HintId =
   | 'no-rooms'
   | 'no-rooms-on-config'
+  | 'no-rooms-in-dorm'
+  | 'no-beds'
+  | 'no-beds-in-rooms'
   | 'no-guests'
   | 'no-guests-on-data'
   | 'no-assignments'
@@ -29,6 +32,8 @@ export interface Hint {
   priority: number
   /** Tab to highlight (instead of navigating) */
   targetTab?: string
+  /** Element to highlight (e.g., 'add-dormitory', 'upload-csv') */
+  targetElement?: string
 }
 
 export interface HintState {
