@@ -9,51 +9,7 @@
 
       <!-- Table section - takes most of the width -->
       <div class="timeline-content-wrapper" :style="{ '--column-width': `${columnWidthPx}px` }">
-      <!-- Sticky Header -->
-      <div class="timeline-header-section" ref="headerSectionRef">
-        <table class="timeline-table">
-          <colgroup>
-            <col style="width: 50px; min-width: 50px; max-width: 50px;" />
-            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
-            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
-            <col
-              v-for="dateCol in dateColumns"
-              :key="`col-${dateCol.index}`"
-              :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
-            />
-          </colgroup>
-          <thead>
-            <!-- Month row -->
-            <tr>
-              <th class="dorm-header" rowspan="2"><div class="rotated-text">Dormitory</div></th>
-              <th class="room-header" rowspan="2">Room</th>
-              <th class="bed-header" rowspan="2">Bed</th>
-              <th
-                v-for="monthGroup in monthGroups"
-                :key="`${monthGroup.year}-${monthGroup.month}`"
-                :colspan="monthGroup.colspan"
-                class="month-header"
-              >
-                {{ monthGroup.month }}
-              </th>
-            </tr>
-            <!-- Day row -->
-            <tr>
-              <th
-                v-for="dateCol in dateColumns"
-                :key="dateCol.index"
-                class="date-header"
-                :class="{ 'is-sunday': dateCol.date.getDay() === 0 }"
-                :title="dateCol.fullLabel"
-              >
-                <span class="date-cell"><span class="weekday">{{ dateCol.weekday }}</span> <span class="day-num">{{ dateCol.date.getDate() }}</span></span>
-              </th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-
-      <!-- Unassigned Guests Section - Independently Scrollable -->
+      <!-- Unassigned Guests Section - At the top -->
       <div class="unassigned-section" :style="{ height: `${unassignedSectionHeight}px` }">
         <!-- Fixed label on the left -->
         <div class="unassigned-label-fixed">
@@ -159,8 +115,54 @@
         <div class="divider-handle"></div>
       </div>
 
-      <!-- Dorms Section - Independently Scrollable -->
-      <div class="dorms-section" ref="dormsSectionRef">
+      <!-- Date Header + Dorms Section - Connected together -->
+      <div class="dorms-with-header">
+        <!-- Sticky Header -->
+        <div class="timeline-header-section" ref="headerSectionRef">
+          <table class="timeline-table">
+            <colgroup>
+              <col style="width: 50px; min-width: 50px; max-width: 50px;" />
+              <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+              <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+              <col
+                v-for="dateCol in dateColumns"
+                :key="`col-${dateCol.index}`"
+                :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
+              />
+            </colgroup>
+            <thead>
+              <!-- Month row -->
+              <tr>
+                <th class="dorm-header" rowspan="2"><div class="rotated-text">Dormitory</div></th>
+                <th class="room-header" rowspan="2">Room</th>
+                <th class="bed-header" rowspan="2">Bed</th>
+                <th
+                  v-for="monthGroup in monthGroups"
+                  :key="`${monthGroup.year}-${monthGroup.month}`"
+                  :colspan="monthGroup.colspan"
+                  class="month-header"
+                >
+                  {{ monthGroup.month }}
+                </th>
+              </tr>
+              <!-- Day row -->
+              <tr>
+                <th
+                  v-for="dateCol in dateColumns"
+                  :key="dateCol.index"
+                  class="date-header"
+                  :class="{ 'is-sunday': dateCol.date.getDay() === 0 }"
+                  :title="dateCol.fullLabel"
+                >
+                  <span class="date-cell"><span class="weekday">{{ dateCol.weekday }}</span> <span class="day-num">{{ dateCol.date.getDate() }}</span></span>
+                </th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        <!-- Dorms Section - Independently Scrollable -->
+        <div class="dorms-section" ref="dormsSectionRef">
         <table class="timeline-table">
           <colgroup>
             <col style="width: 50px; min-width: 50px; max-width: 50px;" />
@@ -239,6 +241,7 @@
               :class="{
                 'drop-target': isDropTarget(bedRow.bed.id),
                 'valid-drop-cell': isValidDropCell(bedRow.bed.id, dateCol.index),
+                'invalid-drop-cell': isInvalidDropCell(bedRow.bed.id, dateCol.index),
                 conflict: hasConflict(bedRow.bed.id, dateCol.date),
               }"
               @dragover.prevent="onDragOver(bedRow.bed.id)"
@@ -280,6 +283,7 @@
           </tbody>
         </table>
       </div>
+      </div>
     </div>
     </div>
 
@@ -300,12 +304,32 @@
       @submit="handleGuestUpdate"
     />
 
-    <!-- Notes Tooltip Overlay (teleported from GuestBlob components) -->
+    <!-- Floating blob that follows mouse when guest is picked -->
+    <Teleport to="body">
+      <div
+        v-if="pickState.isPicked && pickedGuestBlob"
+        class="floating-blob"
+        :style="floatingBlobStyle"
+      >
+        <div class="floating-blob-content">
+          <div class="guest-info-left">
+            <span class="guest-name">{{ floatingBlobName }}</span>
+          </div>
+          <div class="guest-info-right">
+            <span class="gender-badge" :style="{ backgroundColor: floatingBlobGenderColor }">
+              {{ floatingBlobGenderCode }}
+            </span>
+            <span class="guest-age">{{ pickedGuestBlob.guest.age }}</span>
+            <span class="lower-bunk-icon" :class="{ 'is-hidden': !pickedGuestBlob.guest.lowerBunk }" title="Needs lower/single bunk">🛏️</span>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useTimelineData } from '../composables/useTimelineData'
 import { useTimelineDragDrop } from '../composables/useTimelineDragDrop'
 import { useTimelineStore } from '@/stores/timelineStore'
@@ -412,6 +436,9 @@ onMounted(() => {
   // Setup keyboard listener for Escape key to cancel pick
   setupKeyboardListener()
 
+  // Setup mouse move listener for floating blob
+  document.addEventListener('mousemove', handleMouseMove)
+
   if (headerSectionRef.value && unassignedSectionRef.value && dormsSectionRef.value) {
     const header = headerSectionRef.value
     const unassigned = unassignedSectionRef.value
@@ -433,6 +460,8 @@ onMounted(() => {
       // Cleanup resize listeners if still active
       document.removeEventListener('mousemove', onResize)
       document.removeEventListener('mouseup', stopResize)
+      // Cleanup mouse move listener for floating blob
+      document.removeEventListener('mousemove', handleMouseMove)
       // Cleanup keyboard listener
       cleanupKeyboardListener()
     })
@@ -559,6 +588,56 @@ const pickedGuestBlob = computed(() => {
     if (blob) return blob
   }
   return null
+})
+
+// Mouse position tracking for floating blob
+const mousePosition = ref({ x: 0, y: 0 })
+const floatingBlobInitialX = ref(0)
+const floatingBlobWidth = ref(0)
+
+function handleMouseMove(event: MouseEvent) {
+  mousePosition.value = { x: event.clientX, y: event.clientY }
+}
+
+// Floating blob computed properties
+const floatingBlobStyle = computed(() => {
+  return {
+    left: `${floatingBlobInitialX.value}px`,
+    top: `${mousePosition.value.y}px`,
+    width: `${floatingBlobWidth.value}px`,
+  }
+})
+
+const floatingBlobName = computed(() => {
+  if (!pickedGuestBlob.value) return ''
+  const guest = pickedGuestBlob.value.guest
+  return guest.preferredName
+    ? `${guest.preferredName} ${guest.lastName}`
+    : `${guest.firstName} ${guest.lastName}`
+})
+
+const floatingBlobGenderCode = computed(() => {
+  if (!pickedGuestBlob.value) return ''
+  const gender = pickedGuestBlob.value.guest.gender
+  return gender === 'male' ? 'M' : gender === 'female' ? 'F' : 'NB'
+})
+
+const floatingBlobGenderColor = computed(() => {
+  if (!pickedGuestBlob.value) return ''
+  const gender = pickedGuestBlob.value.guest.gender
+  const colors = settingsStore.settings.genderColors
+  if (gender === 'male') return colors.male
+  if (gender === 'female') return colors.female
+  return colors.nonBinary
+})
+
+// Watch for pick state changes to toggle body cursor class
+watch(() => pickState.value.isPicked, (isPicked) => {
+  if (isPicked) {
+    document.body.classList.add('guest-picked')
+  } else {
+    document.body.classList.remove('guest-picked')
+  }
 })
 
 // Pre-compute valid drop cells as a Set for O(1) lookup
@@ -809,6 +888,24 @@ function isValidDropCell(bedId: string, colIndex: number): boolean {
 }
 
 /**
+ * Check if we're in drag/pick mode and this cell is NOT a valid drop target
+ */
+function isInvalidDropCell(bedId: string, colIndex: number): boolean {
+  const isDraggingOrPicked = dragState.value.isDragging || pickState.value.isPicked
+  if (!isDraggingOrPicked) return false
+
+  // Check if this cell is within the guest's date range
+  const blob = dragState.value.isDragging ? draggedGuestBlob.value : pickedGuestBlob.value
+  if (!blob) return false
+
+  // Only mark as invalid if the column is within the guest's stay range
+  if (colIndex < blob.startColIndex || colIndex > blob.endColIndex) return false
+
+  // It's invalid if it's not in the valid drop cells set
+  return !validDropCells.value.has(`${bedId}-${colIndex}`)
+}
+
+/**
  * Handle drag over event
  */
 function onDragOver(bedId: string) {
@@ -846,7 +943,16 @@ function onGuestDragEnd() {
 /**
  * Handle guest pick (click-to-pick mode)
  */
-function onGuestPick(guestId: string, bedId: string) {
+function onGuestPick(guestId: string, bedId: string, event?: MouseEvent) {
+  // Capture the blob's position and width for the floating blob
+  if (event) {
+    const blobElement = (event.target as HTMLElement).closest('.guest-blob')
+    if (blobElement) {
+      const rect = blobElement.getBoundingClientRect()
+      floatingBlobInitialX.value = rect.left + rect.width / 2
+      floatingBlobWidth.value = rect.width
+    }
+  }
   pickGuest(guestId, bedId)
 }
 
@@ -1255,6 +1361,14 @@ function getRoomRowspan(index: number): number {
   }
 }
 
+.dorms-with-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; // Important for flex child scrolling
+  overflow: hidden;
+}
+
 .dorms-section {
   flex: 1;
   overflow-x: auto;
@@ -1601,6 +1715,11 @@ function getRoomRowspan(index: number): number {
           cursor: pointer;
         }
 
+        &.invalid-drop-cell {
+          background-color: #feeaea !important;
+          cursor: not-allowed;
+        }
+
         &.conflict {
           background-color: rgba(220, 38, 38, 0.4) !important;
           position: relative;
@@ -1772,5 +1891,97 @@ function getRoomRowspan(index: number): number {
   p {
     margin: 0;
   }
+}
+</style>
+
+<style>
+/* Global styles for floating blob (not scoped) */
+.floating-blob {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  background: #E9B051;
+  color: #1f2937;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+  pointer-events: none;
+  cursor: grabbing;
+  white-space: nowrap;
+  box-sizing: border-box;
+
+  .floating-blob-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .guest-info-left {
+    flex: 1 1 calc(50% + 50px);
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 6px;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .guest-info-right {
+    flex: 1 1 calc(50% - 50px);
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+    padding-left: 0;
+  }
+
+  .guest-name {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .gender-badge {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .guest-age {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  .lower-bunk-icon {
+    flex-shrink: 0;
+    font-size: 0.6rem;
+    opacity: 0.8;
+
+    &.is-hidden {
+      visibility: hidden;
+    }
+  }
+}
+
+/* Add grabbing cursor to body when guest is picked */
+body.guest-picked {
+  cursor: grabbing !important;
+}
+
+body.guest-picked * {
+  cursor: grabbing !important;
 }
 </style>
