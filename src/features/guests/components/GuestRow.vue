@@ -257,9 +257,10 @@ function handleUnlink() {
   }
 
   &.is-unassigned {
-    background: #fff0d9;
-    border: 2px dashed #9ca3af;
+    background: #e5e7eb;
+    border: 1px solid #9ca3af;
     border-radius: 6px;
+    margin: 3px 0;
 
     td {
       background: transparent;
