@@ -39,6 +39,7 @@ import { ref } from 'vue'
 import { useCSV } from '../composables/useCSV'
 import { useGuestStore } from '@/stores/guestStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useTimelineStore } from '@/stores/timelineStore'
 import type { Guest } from '@/types'
 import CSVWarningModal from './CSVWarningModal.vue'
 import CSVImportModeModal from './CSVImportModeModal.vue'
@@ -65,6 +66,7 @@ const emit = defineEmits<{
 const fileInput = ref<HTMLInputElement | null>(null)
 const guestStore = useGuestStore()
 const settingsStore = useSettingsStore()
+const timelineStore = useTimelineStore()
 const { parseGuestCSV } = useCSV()
 
 // Modal state
@@ -123,6 +125,9 @@ function performImport(result: { guests: Guest[]; warnings: string[]; totalRows:
   // Import guests into store
   guestStore.importGuests(result.guests)
 
+  // Auto-detect timeline date range from imported guest arrival/departure dates
+  timelineStore.autoDetectDateRange()
+
   emit('upload-success', result.guests)
 
   // Show modal with results (only if there are warnings)
@@ -179,6 +184,9 @@ function handleAddAndUpdate() {
 
   // Import the merged list
   guestStore.importGuests(existingGuests)
+
+  // Auto-detect timeline date range from imported guest arrival/departure dates
+  timelineStore.autoDetectDateRange()
 
   emit('upload-success', newGuests)
 

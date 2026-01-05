@@ -25,7 +25,12 @@
           />
           <span>Active</span>
         </label>
-        <button @click="addRoom" class="btn-add" title="Add room">
+        <button
+          @click="addRoom"
+          class="btn-add"
+          :class="{ highlighted: highlightedElement === 'add-room' }"
+          title="Add room"
+        >
           + Room
         </button>
         <button @click="handleRemoveDormitory" class="btn-remove" title="Remove dormitory">
@@ -63,6 +68,7 @@ import RoomConfigCard from './RoomConfigCard.vue'
 import { ConfirmDialog } from '@/shared/components'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useGuestStore } from '@/stores/guestStore'
+import { useHints } from '@/features/hints/composables/useHints'
 import type { Dormitory, Room } from '@/types'
 
 interface Props {
@@ -78,6 +84,7 @@ const emit = defineEmits<{
 
 const assignmentStore = useAssignmentStore()
 const guestStore = useGuestStore()
+const { highlightedElement } = useHints()
 
 const localDormitory = ref<Dormitory>({
   ...props.dormitory,
@@ -291,11 +298,25 @@ function addRoom() {
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
   white-space: nowrap;
 
   &:hover {
     background: #059669;
+  }
+
+  &.highlighted {
+    animation: btn-pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+  }
+}
+
+@keyframes btn-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.3);
   }
 }
 
