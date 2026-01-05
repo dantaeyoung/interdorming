@@ -41,25 +41,23 @@ function selectTab(tabId: string) {
 
 <style scoped lang="scss">
 .tabs {
-  background-color: #f3f4f6;
-  border-bottom: 3px solid #9ca3af;
+  background-color: white;
   flex-shrink: 0;
   position: relative;
+  overflow: hidden;
 }
 
 .tab-list {
   display: flex;
-  gap: 0;
+  gap: 4px;
   padding: 0 12px;
-  // Offset tabs down by 3px so active tab can overlap the border
-  margin-bottom: -3px;
+  position: relative;
 }
 
 .tab {
-  background: #e5e7eb;
-  border: 3px solid #9ca3af;
-  border-bottom: none;
-  padding: 8px 18px;
+  background: transparent;
+  border: none;
+  padding: 10px 20px;
   font-size: 0.875rem;
   font-weight: 500;
   color: #6b7280;
@@ -67,35 +65,44 @@ function selectTab(tabId: string) {
   transition: all 0.15s ease;
   position: relative;
   border-radius: 8px 8px 0 0;
-  // Gap between tabs
-  margin-right: 4px;
   // Fixed height to prevent layout shift when font-weight changes
-  height: 38px;
+  height: 42px;
   box-sizing: border-box;
 
   &:hover:not(.active):not(.highlighted) {
     color: #374151;
-    background-color: #d1d5db;
+    background-color: #f3f4f6;
   }
 
   &.active {
     color: #1f2937;
     background-color: white;
-    border-color: #9ca3af;
-    border-bottom: none;
     font-weight: 600;
-    // Bring active tab to front
-    z-index: 1;
+    // Border on top, left, right
+    border: 3px solid #9ca3af;
+    border-bottom: none;
+    z-index: 2;
 
-    // White bar that extends beyond tab to cover the bottom border line
+    // Left line extending to screen edge
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 100%;
+      width: 100vw;
+      height: 3px;
+      background: #9ca3af;
+    }
+
+    // Right line extending to screen edge
     &::after {
       content: '';
       position: absolute;
-      bottom: -3px;
-      left: -1px;
-      right: -1px;
+      bottom: 0;
+      left: 100%;
+      width: 100vw;
       height: 3px;
-      background: white;
+      background: #9ca3af;
     }
   }
 
@@ -107,23 +114,12 @@ function selectTab(tabId: string) {
     box-shadow: inset 0 0 0 2px #93c5fd;
   }
 
-  &.highlighted {
+  &.highlighted:not(.active) {
     animation: tab-pulse 1.5s ease-in-out infinite;
     background-color: #ecfdf5;
     color: #059669;
-    border-color: #6ee7b7;
-    border-bottom: 3px solid #ecfdf5;
-    z-index: 1;
-
-    &::after {
-      content: '';
-      position: absolute;
-      inset: -2px;
-      border-radius: 8px 8px 0 0;
-      box-shadow: 0 0 0 2px #10b981;
-      animation: tab-glow 1.5s ease-in-out infinite;
-      pointer-events: none;
-    }
+    font-weight: 600;
+    border-radius: 16px;
   }
 }
 

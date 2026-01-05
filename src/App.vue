@@ -12,6 +12,11 @@
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
         </button>
+        <!-- Contextual Hints Toast -->
+        <HintBanner
+          :current-tab="activeTab"
+          @action="handleHintAction"
+        />
       </div>
       <div class="header-right">
         <Transition name="status-fade">
@@ -29,12 +34,6 @@
       :tabs="tabs"
       :highlighted-tab="highlightedTab"
       @change="handleTabChange"
-    />
-
-    <!-- Contextual Hints Banner -->
-    <HintBanner
-      :current-tab="activeTab"
-      @action="handleHintAction"
     />
 
     <!-- Guest Data Tab -->
@@ -248,14 +247,19 @@ onMounted(() => {
   currentBranch.value = import.meta.env.VITE_GIT_BRANCH || null
 })
 
-// Tab state
-const activeTab = ref('guest-data')
+// Tab state - restore from localStorage or default to 'guest-data'
+const ACTIVE_TAB_KEY = 'dormAssignments-activeTab'
+const savedTab = localStorage.getItem(ACTIVE_TAB_KEY)
+const validTabs = ['guest-data', 'assignment', 'timeline', 'configuration', 'print', 'settings']
+const activeTab = ref(savedTab && validTabs.includes(savedTab) ? savedTab : 'guest-data')
 
 // Hints - get highlightedTab for TabNavigation
 const { highlightedTab } = useHints(activeTab)
 
-// Tour
-const { startTour, hasSeenTour } = useTour()
+// Tour - pass handleTabChange so tour can switch tabs when highlighting them
+const { startTour, hasSeenTour } = useTour({
+  switchTab: (tabId: string) => handleTabChange(tabId)
+})
 const tabs: Tab[] = [
   { id: 'guest-data', label: 'Guest Data' },
   { id: 'assignment', label: 'Table View' },
@@ -298,6 +302,8 @@ function handleAddGuestClick() {
 // Tab handlers
 function handleTabChange(tabId: string) {
   activeTab.value = tabId
+  // Persist to localStorage
+  localStorage.setItem(ACTIVE_TAB_KEY, tabId)
 }
 
 // Hint banner handlers
@@ -305,7 +311,7 @@ function handleHintAction(action: string) {
   switch (action) {
     case 'upload-csv':
       // Navigate to guest data tab where upload is
-      activeTab.value = 'guest-data'
+      handleTabChange('guest-data')
       break
     case 'load-sample':
       // Load sample data
@@ -356,15 +362,15 @@ function handleAutoPlace() {
     const result = assignmentStore.autoPlace()
 
     if (result.placedCount === 0) {
-      showStatus('No placements made. Check settings or room availability.', 'info')
+      showStatus('No suggestions made. Check settings or room availability.', 'info')
     } else if (result.unplacedCount === 0) {
       showStatus(
-        `Auto-placement complete! All ${result.placedCount} guests successfully assigned.`,
+        `${result.placedCount} suggested placements created. Accept or adjust them, then click "Accept All".`,
         'success'
       )
     } else {
       showStatus(
-        `Auto-placement complete: ${result.placedCount} guests assigned, ${result.unplacedCount} remaining unplaced.`,
+        `${result.placedCount} suggestions created, ${result.unplacedCount} guests could not be placed.`,
         'info'
       )
     }
