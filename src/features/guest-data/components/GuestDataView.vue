@@ -93,8 +93,8 @@
         }"
       >
         <span class="link-icon">🔗</span>
-        <span class="link-text">Link {{ groupLinking.linkingGuestName.value }} with ?</span>
-        <span class="link-hint">(click a guest or press Esc)</span>
+        <span class="link-text">{{ groupLinking.linkingCount.value }} selected — click guests to add</span>
+        <span class="link-hint">(Esc to cancel)</span>
       </div>
     </Teleport>
   </div>
@@ -413,7 +413,7 @@ function handleDeleteAll() {
 
 .guest-table-container {
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   padding: 0 16px 16px;
   background: #f3f4f6;
 }

@@ -132,6 +132,23 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Group linking bar -->
+    <Teleport to="body">
+      <Transition name="link-bar">
+        <div v-if="isLinking" class="group-linking-bar">
+          <span class="linking-info">
+            Linking {{ linkingCount }} guest{{ linkingCount === 1 ? '' : 's' }} — click guests to add/remove
+          </span>
+          <button class="btn-finish-group" :disabled="linkingCount < 2" @click="completeLinking()">
+            Finish Group
+          </button>
+          <button class="btn-cancel-group" @click="cancelLinking">
+            Cancel
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -144,6 +161,7 @@ import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import { useSortConfig, type SortableField } from '@/shared/composables/useSortConfig'
 import { useUtils } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
+import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import GuestRow from './GuestRow.vue'
 import GuestFormModal from './GuestFormModal.vue'
 import GroupLinesOverlay from './GroupLinesOverlay.vue'
@@ -167,6 +185,7 @@ const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { validateDrop } = useDropValidation()
 const { useDroppableUnassignedArea, isDragging, draggedGuestId, dragOverBedId, mousePosition, isPicking, pickedGuestId } = useDragDrop()
+const { isLinking, linkingCount, completeLinking, cancelLinking } = useGroupLinking()
 
 // Template refs
 const tableWrapperRef = ref<HTMLDivElement | null>(null)
@@ -447,7 +466,7 @@ export { SortIndicator }
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
 
   &.drag-over {
     background-color: #f0f9ff;
@@ -704,5 +723,75 @@ body.is-picking {
       visibility: hidden;
     }
   }
+}
+
+// Group linking floating bar
+.group-linking-bar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #1e3a5f;
+  color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10000;
+  font-size: 0.85rem;
+  white-space: nowrap;
+
+  .linking-info {
+    font-weight: 500;
+  }
+
+  .btn-finish-group {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #22c55e;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover:not(:disabled) {
+      background: #16a34a;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  .btn-cancel-group {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: transparent;
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.link-bar-enter-active,
+.link-bar-leave-active {
+  transition: all 0.25s ease;
+}
+
+.link-bar-enter-from,
+.link-bar-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
 }
 </style>

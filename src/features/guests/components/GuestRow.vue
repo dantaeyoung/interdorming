@@ -1,6 +1,6 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'group-highlight': isGroupHighlighted, 'is-unassigned': isUnassigned }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'is-unassigned': isUnassigned }]"
     v-bind="draggableProps"
     @click="handleRowClick"
     @mouseenter="handleMouseEnter"
@@ -10,8 +10,8 @@
       <button
         @click.stop="handleStartLinking"
         class="btn-link-guest"
-        :class="{ 'is-linking': isCurrentlyLinking, 'has-group': !!guest.groupName }"
-        :title="isCurrentlyLinking ? 'Click another guest to link' : 'Link with another guest'"
+        :class="{ 'is-linking': isSelectedForLinking, 'has-group': !!guest.groupName }"
+        :title="isSelectedForLinking ? 'Selected for group' : isLinking ? 'Click to add to group' : 'Start group linking'"
       >
         🔗
       </button>
@@ -80,8 +80,7 @@
 
     <!-- Teleport notes modal to body -->
     <Teleport to="body">
-      <div v-if="showNotesModal && guest.notes" class="notes-modal-overlay" :style="modalPosition">
-        {{ guest.notes }}
+      <div v-if="showNotesModal && guest.notes" class="notes-modal-overlay" :style="modalPosition" v-html="formatNotes(guest.notes)">
       </div>
     </Teleport>
   </tr>
@@ -120,7 +119,7 @@ const validationStore = useValidationStore()
 const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { useDraggableGuest, pickGuest, isPicking, pickedGuestId } = useDragDrop()
-const { isLinking, linkingGuestId, hoveredGroupName, startLinking, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
+const { isLinking, linkingGuestIds, hoveredGroupName, startLinking, toggleLinkingGuest, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 const displayName = computed(() => createDisplayName(props.guest))
 
@@ -140,8 +139,8 @@ const genderBadgeStyle = computed(() => {
 })
 
 // Group linking computed
-const isCurrentlyLinking = computed(() => linkingGuestId.value === props.guest.id)
-const isLinkTarget = computed(() => isLinking.value && linkingGuestId.value !== props.guest.id)
+const isSelectedForLinking = computed(() => linkingGuestIds.value.has(props.guest.id))
+const isLinkTarget = computed(() => isLinking.value && !linkingGuestIds.value.has(props.guest.id))
 
 // Group hover highlighting
 const isGroupHighlighted = computed(() => {
@@ -175,6 +174,12 @@ function truncateNotes(notes: string, maxLength: number = 50): string {
   return notes.substring(0, maxLength) + '...'
 }
 
+function formatNotes(notes: string): string {
+  // Escape HTML entities first for safety, then convert <br /> variants to actual line breaks
+  const escaped = notes.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped.replace(/&lt;br\s*\/?\s*&gt;/gi, '<br>')
+}
+
 function handleNotesMouseEnter() {
   if (notesCellRef.value) {
     const rect = notesCellRef.value.getBoundingClientRect()
@@ -191,21 +196,19 @@ function handleEdit() {
 }
 
 function handleStartLinking() {
-  if (isCurrentlyLinking.value) {
-    // Cancel if clicking the same guest's link button
-    cancelLinking()
-  } else if (isLinking.value) {
-    // If another guest is being linked, complete the link to this guest
-    completeLinking(props.guest.id)
-  } else {
+  if (!isLinking.value) {
+    // Start a new linking session with this guest
     startLinking(props.guest.id, displayName.value)
+  } else {
+    // Toggle this guest in/out of the linking selection
+    toggleLinkingGuest(props.guest.id)
   }
 }
 
 function handleRowClick(event: MouseEvent) {
-  // Handle group linking first
+  // Handle group linking first - clicking a row toggles it in the selection
   if (isLinkTarget.value) {
-    completeLinking(props.guest.id)
+    toggleLinkingGuest(props.guest.id)
     return
   }
 
@@ -265,6 +268,12 @@ function handleUnlink() {
     &:hover {
       background-color: #ecfdf5;
     }
+  }
+
+  &.selected-for-linking {
+    background-color: #dbeafe;
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
   }
 
   &.link-target {
