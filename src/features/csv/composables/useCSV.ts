@@ -127,13 +127,32 @@ export function useCSV() {
   /**
    * Parses CSV text into guest objects
    */
+  /**
+   * Checks if a line looks like a CSV header row by testing if it contains
+   * any known field mapping variations (e.g., "FIRST NAME", "Gender", "LAST NAME")
+   */
+  function looksLikeHeaderRow(line: string): boolean {
+    const fields = line.split(',').map(h => h.trim().replace(/"/g, '').toLowerCase())
+    const allVariations = Object.values(CSV_FIELD_MAPPINGS).flat().map(v => v.toLowerCase())
+    return fields.some(f => allVariations.includes(f))
+  }
+
   function parseGuestCSV(csvText: string): CSVParseResult {
     const lines = csvText.trim().split('\n')
     if (lines.length < 2) {
       throw new Error('CSV must have at least a header row and one data row')
     }
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    // Skip leading non-header lines (e.g., "Reservations From: Feb 13, 2026 To: Feb 13, 2026")
+    let headerLineIndex = 0
+    while (headerLineIndex < lines.length && !looksLikeHeaderRow(lines[headerLineIndex])) {
+      headerLineIndex++
+    }
+    if (headerLineIndex >= lines.length) {
+      throw new Error('Could not find a header row with recognized column names in the CSV')
+    }
+
+    const headers = lines[headerLineIndex].split(',').map(h => h.trim().replace(/"/g, ''))
 
     // Map column names
     const columnMap = mapColumns(headers)
@@ -150,7 +169,7 @@ export function useCSV() {
     const guests: Guest[] = []
     const invalidRows: string[] = []
 
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = headerLineIndex + 1; i < lines.length; i++) {
       const rawRow = lines[i]
       const values = parseCSVRow(rawRow)
 
@@ -244,7 +263,7 @@ export function useCSV() {
     return {
       guests,
       warnings: invalidRows,
-      totalRows: lines.length - 1,
+      totalRows: lines.length - headerLineIndex - 1,
     }
   }
 

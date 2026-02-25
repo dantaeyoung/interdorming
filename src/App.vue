@@ -8,6 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
+          <span class="version-tag">v260225-16:45</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -713,6 +714,14 @@ function stopResize() {
       font-size: 0.875rem;
       font-weight: 500;
       margin-left: 8px;
+    }
+
+    .version-tag {
+      -webkit-text-fill-color: #999;
+      font-size: 0.65rem;
+      font-weight: 400;
+      margin-left: 8px;
+      letter-spacing: 0.02em;
     }
   }
 }
