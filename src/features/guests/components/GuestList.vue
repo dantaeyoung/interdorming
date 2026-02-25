@@ -109,9 +109,27 @@
         v-if="guests.length > 0"
         :guests="guests"
         :row-positions="rowPositions"
+        :suggested-groups="guestStore.suggestedGroups"
         :style="overlayStyle"
         class="group-lines-svg"
       />
+      <!-- Per-group accept/reject pills for suggestions -->
+      <div
+        v-for="pill in suggestionPills"
+        :key="'pill-' + pill.groupName"
+        class="suggestion-pill"
+        :style="{
+          left: `${overlayLeft - scrollLeft + 32}px`,
+          top: `${overlayTop + pill.y - 10}px`,
+        }"
+      >
+        <button class="pill-accept" @click="guestStore.acceptGroupSuggestion(pill.groupName)" title="Accept group">
+          &#10003;
+        </button>
+        <button class="pill-reject" @click="guestStore.rejectGroupSuggestion(pill.groupName)" title="Reject suggestion">
+          &#10005;
+        </button>
+      </div>
     </div>
 
     <GuestFormModal :show="showModal" :guest="editingGuest" @close="handleCloseModal" @submit="handleSubmitGuest" />
@@ -149,6 +167,23 @@
           </button>
           <button class="btn-cancel-group" @click="cancelLinking">
             Cancel
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Group suggestion bar -->
+    <Teleport to="body">
+      <Transition name="link-bar">
+        <div v-if="guestStore.hasGroupSuggestions && !isLinking" class="group-suggestion-bar">
+          <span class="suggestion-info">
+            {{ guestStore.groupSuggestionCount }} group suggestion{{ guestStore.groupSuggestionCount === 1 ? '' : 's' }} found
+          </span>
+          <button class="btn-accept-all" @click="guestStore.acceptAllGroupSuggestions()">
+            Accept All ({{ guestStore.groupSuggestionCount }})
+          </button>
+          <button class="btn-clear-suggestions" @click="guestStore.clearGroupSuggestions()">
+            Clear
           </button>
         </div>
       </Transition>
@@ -441,6 +476,32 @@ const floatingBlobValidityClass = computed(() => {
   if (!dropValidity.value) return ''
   return dropValidity.value.isValid ? 'is-valid-drop' : 'is-invalid-drop'
 })
+
+// Suggestion pills: position each at the first member's row Y
+const suggestionPills = computed(() => {
+  if (!guestStore.hasGroupSuggestions) return []
+
+  const pills: Array<{ groupName: string, y: number }> = []
+  const guestIndexMap = new Map<string, number>()
+  guests.value.forEach((g, i) => guestIndexMap.set(g.id, i))
+
+  guestStore.suggestedGroups.forEach((memberIds, groupName) => {
+    let firstIndex = Infinity
+    memberIds.forEach(id => {
+      const idx = guestIndexMap.get(id)
+      if (idx !== undefined && idx < firstIndex) firstIndex = idx
+    })
+    if (firstIndex === Infinity) return
+
+    const y = rowPositions.value.length > firstIndex
+      ? rowPositions.value[firstIndex]
+      : (firstIndex * 49) + 24.5
+
+    pills.push({ groupName, y })
+  })
+
+  return pills
+})
 </script>
 
 <script lang="ts">
@@ -542,6 +603,52 @@ export { SortIndicator }
   p {
     margin: 0;
     font-size: 0.875rem;
+  }
+}
+
+.suggestion-pill {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  z-index: 6;
+  pointer-events: auto;
+
+  button {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: transform 0.1s, opacity 0.1s;
+
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+
+  .pill-accept {
+    background: #22c55e;
+    color: white;
+
+    &:hover {
+      background: #16a34a;
+    }
+  }
+
+  .pill-reject {
+    background: #ef4444;
+    color: white;
+
+    &:hover {
+      background: #dc2626;
+    }
   }
 }
 
@@ -790,5 +897,59 @@ body.is-picking {
 .link-bar-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(-20px);
+}
+
+// Group suggestion floating bar
+.group-suggestion-bar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #1e3a5f;
+  color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10000;
+  font-size: 0.85rem;
+  white-space: nowrap;
+
+  .suggestion-info {
+    font-weight: 500;
+  }
+
+  .btn-accept-all {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #8b5cf6;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+      background: #7c3aed;
+    }
+  }
+
+  .btn-clear-suggestions {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: transparent;
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
 }
 </style>

@@ -16,6 +16,13 @@
           @request-reset-confirmation="handleRequestResetConfirmation"
         />
         <button
+          class="btn btn-suggest-groups"
+          :disabled="!guestStore.hasGuestsWithEmail"
+          @click="handleSuggestGroups"
+        >
+          Suggest Groups
+        </button>
+        <button
           class="btn btn-danger"
           :disabled="guestStore.guests.length === 0"
           @click="handleDeleteAll"
@@ -242,6 +249,15 @@ function handleRequestResetConfirmation(callback: () => void) {
   )
 }
 
+function handleSuggestGroups() {
+  const count = guestStore.suggestGroupsByEmail()
+  if (count > 0) {
+    showStatus(`Found ${count} group suggestion${count === 1 ? '' : 's'} by shared email`, 'success')
+  } else {
+    showStatus('No new group suggestions found — guests may already be grouped', 'info')
+  }
+}
+
 function handleDeleteAll() {
   confirmAction(
     'Delete All Guest Data',
@@ -321,6 +337,16 @@ function handleDeleteAll() {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  &.btn-suggest-groups {
+    background-color: #8b5cf6;
+    color: white;
+    border-color: #8b5cf6;
+
+    &:hover:not(:disabled) {
+      background-color: #7c3aed;
+    }
   }
 
   &.btn-danger {

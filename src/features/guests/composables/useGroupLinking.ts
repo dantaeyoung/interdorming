@@ -14,6 +14,18 @@ const mousePosition = ref({ x: 0, y: 0 })
 // Singleton state for group hover highlighting
 const hoveredGroupName = ref<string | null>(null)
 
+export function generateGroupNameFromMembers(lastNames: string[]): string {
+  const uniqueNames = [...new Set(lastNames.map(n => n.toLowerCase()))]
+    .map(lower => lastNames.find(n => n.toLowerCase() === lower)!)
+
+  if (uniqueNames.length === 1) {
+    return `${uniqueNames[0]} Family`
+  }
+
+  uniqueNames.sort((a, b) => a.localeCompare(b))
+  return `${uniqueNames.join('-')} Group`
+}
+
 export function useGroupLinking() {
   const guestStore = useGuestStore()
 
@@ -107,18 +119,6 @@ export function useGroupLinking() {
     })
 
     cancelLinking()
-  }
-
-  function generateGroupNameFromMembers(lastNames: string[]): string {
-    const uniqueNames = [...new Set(lastNames.map(n => n.toLowerCase()))]
-      .map(lower => lastNames.find(n => n.toLowerCase() === lower)!)
-
-    if (uniqueNames.length === 1) {
-      return `${uniqueNames[0]} Family`
-    }
-
-    uniqueNames.sort((a, b) => a.localeCompare(b))
-    return `${uniqueNames.join('-')} Group`
   }
 
   function handleMouseMove(e: MouseEvent) {
