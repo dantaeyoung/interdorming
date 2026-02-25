@@ -225,6 +225,8 @@ export function useCSV() {
           'f',
           'Non-binary',
           'non-binary',
+          'Non-binary/Other',
+          'non-binary/other',
           'Other',
           'other',
           'N',

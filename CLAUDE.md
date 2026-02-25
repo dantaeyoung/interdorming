@@ -42,113 +42,122 @@ ONLY after user types "GO!" or explicitly approves:
 
 ## Application Overview
 
-The Blue Cliff Monastery Dorm Assignment Tool is a client-side web application that streamlines the process of assigning 60-80 retreat guests to dormitory beds. It replaces a manual spreadsheet-based workflow used by monastery staff 1-2 times per month.
+The Blue Cliff Monastery Dorm Assignment Tool is a Vue 3 + TypeScript web application that streamlines the process of assigning 60-80 retreat guests to dormitory beds. It replaces a manual spreadsheet-based workflow used by monastery staff 1-2 times per month.
 
 ## Core Architecture
 
-### Dual-Mode Interface
-The application operates in two primary modes accessed via tabs:
-- **Guest Assignment Mode**: Drag-and-drop interface for assigning guests to beds
-- **Room Configuration Mode**: Visual interface for managing dormitory layouts
+### Technology Stack
+- **Vue 3** with Composition API and `<script setup>` SFCs
+- **TypeScript** for type safety throughout
+- **Pinia** for state management with `pinia-plugin-persistedstate` for localStorage persistence
+- **Vite** for dev server and production builds
+- **SCSS** scoped styling in components
+- **driver.js** for guided tour/onboarding
+- **Vitest** for unit testing
+
+### Tab-Based Interface
+The application operates across multiple tabs:
+- **Guest Data**: CSV import, guest table, data management
+- **Assignment**: Drag-and-drop / click-to-pick interface for assigning guests to beds
+- **Timeline**: Visual timeline of guest arrivals/departures
+- **Configuration**: Dormitory and room layout management
+- **Print**: Print-friendly view of assignments
 
 ### Data Model Hierarchy
 ```
 Dormitories (top level) → Rooms → Beds → Guest Assignments
 ```
 
-**Key Data Structures:**
-- `dormitories[]`: Array of dormitory objects containing rooms
-- `rooms[]`: Flat array generated from dormitories for backward compatibility  
-- `assignments`: Map of guestId → bedId for tracking assignments
-- `guests[]`: Array of guest objects from CSV import
+### State Management (Pinia Stores)
+- **`guestStore`**: Guest data from CSV import
+- **`dormitoryStore`**: Dormitory/room/bed configuration
+- **`assignmentStore`**: Guest-to-bed assignments, undo/redo history, swaps
+- **`settingsStore`**: User preferences (warnings, display, gender colors, auto-placement)
+- **`validationStore`**: Computed validation warnings for assignments
+- **`timelineStore`**: Timeline view state
 
-### State Management
-- **Primary State**: Stored in `DormAssignmentTool` class properties
-- **Persistence**: localStorage with versioned data migration (v2.0 format)
-- **History**: Assignment undo/redo system with 10-action limit
-- **Synchronization**: Changes in room configuration immediately update assignment interface
+All stores use `pinia-plugin-persistedstate` for automatic localStorage sync.
 
 ## File Structure
 
-### Core Application Files
-- **`index.html`**: Single-page application with tab interface and modal components
-- **`app.js`**: Main application logic (~1,900 lines, single class)
-- **`.gitignore`**: Excludes CSV files to prevent committing guest data
-
-### Testing & Sample Data
-- **`test_persistence.js`**: Test script for localStorage and data migration functionality
-- **`sample_room_config.csv`**: Example room configuration CSV for testing imports
-
-### Documentation (`specs/` directory)
-- **`spec.md`**: Original guest assignment tool specification
-- **`room-configuration-spec.md`**: Room configuration interface specification  
-- **`CSV_IMPORT_EXPORT_GUIDE.md`**: Guide for CSV operations
-- **`PERSISTENCE_INTEGRATION.md`**: Technical documentation for data persistence
-- **`CLAUDE.md`**: This file - development guidance
+```
+src/
+├── App.vue                     # Root component: tabs, layout, CSV room import
+├── main.ts                     # Entry point: Vue app, Pinia, plugins
+├── types/                      # TypeScript types and constants
+│   ├── Guest.ts, Bed.ts, Room.ts, Dormitory.ts, Assignment.ts
+│   ├── Validation.ts, Settings.ts, Storage.ts
+│   ├── Constants.ts            # CSV_FIELD_MAPPINGS, defaults, messages
+│   └── index.ts                # Central re-export barrel
+├── stores/                     # Pinia stores (see above)
+├── features/                   # Feature modules (components + composables)
+│   ├── assignments/            # useDragDrop composable, AssignmentStats, toolbar
+│   ├── csv/                    # useCSV composable, GuestCSVUpload, RoomConfigCSV
+│   ├── dormitories/            # RoomList, BedSlot, RoomConfigCard, RoomGroupLinesOverlay
+│   ├── guest-data/             # GuestDataView (main guest table)
+│   ├── guests/                 # GuestList, GuestRow, GuestSearch, GroupLinesOverlay
+│   ├── hints/                  # useHints composable, HintBanner, EmptyState
+│   ├── settings/               # SettingsPanel, AutoPlacementSettings
+│   ├── timeline/               # TimelineView, GuestBlob, TimelineHeader
+│   ├── print/                  # PrintView
+│   ├── backup/                 # DataBackupControls
+│   └── export/                 # Export functionality
+├── shared/
+│   ├── components/             # FloatingActionBar
+│   └── composables/            # useDropValidation, useGroupConnections
+└── OLD/                        # Legacy vanilla JS (reference only, not used)
+```
 
 ## Key Technical Patterns
 
-### CSV Handling
-The application handles two types of CSV files:
-1. **Guest Data**: Flexible column mapping supports various naming conventions
-2. **Room Configuration**: Export/import dormitory layouts with bed assignments
+### CSV Handling (`src/features/csv/composables/useCSV.ts`)
+- **Header detection**: Auto-skips preamble/metadata lines (e.g., "Reservations From: ...") by scanning for recognized column names
+- **Flexible column mapping**: `CSV_FIELD_MAPPINGS` in `Constants.ts` maps field names to multiple variations (e.g., `firstName` matches `FIRST NAME`, `First Name`)
+- **Two CSV types**: Guest data import and room configuration import/export
 
-Column mapping system handles variations like:
-- `firstName` / `FIRST NAME` / `First Name`
-- `lowerBunk` / `Lower bunk?` / `Lower Bunk`
+### Drag-and-Drop + Click-to-Pick (`src/features/assignments/composables/useDragDrop.ts`)
+- Singleton shared state for drag tracking across components
+- Native HTML5 drag-and-drop API with custom drag image
+- Click-to-pick alternative: pick a guest, then click a bed to place (Escape to cancel)
+- Supports swap when dropping on occupied bed
 
-### Data Migration
-Automatic migration from old room structure to new dormitory-based structure:
-- Detects data version in localStorage
-- Wraps legacy rooms in "Main Building" dormitory
-- Preserves all guest assignments during migration
-
-### Validation System
+### Validation (`src/stores/validationStore.ts`)
 Non-blocking visual warnings for:
 - Gender mismatches (male in female room)
 - Bunk accessibility violations (upper bunk for lower-bunk-required guests)
 - Family separation (same GroupName in different rooms)
 - Age compatibility issues (large age gaps, minors with adults)
 
+### Hints System (`src/features/hints/`)
+- Contextual hints that highlight UI elements based on current state
+- Element-level targeting via `data-hint-target` attributes
+- Guided tour using driver.js
+
 ## Development Commands
 
-Since this is a client-side application with no build system:
-
-### Running the Application
 ```bash
-# Serve files locally (any HTTP server)
-python -m http.server 8000
-# OR
-npx serve .
-```
-
-### Testing
-```bash
-# Run persistence tests to validate localStorage and migration
-node test_persistence.js
-
-# Test CSV import functionality
-# Use sample_room_config.csv to test room configuration import
+npm install       # Install dependencies
+npm run dev       # Start dev server (http://localhost:5173)
+npm run build     # Type-check (vue-tsc) and build for production
+npm run preview   # Preview production build (http://localhost:4173)
+npm run test      # Run tests with Vitest
 ```
 
 ### Git Workflow
 ```bash
-# The application excludes CSV files from commits
+# CSV files are excluded from commits via .gitignore
 git status  # Should never show .csv files
 ```
 
+### Deployment
+Deployed as a static site. See [DEPLOYMENT.md](DEPLOYMENT.md) for Netlify/Vercel/Apache/Nginx configuration.
+
 ## Data Persistence
 
-### localStorage Structure (v2.0)
-```javascript
-{
-  guests: Guest[],
-  assignments: [guestId, bedId][],
-  dormitories: Dormitory[],
-  assignmentHistory: HistoryState[],
-  version: "2.0"
-}
-```
+### localStorage (via Pinia Persisted State)
+Each store persists independently under its own key. The `assignmentStore` manages:
+- Guest-to-bed assignment map
+- Assignment history for undo/redo (10-action limit)
 
 ### Bed ID Generation
 - Format: `[RoomPrefix][BedNumber]` (e.g., "MA01", "FR03")
@@ -157,18 +166,15 @@ git status  # Should never show .csv files
 
 ## Important Implementation Notes
 
-### Global App Reference
-The main application instance is stored in global `app` variable for onclick handlers in dynamically generated HTML.
+### Version Tag
+A version tag (e.g., `v260225-16:45`) is displayed in the header for deployment verification. Update it in `App.vue` when deploying.
 
-### Event Handling
-- Tab switching updates `currentTab` property
-- Modal interactions use both click-outside and ESC key
-- Drag-and-drop uses native HTML5 API with visual feedback
+### Singleton Composables
+`useDragDrop` uses module-level singleton refs so drag/pick state is shared across all components that call the composable.
 
 ### Performance Considerations
-- Flat `rooms[]` array maintained for backward compatibility
-- `getFlatRoomsList()` regenerates from dormitories when needed
-- Large datasets (80+ guests) handled efficiently with selective re-rendering
+- Flat room arrays regenerated from dormitories via `getFlatRoomsList()` when needed
+- Large datasets (80+ guests) handled with selective re-rendering
 
 ### Data Safety
 - Guest assignments preserved during room configuration changes
@@ -181,46 +187,21 @@ The main application instance is stored in global `app` variable for onclick han
 Required: `firstName`, `lastName`, `gender`, `age`
 Optional: `preferredName`, `groupName`, `lowerBunk`, `arrival`, `departure`, etc.
 
+See `CSV_FIELD_MAPPINGS` in `src/types/Constants.ts` for all recognized variations.
+
 ### Room Configuration CSV
 Required: `Dormitory Name`
 Optional: `Room Name`, `Room Gender`, `Bed ID`, `Bed Type`, `Bed Position`, `Active`
 
-## Browser Compatibility
-Targets modern browsers (Chrome, Firefox, Safari, Edge latest 2 versions)
-Requires JavaScript and File API support for CSV operations.
-
-## Deployment
-This is a static client-side application with no server dependencies:
-- Can be served from any HTTP server or CDN
-- No database or backend services required
-- All data stored in browser localStorage
-- CSV files processed entirely client-side
-
-## Common Pitfalls & Solutions
-
-### Global App Variable
-**Issue**: Dynamically generated HTML uses `onclick="app.methodName()"` 
-**Solution**: The global `app` variable must be set in `document.addEventListener('DOMContentLoaded')`
-
-### localStorage Data Migration
-**Issue**: Old data format incompatibility
-**Solution**: Check `data.version` and call `migrateFromOldStructure()` if needed
-
-### Bed ID Uniqueness
-**Issue**: Duplicate bed IDs cause assignment conflicts
-**Solution**: Use `generateBedId()` method which creates unique IDs based on room names
-
-### CSV Column Variations
-**Issue**: CSV files have different column naming conventions
-**Solution**: Use the `fieldMappings` object in CSV parsing to handle variations
-
 ## Validation Checklist
 After making changes, verify:
-- [ ] Can upload guest CSV files with various column names
+- [ ] Can upload guest CSV files with various column names (including with preamble lines)
 - [ ] Drag-and-drop assignment works between guests and beds
+- [ ] Click-to-pick assignment works as alternative to drag-and-drop
 - [ ] Room configuration changes update assignment interface
 - [ ] Can export/import room configurations
 - [ ] Undo functionality works for recent assignments
 - [ ] Data persists across browser sessions
 - [ ] Assignment warnings appear for violations (gender, age, bunk type)
-- [ ] Tab switching works between Assignment and Room Configuration modes
+- [ ] Tab switching works between all modes
+- [ ] Timeline view displays guest arrival/departure data
