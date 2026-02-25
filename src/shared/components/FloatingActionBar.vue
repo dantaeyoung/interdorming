@@ -1,7 +1,15 @@
 <template>
   <Teleport to="body">
-    <div class="floating-action-bar">
-      <div class="action-group">
+    <div
+      class="floating-action-bar"
+      :class="{ highlighted: highlightedElement === 'floating-action-bar' }"
+      data-hint-target="floating-action-bar"
+    >
+      <div
+        class="action-group"
+        :class="{ highlighted: highlightedElement === 'undo-redo-btns' }"
+        data-hint-target="undo-redo-btns"
+      >
         <button
           class="action-btn"
           :disabled="!canUndo"
@@ -63,6 +71,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useHints } from '@/features/hints/composables/useHints'
 
 const emit = defineEmits<{
   undo: []
@@ -73,6 +82,7 @@ const emit = defineEmits<{
 }>()
 
 const assignmentStore = useAssignmentStore()
+const { highlightedElement } = useHints()
 
 const canUndo = computed(() => assignmentStore.canUndo)
 const canRedo = computed(() => assignmentStore.canRedo)
@@ -96,12 +106,40 @@ const suggestionCount = computed(() => assignmentStore.suggestedAssignments.size
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
   z-index: 1000;
   backdrop-filter: blur(8px);
+
+  &.highlighted {
+    animation: hint-pulse 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes hint-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 16px rgba(16, 185, 129, 0.25);
+  }
 }
 
 .action-group {
   display: flex;
   align-items: center;
   gap: 6px;
+  border-radius: 8px;
+
+  &.highlighted {
+    animation: group-pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+}
+
+@keyframes group-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(16, 185, 129, 0.25);
+  }
 }
 
 .suggestions-group {

@@ -111,6 +111,27 @@
     </div>
 
     <GuestFormModal :show="showModal" :guest="editingGuest" @close="handleCloseModal" @submit="handleSubmitGuest" />
+
+    <!-- Cursor overlay during drag -->
+    <Teleport to="body">
+      <div v-if="isDragging" class="drag-cursor-overlay"></div>
+    </Teleport>
+
+    <!-- Floating blob for drag/pick preview -->
+    <Teleport to="body">
+      <div v-if="isFloatingBlobVisible" class="drag-floating-blob" :class="floatingBlobValidityClass" :style="floatingBlobStyle">
+        <div class="floating-blob-content">
+          <div class="guest-info-left">
+            <span class="guest-name">{{ floatingBlobName }}</span>
+          </div>
+          <div class="guest-info-right">
+            <span class="gender-badge" :style="{ backgroundColor: floatingBlobGenderColor }">{{ floatingBlobGenderCode }}</span>
+            <span class="guest-age">{{ floatingBlobGuest?.age }}</span>
+            <span class="lower-bunk-icon" :class="{ 'is-hidden': !floatingBlobGuest?.lowerBunk }">🛏️</span>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -118,8 +139,11 @@
 import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import { useSortConfig, type SortableField } from '@/shared/composables/useSortConfig'
+import { useUtils } from '@/shared/composables/useUtils'
+import { useDropValidation } from '@/shared/composables/useDropValidation'
 import GuestRow from './GuestRow.vue'
 import GuestFormModal from './GuestFormModal.vue'
 import GroupLinesOverlay from './GroupLinesOverlay.vue'
@@ -139,7 +163,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
-const { useDroppableUnassignedArea } = useDragDrop()
+const settingsStore = useSettingsStore()
+const { createDisplayName } = useUtils()
+const { validateDrop } = useDropValidation()
+const { useDroppableUnassignedArea, isDragging, draggedGuestId, dragOverBedId, mousePosition, isPicking, pickedGuestId } = useDragDrop()
 
 // Template refs
 const tableWrapperRef = ref<HTMLDivElement | null>(null)
@@ -338,6 +365,59 @@ function getFamilyPosition(guest: Guest, index: number): 'none' | 'first' | 'mid
   if (positionInFamily === familyIndices.length - 1) return 'last'
   return 'middle'
 }
+
+// Floating blob for drag/pick preview
+const draggedGuest = computed(() => {
+  if (!isDragging.value || !draggedGuestId.value) return null
+  return guestStore.guests.find(g => g.id === draggedGuestId.value) || null
+})
+
+const pickedGuest = computed(() => {
+  if (!isPicking.value || !pickedGuestId.value) return null
+  return guestStore.guests.find(g => g.id === pickedGuestId.value) || null
+})
+
+// Use either dragged or picked guest for floating blob
+const floatingBlobGuest = computed(() => draggedGuest.value || pickedGuest.value)
+const isFloatingBlobVisible = computed(() => (isDragging.value && draggedGuest.value) || (isPicking.value && pickedGuest.value))
+
+const floatingBlobName = computed(() => {
+  if (!floatingBlobGuest.value) return ''
+  return createDisplayName(floatingBlobGuest.value)
+})
+
+const floatingBlobGenderCode = computed(() => {
+  if (!floatingBlobGuest.value) return ''
+  return floatingBlobGuest.value.gender.charAt(0).toUpperCase()
+})
+
+const floatingBlobGenderColor = computed(() => {
+  if (!floatingBlobGuest.value) return '#e5e7eb'
+  const colors = settingsStore.settings.genderColors
+  const gender = floatingBlobGuest.value.gender.toLowerCase()
+  if (gender === 'm') return colors.male
+  if (gender === 'f') return colors.female
+  return colors.nonBinary
+})
+
+const floatingBlobStyle = computed(() => ({
+  left: `${mousePosition.value.x}px`,
+  top: `${mousePosition.value.y}px`,
+}))
+
+// Drop validity for visual feedback
+const dropValidity = computed(() => {
+  const guestId = draggedGuestId.value || pickedGuestId.value
+  if ((!isDragging.value && !isPicking.value) || !guestId || !dragOverBedId.value) {
+    return null // Not hovering over a bed
+  }
+  return validateDrop(guestId, dragOverBedId.value)
+})
+
+const floatingBlobValidityClass = computed(() => {
+  if (!dropValidity.value) return ''
+  return dropValidity.value.isValid ? 'is-valid-drop' : 'is-invalid-drop'
+})
 </script>
 
 <script lang="ts">
@@ -420,7 +500,8 @@ export { SortIndicator }
 
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: white;
   overflow-x: auto;
   overflow-y: auto;
@@ -516,6 +597,112 @@ export { SortIndicator }
 
   &.active {
     color: #3b82f6;
+  }
+}
+</style>
+
+<style lang="scss">
+// Full-viewport overlay to force grabbing cursor during drag
+.drag-cursor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99998;
+  cursor: grabbing !important;
+  pointer-events: none;
+}
+
+// Global cursor during drag
+body.is-dragging {
+  cursor: grabbing !important;
+
+  * {
+    cursor: grabbing !important;
+  }
+}
+
+// Global cursor during pick mode
+body.is-picking {
+  cursor: pointer;
+}
+
+// Non-scoped styles for teleported floating blob
+.drag-floating-blob {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 4px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 120px;
+  font-size: 0.75rem;
+  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  cursor: grabbing;
+
+  &.is-valid-drop {
+    background: #dcfce7;
+    border-color: #22c55e;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  }
+
+  &.is-invalid-drop {
+    background: #fee2e2;
+    border-color: #ef4444;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  }
+
+  .floating-blob-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .guest-info-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .guest-info-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .guest-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .gender-badge {
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-weight: 600;
+  }
+
+  .guest-age {
+    font-size: 0.7rem;
+    color: #6b7280;
+  }
+
+  .lower-bunk-icon {
+    font-size: 0.6rem;
+    opacity: 0.8;
+
+    &.is-hidden {
+      visibility: hidden;
+    }
   }
 }
 </style>

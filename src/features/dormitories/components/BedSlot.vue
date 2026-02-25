@@ -1,5 +1,5 @@
 <template>
-  <div :class="['bed-slot', bedTypeClass, { occupied: isOccupied, warning: hasWarning, 'has-suggestion': isSuggestion }]" v-bind="dropzoneProps">
+  <div :class="['bed-slot', bedTypeClass, { occupied: isOccupied, warning: hasWarning, 'has-suggestion': isSuggestion, 'valid-drop-target': isValidDropTarget, 'invalid-drop-target': isInvalidDropTarget, 'is-pick-target': isPickingMode }]" v-bind="dropzoneProps" @click="handleBedClick">
     <div class="bed-label">
       {{ bed.position }} {{ bed.bedType }}
     </div>
@@ -8,11 +8,13 @@
         class="assigned-guest"
         :data-guest-id="assignedGuest.id"
         v-bind="draggableProps"
+        @mouseenter="handleGuestHover"
+        @mouseleave="handleGuestLeave"
       >
         <div class="guest-info">
           <strong class="guest-name">{{ displayName }}</strong>
           <span class="guest-details">
-            <span class="guest-gender">{{ assignedGuest.gender }}</span>
+            <span class="guest-gender" :style="genderBackgroundStyle">{{ assignedGuest.gender }}</span>
             <span class="guest-age">{{ assignedGuest.age }}</span>
             <span v-if="assignedGuest.groupName" class="group-badge">
               {{ assignedGuest.groupName }}
@@ -66,8 +68,11 @@ import { computed } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useValidationStore } from '@/stores/validationStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
+import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import { useUtils } from '@/shared/composables/useUtils'
+import { useDropValidation } from '@/shared/composables/useDropValidation'
 import { ValidationWarning } from '@/shared/components'
 import type { Bed } from '@/types'
 
@@ -80,8 +85,11 @@ const props = defineProps<Props>()
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
-const { useDroppableBed, useDraggableGuest } = useDragDrop()
+const settingsStore = useSettingsStore()
+const { useDroppableBed, useDraggableGuest, isDragging, draggedGuestId, isPicking, pickedGuestId, placeGuestOnBed } = useDragDrop()
+const { setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 const { createFullName } = useUtils()
+const { validateDrop } = useDropValidation()
 
 const assignedGuest = computed(() => {
   if (!props.bed.assignedGuestId) return null
@@ -117,6 +125,65 @@ const warnings = computed(() => validationStore.getWarningsForBed(props.bed.bedI
 const hasWarning = computed(() => warnings.value.length > 0)
 
 const bedTypeClass = computed(() => `bed-${props.bed.bedType}`)
+
+// Gender-based background color for assigned guest
+const genderBackgroundStyle = computed(() => {
+  if (!assignedGuest.value) return {}
+  const colors = settingsStore.settings.genderColors
+  const gender = assignedGuest.value.gender.toLowerCase()
+  let bgColor: string
+  if (gender === 'm') {
+    bgColor = colors.male
+  } else if (gender === 'f') {
+    bgColor = colors.female
+  } else {
+    bgColor = colors.nonBinary
+  }
+  return { backgroundColor: bgColor }
+})
+
+// Drop validity for visual feedback during drag or pick
+const dropValidityResult = computed(() => {
+  // Get the guest ID from either drag or pick mode
+  const guestId = draggedGuestId.value || pickedGuestId.value
+
+  // Only show validation when dragging or picking
+  if ((!isDragging.value && !isPicking.value) || !guestId) {
+    return null
+  }
+  return validateDrop(guestId, props.bed.bedId)
+})
+
+const isValidDropTarget = computed(() => {
+  if (!dropValidityResult.value) return false
+  return dropValidityResult.value.isValid
+})
+
+const isInvalidDropTarget = computed(() => {
+  if (!dropValidityResult.value) return false
+  return !dropValidityResult.value.isValid
+})
+
+// Check if we're in picking mode (for visual feedback)
+const isPickingMode = computed(() => isPicking.value)
+
+// Handle click to place picked guest
+function handleBedClick() {
+  if (isPicking.value) {
+    placeGuestOnBed(props.bed.bedId)
+  }
+}
+
+// Handle hover for group highlighting
+function handleGuestHover() {
+  if (assignedGuest.value?.groupName) {
+    setHoveredGroup(assignedGuest.value.groupName)
+  }
+}
+
+function handleGuestLeave() {
+  clearHoveredGroup()
+}
 
 // Make assigned guest draggable
 const draggableProps = computed(() => {
@@ -166,6 +233,14 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   &:last-child {
     border-bottom: none;
   }
+
+  &.is-pick-target {
+    cursor: pointer;
+
+    &:hover {
+      background-color: #ecfdf5;
+    }
+  }
 }
 
 .bed-label {
@@ -214,6 +289,16 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   .bed-slot.drag-over & {
     border-color: #3b82f6;
     background-color: #eff6ff;
+  }
+
+  .bed-slot.valid-drop-target & {
+    border-color: #22c55e;
+    background-color: #dcfce7;
+  }
+
+  .bed-slot.invalid-drop-target & {
+    border-color: #ef4444;
+    background-color: #fee2e2;
   }
 }
 
@@ -265,9 +350,15 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
 }
 
 .guest-gender {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 20px;
-  text-align: left;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .guest-age {
@@ -311,6 +402,18 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
     border-color: #3b82f6;
     border-style: solid;
     background-color: #eff6ff;
+  }
+
+  .bed-slot.valid-drop-target & {
+    border-color: #22c55e;
+    border-style: solid;
+    background-color: #dcfce7;
+  }
+
+  .bed-slot.invalid-drop-target & {
+    border-color: #ef4444;
+    border-style: solid;
+    background-color: #fee2e2;
   }
 }
 

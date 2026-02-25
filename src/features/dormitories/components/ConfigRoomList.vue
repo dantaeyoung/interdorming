@@ -109,7 +109,7 @@ function addDormitory() {
   &.highlighted {
     background: #10b981;
     animation: btn-pulse 1.5s ease-in-out infinite;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
 
     &:hover {
       background: #059669;
@@ -119,10 +119,10 @@ function addDormitory() {
 
 @keyframes btn-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 0 16px rgba(16, 185, 129, 0.25);
   }
 }
 

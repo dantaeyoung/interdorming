@@ -38,7 +38,12 @@
         Sort
         <span v-if="hasSortLevels" class="sort-indicator">*</span>
       </button>
-      <button class="btn-add-guest" @click="handleAddGuest">+ Add Guest</button>
+      <button
+        class="btn-add-guest"
+        :class="{ highlighted: isHighlighted('add-guest') }"
+        data-hint-target="add-guest"
+        @click="handleAddGuest"
+      >+ Add Guest</button>
     </div>
 
     <!-- Sort Config Modal -->
@@ -96,13 +101,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { GuestCSVUpload } from '@/features/csv/components'
 import { GuestList, GuestSearch } from '@/features/guests/components'
 import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
+import { useHints } from '@/features/hints/composables/useHints'
 import { ConfirmDialog, SortConfigModal } from '@/shared/components'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 import type { Guest } from '@/types'
@@ -111,7 +117,14 @@ const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
 const groupLinking = useGroupLinking()
+const { highlightedElement } = useHints()
 const { hasSortLevels, sortDescription } = useSortConfig()
+
+// Check if an element should be highlighted (supports comma-separated targets)
+const isHighlighted = (elementId: string) => {
+  if (!highlightedElement.value) return false
+  return highlightedElement.value.split(',').includes(elementId)
+}
 
 // Sort modal state
 const showSortModal = ref(false)
@@ -381,6 +394,20 @@ function handleDeleteAll() {
 
   &:hover {
     background: #2563eb;
+  }
+
+  &.highlighted {
+    animation: hint-pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+}
+
+@keyframes hint-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(16, 185, 129, 0.25);
   }
 }
 

@@ -3,6 +3,7 @@
     class="guest-blob"
     :class="{ 'has-warnings': hasWarnings, 'has-conflict': hasConflict, 'is-suggested': isSuggested, 'is-picked': props.isPicked }"
     :style="blobStyle"
+    :data-guest-id="props.guestBlob.guestId"
     :draggable="true"
     @dragstart="onDragStart"
     @dragend="onDragEnd"
@@ -76,6 +77,7 @@ import { computed, ref } from 'vue'
 import { useValidationStore } from '@/stores/validationStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import type { GuestBlobData } from '../types/timeline'
 
 interface Props {
@@ -106,6 +108,7 @@ const warningIconRef = ref<HTMLDivElement | null>(null)
 const validationStore = useValidationStore()
 const assignmentStore = useAssignmentStore()
 const settingsStore = useSettingsStore()
+const { setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 const isSuggested = computed(() => {
   const guestId = props.guestBlob.guestId
@@ -241,10 +244,16 @@ function handleBlobMouseEnter() {
     }
     showWarningTooltip.value = true
   }
+
+  // Highlight group connections
+  if (props.guestBlob.guest.groupName) {
+    setHoveredGroup(props.guestBlob.guest.groupName)
+  }
 }
 
 function handleBlobMouseLeave() {
   showWarningTooltip.value = false
+  clearHoveredGroup()
 }
 
 function acceptSuggestion() {

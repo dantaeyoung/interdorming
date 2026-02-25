@@ -1,6 +1,6 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'group-highlight': isGroupHighlighted, 'is-unassigned': isUnassigned }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'group-highlight': isGroupHighlighted, 'is-unassigned': isUnassigned }]"
     v-bind="draggableProps"
     @click="handleRowClick"
     @mouseenter="handleMouseEnter"
@@ -119,7 +119,7 @@ const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
 const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
-const { useDraggableGuest } = useDragDrop()
+const { useDraggableGuest, pickGuest, isPicking, pickedGuestId } = useDragDrop()
 const { isLinking, linkingGuestId, hoveredGroupName, startLinking, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 const displayName = computed(() => createDisplayName(props.guest))
@@ -150,6 +150,12 @@ const isGroupHighlighted = computed(() => {
 })
 
 const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.guest.id)
+
+// Check if this guest is picked in table view pick-and-place
+const isPicked = computed(() => pickedGuestId.value === props.guest.id)
+
+// Check if we're in picking mode and this is a valid target (not the picked guest)
+const isPickTarget = computed(() => isPicking.value && pickedGuestId.value !== props.guest.id)
 
 const hasSuggestion = computed(() => assignmentStore.suggestedAssignments.has(props.guest.id))
 
@@ -188,15 +194,23 @@ function handleStartLinking() {
   if (isCurrentlyLinking.value) {
     // Cancel if clicking the same guest's link button
     cancelLinking()
+  } else if (isLinking.value) {
+    // If another guest is being linked, complete the link to this guest
+    completeLinking(props.guest.id)
   } else {
     startLinking(props.guest.id, displayName.value)
   }
 }
 
-function handleRowClick() {
+function handleRowClick(event: MouseEvent) {
+  // Handle group linking first
   if (isLinkTarget.value) {
     completeLinking(props.guest.id)
+    return
   }
+
+  // Handle pick-and-place
+  pickGuest(props.guest.id, event)
 }
 
 function handleMouseEnter() {
@@ -217,7 +231,7 @@ function handleUnlink() {
 
 <style scoped lang="scss">
 .guest-row {
-  cursor: move;
+  cursor: pointer;
   transition: background-color 0.2s, opacity 0.2s;
 
   &:hover {
@@ -236,6 +250,21 @@ function handleUnlink() {
 
   &.dragging {
     opacity: 0.4;
+    cursor: grabbing;
+  }
+
+  &.is-picked {
+    background-color: #fef3c7;
+    border: 2px dashed #f59e0b;
+    opacity: 0.7;
+  }
+
+  &.is-pick-target {
+    cursor: pointer;
+
+    &:hover {
+      background-color: #ecfdf5;
+    }
   }
 
   &.link-target {

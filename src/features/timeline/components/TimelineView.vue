@@ -8,7 +8,8 @@
       </div>
 
       <!-- Table section - takes most of the width -->
-      <div class="timeline-content-wrapper" :style="{ '--column-width': `${columnWidthPx}px` }">
+      <div ref="timelineContentRef" class="timeline-content-wrapper" :style="{ '--column-width': `${columnWidthPx}px` }">
+      <RoomGroupLinesOverlay v-if="isMounted && timelineContentRef" :containerRef="timelineContentRef" />
       <!-- Unassigned Guests Section - At the top -->
       <div class="unassigned-section" :style="{ height: `${unassignedSectionHeight}px` }">
         <!-- Fixed label on the left -->
@@ -341,6 +342,7 @@ import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlac
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 import TimelineHeader from './TimelineHeader.vue'
 import GuestBlob from './GuestBlob.vue'
+import RoomGroupLinesOverlay from '@/features/dormitories/components/RoomGroupLinesOverlay.vue'
 import { GuestFormModal } from '@/features/guests/components'
 import type { GuestBlobData } from '../types/timeline'
 import type { Guest } from '@/types'
@@ -383,6 +385,8 @@ const columnWidthPx = computed(() => timelineStore.columnWidth)
 const headerSectionRef = ref<HTMLElement | null>(null)
 const unassignedSectionRef = ref<HTMLElement | null>(null)
 const dormsSectionRef = ref<HTMLElement | null>(null)
+const timelineContentRef = ref<HTMLElement | null>(null)
+const isMounted = ref(false)
 
 // Resizable section height
 const unassignedSectionHeight = ref(200)
@@ -433,6 +437,8 @@ function syncHorizontalScroll(source: HTMLElement, ...targets: HTMLElement[]) {
 }
 
 onMounted(() => {
+  isMounted.value = true
+
   // Setup keyboard listener for Escape key to cancel pick
   setupKeyboardListener()
 
@@ -1245,7 +1251,7 @@ function getRoomRowspan(index: number): number {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: relative;
+  position: relative; // Required for group lines overlay positioning
 }
 
 .timeline-header-section {
