@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Settings, AutoPlacementPriority } from '@/types'
+import type { Settings, AutoPlacementPriority, GenderColorSettings } from '@/types'
 import { DEFAULT_SETTINGS } from '@/types'
 
 export const useSettingsStore = defineStore(
@@ -34,8 +34,16 @@ export const useSettingsStore = defineStore(
       }
     }
 
+    // Ensure genderColors exists for existing users
+    function migrateGenderColors() {
+      if (!settings.value.genderColors) {
+        settings.value.genderColors = { ...DEFAULT_SETTINGS.genderColors }
+      }
+    }
+
     // Run migration on initialization
     mergePriorities()
+    migrateGenderColors()
 
     // Actions
     function updateWarningSettings(key: keyof Settings['warnings'], value: boolean) {
@@ -67,6 +75,10 @@ export const useSettingsStore = defineStore(
       settings.value.developerMode = value
     }
 
+    function updateGenderColor(gender: keyof GenderColorSettings, color: string) {
+      settings.value.genderColors[gender] = color
+    }
+
     function resetToDefaults() {
       settings.value = { ...DEFAULT_SETTINGS }
     }
@@ -82,6 +94,7 @@ export const useSettingsStore = defineStore(
       updateAutoPlacementPriority,
       updateConstraintRelaxation,
       toggleDeveloperMode,
+      updateGenderColor,
       resetToDefaults,
     }
   },

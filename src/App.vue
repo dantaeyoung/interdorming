@@ -106,8 +106,10 @@
                 <span class="card-subtitle">({{ assignedCount }})</span>
                 <button
                   class="btn btn-auto-place"
+                  :class="{ highlighted: highlightedElement === 'auto-place-btn' }"
                   :disabled="guestStore.guests.length === 0"
                   @click="handleAutoPlace"
+                  data-hint-target="auto-place-btn"
                 >
                   Auto-place
                 </button>
@@ -254,7 +256,7 @@ const validTabs = ['guest-data', 'assignment', 'timeline', 'configuration', 'pri
 const activeTab = ref(savedTab && validTabs.includes(savedTab) ? savedTab : 'guest-data')
 
 // Hints - get highlightedTab for TabNavigation
-const { highlightedTab } = useHints(activeTab)
+const { highlightedTab, highlightedElement } = useHints(activeTab)
 
 // Tour - pass handleTabChange so tour can switch tabs when highlighting them
 const { startTour, hasSeenTour } = useTour({
@@ -951,6 +953,20 @@ function stopResize() {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  &.highlighted {
+    animation: hint-pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+}
+
+@keyframes hint-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(16, 185, 129, 0.25);
   }
 }
 

@@ -122,6 +122,7 @@ export function useHints(currentTab?: Ref<string>) {
           action: { label: 'Upload CSV', action: 'upload-csv' },
           secondaryAction: { label: 'Load Sample', action: 'load-sample' },
           priority: 2,
+          targetElement: 'upload-csv,add-guest',
         }
       } else {
         // On other tabs - highlight Guest Data tab
@@ -136,18 +137,26 @@ export function useHints(currentTab?: Ref<string>) {
         }
       }
     }
-    // Priority 3: No assignments (has guests and rooms)
+    // Priority 3: No assignments (has guests and rooms) - suggest Table View first
     else if (assignmentCount === 0) {
-      if (activeTab === 'assignment' || activeTab === 'timeline') {
-        // On assignment tabs - give specific instruction
+      if (activeTab === 'assignment') {
+        // On table view - give drag instruction
         applicableHint = {
           id: 'no-assignments-on-table',
           icon: '↔️',
-          message: 'Drag guests from the left panel onto beds to assign them',
+          message: 'Drag a guest from the left panel onto a bed to assign them',
+          priority: 3,
+        }
+      } else if (activeTab === 'timeline') {
+        // On timeline - give specific instruction
+        applicableHint = {
+          id: 'no-assignments-on-table',
+          icon: '↔️',
+          message: 'Drag guests from the Unassigned section onto bed rows in the timeline',
           priority: 3,
         }
       } else {
-        // On other tabs - highlight Table View tab
+        // On other tabs - highlight Table View tab first
         applicableHint = {
           id: 'no-assignments',
           icon: '↔️',
@@ -156,6 +165,58 @@ export function useHints(currentTab?: Ref<string>) {
           priority: 3,
           targetTab: 'assignment',
         }
+      }
+    }
+    // Priority 3b: Has suggestions - tell them about accept/reject (highest priority when suggestions exist)
+    else if (assignmentStore.hasSuggestions) {
+      applicableHint = {
+        id: 'has-suggestions',
+        icon: '✨',
+        message: 'Accept ✓ or reject ✗ each suggestion, or use Accept All / Clear below',
+        priority: 3,
+        targetElement: 'floating-action-bar',
+      }
+    }
+    // Priority 3c: Has 1 assignment - now suggest Timeline View
+    else if (assignmentCount === 1 && guestCount >= 2) {
+      if (activeTab === 'timeline') {
+        // Already on timeline
+        applicableHint = {
+          id: 'no-assignments-on-table',
+          icon: '↔️',
+          message: 'Drag another guest from the Unassigned section onto a bed row',
+          priority: 3,
+        }
+      } else {
+        // Suggest trying Timeline View
+        applicableHint = {
+          id: 'try-timeline',
+          icon: '📅',
+          message: 'Try the Timeline View for a date-based layout!',
+          action: { label: 'Go to Timeline', action: 'highlight-tab' },
+          priority: 3,
+          targetTab: 'timeline',
+        }
+      }
+    }
+    // Priority 3d: Has assignments, no suggestions, unassigned remain - suggest auto-place
+    else if (assignmentCount >= 1 && assignmentStore.unassignedCount > 0) {
+      applicableHint = {
+        id: 'try-auto-place',
+        icon: '🤖',
+        message: 'Try the Auto-place button to get smart placement suggestions!',
+        priority: 3,
+        targetElement: 'auto-place-btn',
+      }
+    }
+    // Priority 3e: Has 2+ assignments, can undo - show undo/redo hint (only once)
+    else if (assignmentCount >= 2 && assignmentStore.canUndo && !dismissedThisSession.value.has('can-undo-redo')) {
+      applicableHint = {
+        id: 'can-undo-redo',
+        icon: '↩️',
+        message: 'You can undo and redo assignments using the buttons below',
+        priority: 3,
+        targetElement: 'undo-redo-btns',
       }
     }
     // Priority 4: Has warnings

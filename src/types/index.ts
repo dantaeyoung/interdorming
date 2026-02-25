@@ -31,6 +31,7 @@ export type {
   Settings,
   WarningSettings,
   DisplaySettings,
+  GenderColorSettings,
   AutoPlacementSettings,
   AutoPlacementPriority,
 } from './Settings'

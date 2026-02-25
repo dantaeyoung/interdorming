@@ -8,52 +8,9 @@
       </div>
 
       <!-- Table section - takes most of the width -->
-      <div class="timeline-content-wrapper" :style="{ '--column-width': `${columnWidthPx}px` }">
-      <!-- Sticky Header -->
-      <div class="timeline-header-section" ref="headerSectionRef">
-        <table class="timeline-table">
-          <colgroup>
-            <col style="width: 50px; min-width: 50px; max-width: 50px;" />
-            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
-            <col style="width: 100px; min-width: 100px; max-width: 100px;" />
-            <col
-              v-for="dateCol in dateColumns"
-              :key="`col-${dateCol.index}`"
-              :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
-            />
-          </colgroup>
-          <thead>
-            <!-- Month row -->
-            <tr>
-              <th class="dorm-header" rowspan="2"><div class="rotated-text">Dormitory</div></th>
-              <th class="room-header" rowspan="2">Room</th>
-              <th class="bed-header" rowspan="2">Bed</th>
-              <th
-                v-for="monthGroup in monthGroups"
-                :key="`${monthGroup.year}-${monthGroup.month}`"
-                :colspan="monthGroup.colspan"
-                class="month-header"
-              >
-                {{ monthGroup.month }}
-              </th>
-            </tr>
-            <!-- Day row -->
-            <tr>
-              <th
-                v-for="dateCol in dateColumns"
-                :key="dateCol.index"
-                class="date-header"
-                :class="{ 'is-sunday': dateCol.date.getDay() === 0 }"
-                :title="dateCol.fullLabel"
-              >
-                <span class="date-cell"><span class="weekday">{{ dateCol.weekday }}</span> <span class="day-num">{{ dateCol.date.getDate() }}</span></span>
-              </th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-
-      <!-- Unassigned Guests Section - Independently Scrollable -->
+      <div ref="timelineContentRef" class="timeline-content-wrapper" :style="{ '--column-width': `${columnWidthPx}px` }">
+      <RoomGroupLinesOverlay v-if="isMounted && timelineContentRef" :containerRef="timelineContentRef" />
+      <!-- Unassigned Guests Section - At the top -->
       <div class="unassigned-section" :style="{ height: `${unassignedSectionHeight}px` }">
         <!-- Fixed label on the left -->
         <div class="unassigned-label-fixed">
@@ -159,8 +116,54 @@
         <div class="divider-handle"></div>
       </div>
 
-      <!-- Dorms Section - Independently Scrollable -->
-      <div class="dorms-section" ref="dormsSectionRef">
+      <!-- Date Header + Dorms Section - Connected together -->
+      <div class="dorms-with-header">
+        <!-- Sticky Header -->
+        <div class="timeline-header-section" ref="headerSectionRef">
+          <table class="timeline-table">
+            <colgroup>
+              <col style="width: 50px; min-width: 50px; max-width: 50px;" />
+              <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+              <col style="width: 100px; min-width: 100px; max-width: 100px;" />
+              <col
+                v-for="dateCol in dateColumns"
+                :key="`col-${dateCol.index}`"
+                :style="{ width: `${columnWidthPx}px`, minWidth: `${columnWidthPx}px`, maxWidth: `${columnWidthPx}px` }"
+              />
+            </colgroup>
+            <thead>
+              <!-- Month row -->
+              <tr>
+                <th class="dorm-header" rowspan="2"><div class="rotated-text">Dormitory</div></th>
+                <th class="room-header" rowspan="2">Room</th>
+                <th class="bed-header" rowspan="2">Bed</th>
+                <th
+                  v-for="monthGroup in monthGroups"
+                  :key="`${monthGroup.year}-${monthGroup.month}`"
+                  :colspan="monthGroup.colspan"
+                  class="month-header"
+                >
+                  {{ monthGroup.month }}
+                </th>
+              </tr>
+              <!-- Day row -->
+              <tr>
+                <th
+                  v-for="dateCol in dateColumns"
+                  :key="dateCol.index"
+                  class="date-header"
+                  :class="{ 'is-sunday': dateCol.date.getDay() === 0 }"
+                  :title="dateCol.fullLabel"
+                >
+                  <span class="date-cell"><span class="weekday">{{ dateCol.weekday }}</span> <span class="day-num">{{ dateCol.date.getDate() }}</span></span>
+                </th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        <!-- Dorms Section - Independently Scrollable -->
+        <div class="dorms-section" ref="dormsSectionRef">
         <table class="timeline-table">
           <colgroup>
             <col style="width: 50px; min-width: 50px; max-width: 50px;" />
@@ -204,7 +207,7 @@
             >
               <div class="room-content">
                 <span>{{ bedRow.room.name }}</span>
-                <span class="room-gender-badge" :class="`gender-${bedRow.room.gender}`">
+                <span class="room-gender-badge" :style="{ backgroundColor: getRoomGenderColor(bedRow.room.gender) }">
                   {{ getRoomGenderCode(bedRow.room.gender) }}
                 </span>
                 <button
@@ -239,6 +242,7 @@
               :class="{
                 'drop-target': isDropTarget(bedRow.bed.id),
                 'valid-drop-cell': isValidDropCell(bedRow.bed.id, dateCol.index),
+                'invalid-drop-cell': isInvalidDropCell(bedRow.bed.id, dateCol.index),
                 conflict: hasConflict(bedRow.bed.id, dateCol.date),
               }"
               @dragover.prevent="onDragOver(bedRow.bed.id)"
@@ -280,6 +284,7 @@
           </tbody>
         </table>
       </div>
+      </div>
     </div>
     </div>
 
@@ -300,22 +305,44 @@
       @submit="handleGuestUpdate"
     />
 
-    <!-- Notes Tooltip Overlay (teleported from GuestBlob components) -->
+    <!-- Floating blob that follows mouse when guest is picked -->
+    <Teleport to="body">
+      <div
+        v-if="pickState.isPicked && pickedGuestBlob"
+        class="floating-blob"
+        :style="floatingBlobStyle"
+      >
+        <div class="floating-blob-content">
+          <div class="guest-info-left">
+            <span class="guest-name">{{ floatingBlobName }}</span>
+          </div>
+          <div class="guest-info-right">
+            <span class="gender-badge" :style="{ backgroundColor: floatingBlobGenderColor }">
+              {{ floatingBlobGenderCode }}
+            </span>
+            <span class="guest-age">{{ pickedGuestBlob.guest.age }}</span>
+            <span class="lower-bunk-icon" :class="{ 'is-hidden': !pickedGuestBlob.guest.lowerBunk }" title="Needs lower/single bunk">🛏️</span>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useTimelineData } from '../composables/useTimelineData'
 import { useTimelineDragDrop } from '../composables/useTimelineDragDrop'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 import TimelineHeader from './TimelineHeader.vue'
 import GuestBlob from './GuestBlob.vue'
+import RoomGroupLinesOverlay from '@/features/dormitories/components/RoomGroupLinesOverlay.vue'
 import { GuestFormModal } from '@/features/guests/components'
 import type { GuestBlobData } from '../types/timeline'
 import type { Guest } from '@/types'
@@ -324,6 +351,7 @@ const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const dormitoryStore = useDormitoryStore()
+const settingsStore = useSettingsStore()
 const { autoPlaceGuestsInRoom } = useAutoPlacement()
 const { sortGuests } = useSortConfig()
 const { dateColumns, monthGroups, bedRows, getGuestBlobsForBed } = useTimelineData()
@@ -357,6 +385,8 @@ const columnWidthPx = computed(() => timelineStore.columnWidth)
 const headerSectionRef = ref<HTMLElement | null>(null)
 const unassignedSectionRef = ref<HTMLElement | null>(null)
 const dormsSectionRef = ref<HTMLElement | null>(null)
+const timelineContentRef = ref<HTMLElement | null>(null)
+const isMounted = ref(false)
 
 // Resizable section height
 const unassignedSectionHeight = ref(200)
@@ -407,8 +437,13 @@ function syncHorizontalScroll(source: HTMLElement, ...targets: HTMLElement[]) {
 }
 
 onMounted(() => {
+  isMounted.value = true
+
   // Setup keyboard listener for Escape key to cancel pick
   setupKeyboardListener()
+
+  // Setup mouse move listener for floating blob
+  document.addEventListener('mousemove', handleMouseMove)
 
   if (headerSectionRef.value && unassignedSectionRef.value && dormsSectionRef.value) {
     const header = headerSectionRef.value
@@ -431,6 +466,8 @@ onMounted(() => {
       // Cleanup resize listeners if still active
       document.removeEventListener('mousemove', onResize)
       document.removeEventListener('mouseup', stopResize)
+      // Cleanup mouse move listener for floating blob
+      document.removeEventListener('mousemove', handleMouseMove)
       // Cleanup keyboard listener
       cleanupKeyboardListener()
     })
@@ -557,6 +594,56 @@ const pickedGuestBlob = computed(() => {
     if (blob) return blob
   }
   return null
+})
+
+// Mouse position tracking for floating blob
+const mousePosition = ref({ x: 0, y: 0 })
+const floatingBlobInitialX = ref(0)
+const floatingBlobWidth = ref(0)
+
+function handleMouseMove(event: MouseEvent) {
+  mousePosition.value = { x: event.clientX, y: event.clientY }
+}
+
+// Floating blob computed properties
+const floatingBlobStyle = computed(() => {
+  return {
+    left: `${floatingBlobInitialX.value}px`,
+    top: `${mousePosition.value.y}px`,
+    width: `${floatingBlobWidth.value}px`,
+  }
+})
+
+const floatingBlobName = computed(() => {
+  if (!pickedGuestBlob.value) return ''
+  const guest = pickedGuestBlob.value.guest
+  return guest.preferredName
+    ? `${guest.preferredName} ${guest.lastName}`
+    : `${guest.firstName} ${guest.lastName}`
+})
+
+const floatingBlobGenderCode = computed(() => {
+  if (!pickedGuestBlob.value) return ''
+  const gender = pickedGuestBlob.value.guest.gender
+  return gender === 'male' ? 'M' : gender === 'female' ? 'F' : 'NB'
+})
+
+const floatingBlobGenderColor = computed(() => {
+  if (!pickedGuestBlob.value) return ''
+  const gender = pickedGuestBlob.value.guest.gender
+  const colors = settingsStore.settings.genderColors
+  if (gender === 'male') return colors.male
+  if (gender === 'female') return colors.female
+  return colors.nonBinary
+})
+
+// Watch for pick state changes to toggle body cursor class
+watch(() => pickState.value.isPicked, (isPicked) => {
+  if (isPicked) {
+    document.body.classList.add('guest-picked')
+  } else {
+    document.body.classList.remove('guest-picked')
+  }
 })
 
 // Pre-compute valid drop cells as a Set for O(1) lookup
@@ -807,6 +894,24 @@ function isValidDropCell(bedId: string, colIndex: number): boolean {
 }
 
 /**
+ * Check if we're in drag/pick mode and this cell is NOT a valid drop target
+ */
+function isInvalidDropCell(bedId: string, colIndex: number): boolean {
+  const isDraggingOrPicked = dragState.value.isDragging || pickState.value.isPicked
+  if (!isDraggingOrPicked) return false
+
+  // Check if this cell is within the guest's date range
+  const blob = dragState.value.isDragging ? draggedGuestBlob.value : pickedGuestBlob.value
+  if (!blob) return false
+
+  // Only mark as invalid if the column is within the guest's stay range
+  if (colIndex < blob.startColIndex || colIndex > blob.endColIndex) return false
+
+  // It's invalid if it's not in the valid drop cells set
+  return !validDropCells.value.has(`${bedId}-${colIndex}`)
+}
+
+/**
  * Handle drag over event
  */
 function onDragOver(bedId: string) {
@@ -844,7 +949,16 @@ function onGuestDragEnd() {
 /**
  * Handle guest pick (click-to-pick mode)
  */
-function onGuestPick(guestId: string, bedId: string) {
+function onGuestPick(guestId: string, bedId: string, event?: MouseEvent) {
+  // Capture the blob's position and width for the floating blob
+  if (event) {
+    const blobElement = (event.target as HTMLElement).closest('.guest-blob')
+    if (blobElement) {
+      const rect = blobElement.getBoundingClientRect()
+      floatingBlobInitialX.value = rect.left + rect.width / 2
+      floatingBlobWidth.value = rect.width
+    }
+  }
   pickGuest(guestId, bedId)
 }
 
@@ -1007,6 +1121,13 @@ function getRoomGenderCode(gender: 'male' | 'female' | 'any'): string {
   return 'A' // Any gender
 }
 
+function getRoomGenderColor(gender: 'male' | 'female' | 'any'): string {
+  const colors = settingsStore.settings.genderColors
+  if (gender === 'male') return colors.male
+  if (gender === 'female') return colors.female
+  return '#d1d5db' // Gray for "any" gender
+}
+
 /**
  * Check if dormitory label should be shown for this row
  * Only show on the first bed of each dormitory
@@ -1130,7 +1251,7 @@ function getRoomRowspan(index: number): number {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: relative;
+  position: relative; // Required for group lines overlay positioning
 }
 
 .timeline-header-section {
@@ -1155,21 +1276,23 @@ function getRoomRowspan(index: number): number {
   flex-direction: row;
   margin: 0;
   padding: 0;
-  background: white;
+  background: #e5e7eb;
   position: relative;
+  border: 2px solid #9ca3af;
+  border-radius: 4px;
 }
 
 .unassigned-label-fixed {
   width: 250px;
   min-width: 250px;
-  background-color: #bfdbfe;
-  color: #1e40af;
+  background-color: #d1d5db;
+  color: #1f2937;
   font-weight: 600;
   font-size: 0.875rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 2px solid #3b82f6;
+  border-right: 2px solid #9ca3af;
   position: sticky;
   left: 0;
   z-index: 15;
@@ -1179,7 +1302,7 @@ function getRoomRowspan(index: number): number {
   flex: 1;
   overflow-x: scroll; // Scrollable for JS sync
   overflow-y: auto; // Vertical scroll when needed
-  background: white;
+  background: #e5e7eb;
 
   // Hide only the horizontal scrollbar while keeping vertical
   &::-webkit-scrollbar {
@@ -1205,11 +1328,19 @@ function getRoomRowspan(index: number): number {
 .timeline-table.unassigned-table {
   width: max-content;
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 
   .unassigned-date-cell {
-    border: 1px solid #d1d5db;
-    background-color: white;
+    border: 1px solid #f3f4f6;
+    background-color: #e5e7eb;
+  }
+
+  // Make guest blobs in unassigned section dashed outline
+  :deep(.guest-blob) {
+    background: #fff0d9;
+    border: 1.5px dashed #513a06;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
 }
 
@@ -1234,6 +1365,14 @@ function getRoomRowspan(index: number): number {
     border-radius: 2px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
+}
+
+.dorms-with-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; // Important for flex child scrolling
+  overflow: hidden;
 }
 
 .dorms-section {
@@ -1492,18 +1631,6 @@ function getRoomRowspan(index: number): number {
           font-size: 0.55rem;
           font-weight: 600;
           color: #1f2937;
-
-          &.gender-male {
-            background-color: #93c5fd;
-          }
-
-          &.gender-female {
-            background-color: #f9a8d4;
-          }
-
-          &.gender-any {
-            background-color: #d1d5db;
-          }
         }
 
         .room-auto-place-btn {
@@ -1592,6 +1719,11 @@ function getRoomRowspan(index: number): number {
         &.valid-drop-cell {
           background-color: #d1fae5 !important;
           cursor: pointer;
+        }
+
+        &.invalid-drop-cell {
+          background-color: #feeaea !important;
+          cursor: not-allowed;
         }
 
         &.conflict {
@@ -1765,5 +1897,97 @@ function getRoomRowspan(index: number): number {
   p {
     margin: 0;
   }
+}
+</style>
+
+<style>
+/* Global styles for floating blob (not scoped) */
+.floating-blob {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  background: #E9B051;
+  color: #1f2937;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+  pointer-events: none;
+  cursor: grabbing;
+  white-space: nowrap;
+  box-sizing: border-box;
+
+  .floating-blob-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .guest-info-left {
+    flex: 1 1 calc(50% + 50px);
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 6px;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .guest-info-right {
+    flex: 1 1 calc(50% - 50px);
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+    padding-left: 0;
+  }
+
+  .guest-name {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .gender-badge {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .guest-age {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  .lower-bunk-icon {
+    flex-shrink: 0;
+    font-size: 0.6rem;
+    opacity: 0.8;
+
+    &.is-hidden {
+      visibility: hidden;
+    }
+  }
+}
+
+/* Add grabbing cursor to body when guest is picked */
+body.guest-picked {
+  cursor: grabbing !important;
+}
+
+body.guest-picked * {
+  cursor: grabbing !important;
 }
 </style>

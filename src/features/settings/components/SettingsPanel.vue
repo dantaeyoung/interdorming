@@ -9,6 +9,46 @@
       <DataBackupControls />
     </div>
 
+    <!-- Gender Colors Section -->
+    <div class="settings-section">
+      <h2>Gender Colors</h2>
+      <p class="section-description">
+        Customize the colors used to indicate gender throughout the application.
+      </p>
+      <div class="color-settings">
+        <div class="color-row">
+          <label class="color-label">Male (M)</label>
+          <input
+            type="color"
+            :value="settingsStore.settings.genderColors.male"
+            @input="settingsStore.updateGenderColor('male', ($event.target as HTMLInputElement).value)"
+            class="color-picker"
+          />
+          <span class="color-value">{{ settingsStore.settings.genderColors.male }}</span>
+        </div>
+        <div class="color-row">
+          <label class="color-label">Female (F)</label>
+          <input
+            type="color"
+            :value="settingsStore.settings.genderColors.female"
+            @input="settingsStore.updateGenderColor('female', ($event.target as HTMLInputElement).value)"
+            class="color-picker"
+          />
+          <span class="color-value">{{ settingsStore.settings.genderColors.female }}</span>
+        </div>
+        <div class="color-row">
+          <label class="color-label">Non-Binary (NB)</label>
+          <input
+            type="color"
+            :value="settingsStore.settings.genderColors.nonBinary"
+            @input="settingsStore.updateGenderColor('nonBinary', ($event.target as HTMLInputElement).value)"
+            class="color-picker"
+          />
+          <span class="color-value">{{ settingsStore.settings.genderColors.nonBinary }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Auto-Placement Settings -->
     <AutoPlacementSettings />
 
@@ -97,5 +137,48 @@ const settingsStore = useSettingsStore()
 .setting-description {
   font-size: 0.875rem;
   color: #6b7280;
+}
+
+.color-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-label {
+  width: 120px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.color-picker {
+  width: 48px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &::-webkit-color-swatch-wrapper {
+    padding: 2px;
+  }
+
+  &::-webkit-color-swatch {
+    border: none;
+    border-radius: 2px;
+  }
+}
+
+.color-value {
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-transform: uppercase;
 }
 </style>

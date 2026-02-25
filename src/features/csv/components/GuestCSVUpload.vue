@@ -7,9 +7,17 @@
         ref="fileInput"
         type="file"
         accept=".csv"
-        class="form-input"
+        class="form-input-hidden"
         @change="handleFileChange"
       />
+      <button
+        class="btn btn-upload"
+        :class="{ highlighted: isHighlighted('upload-csv') }"
+        data-hint-target="upload-csv"
+        @click="triggerFileInput"
+      >
+        Upload Guest List CSV
+      </button>
       <button v-if="showLoadTest && settingsStore.settings.developerMode" class="btn btn-load-test" @click="$emit('load-test-data')">
         Load Test Data
       </button>
@@ -40,6 +48,7 @@ import { useCSV } from '../composables/useCSV'
 import { useGuestStore } from '@/stores/guestStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTimelineStore } from '@/stores/timelineStore'
+import { useHints } from '@/features/hints/composables/useHints'
 import type { Guest } from '@/types'
 import CSVWarningModal from './CSVWarningModal.vue'
 import CSVImportModeModal from './CSVImportModeModal.vue'
@@ -67,7 +76,14 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const guestStore = useGuestStore()
 const settingsStore = useSettingsStore()
 const timelineStore = useTimelineStore()
+const { highlightedElement } = useHints()
 const { parseGuestCSV } = useCSV()
+
+// Check if an element should be highlighted (supports comma-separated targets)
+const isHighlighted = (elementId: string) => {
+  if (!highlightedElement.value) return false
+  return highlightedElement.value.split(',').includes(elementId)
+}
 
 // Modal state
 const showWarningModal = ref(false)
@@ -206,6 +222,10 @@ function handleImportModeCancel() {
   pendingCSVData.value = null
 }
 
+function triggerFileInput() {
+  fileInput.value?.click()
+}
+
 function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -244,10 +264,47 @@ function readFileAsText(file: File): Promise<string> {
   align-items: center;
 }
 
-.form-input {
+.form-input-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.btn-upload {
+  padding: 6px 12px;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  background: #3b82f6;
+  color: white;
   font-size: 0.8rem;
-  padding: 4px 8px;
-  max-width: 200px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+  }
+
+  &.highlighted {
+    animation: hint-pulse 1.5s ease-in-out infinite;
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+}
+
+@keyframes hint-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(16, 185, 129, 0.25);
+  }
 }
 
 .btn-load-test {

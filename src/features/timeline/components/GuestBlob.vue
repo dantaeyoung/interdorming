@@ -3,6 +3,7 @@
     class="guest-blob"
     :class="{ 'has-warnings': hasWarnings, 'has-conflict': hasConflict, 'is-suggested': isSuggested, 'is-picked': props.isPicked }"
     :style="blobStyle"
+    :data-guest-id="props.guestBlob.guestId"
     :draggable="true"
     @dragstart="onDragStart"
     @dragend="onDragEnd"
@@ -11,12 +12,17 @@
     @mouseleave="handleBlobMouseLeave"
   >
     <div class="guest-info">
-      <span class="guest-name">{{ guestName }}</span>
-      <span class="gender-badge" :class="`gender-${props.guestBlob.guest.gender}`">{{
-        genderCode
-      }}</span>
-      <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
-      <span v-if="isSuggested" class="suggestion-badge">Suggested</span>
+      <div class="guest-info-left">
+        <span class="guest-name">{{ guestName }}</span>
+      </div>
+      <div class="guest-info-right">
+        <span class="gender-badge" :style="{ backgroundColor: genderBadgeColor }">{{
+          genderCode
+        }}</span>
+        <span class="guest-age">{{ props.guestBlob.guest.age }}</span>
+        <span class="lower-bunk-icon" :class="{ 'is-hidden': !needsLowerBunk }" title="Needs lower/single bunk">🛏️</span>
+        <span v-if="isSuggested" class="suggestion-badge">Suggested</span>
+      </div>
     </div>
     <!-- Warning icon - positioned on left edge -->
     <div v-if="hasWarnings" class="warning-icon" ref="warningIconRef">
@@ -70,6 +76,8 @@
 import { computed, ref } from 'vue'
 import { useValidationStore } from '@/stores/validationStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import type { GuestBlobData } from '../types/timeline'
 
 interface Props {
@@ -86,7 +94,7 @@ const emit = defineEmits<{
   dragStart: [guestId: string, bedId: string]
   dragEnd: []
   editGuest: [guestId: string]
-  pick: [guestId: string, bedId: string]
+  pick: [guestId: string, bedId: string, event: MouseEvent]
 }>()
 
 const showNotesTooltip = ref(false)
@@ -99,6 +107,8 @@ const warningIconRef = ref<HTMLDivElement | null>(null)
 
 const validationStore = useValidationStore()
 const assignmentStore = useAssignmentStore()
+const settingsStore = useSettingsStore()
+const { setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 const isSuggested = computed(() => {
   const guestId = props.guestBlob.guestId
@@ -128,6 +138,18 @@ const genderCode = computed(() => {
   return guest.gender === 'male' ? 'M' : guest.gender === 'female' ? 'F' : 'NB'
 })
 
+const genderBadgeColor = computed(() => {
+  const guest = props.guestBlob.guest
+  const colors = settingsStore.settings.genderColors
+  if (guest.gender === 'male') return colors.male
+  if (guest.gender === 'female') return colors.female
+  return colors.nonBinary
+})
+
+const needsLowerBunk = computed(() => {
+  return props.guestBlob.guest.lowerBunk === true
+})
+
 const hasNotes = computed(() => {
   return !!props.guestBlob.guest.notes && props.guestBlob.guest.notes.trim().length > 0
 })
@@ -149,9 +171,8 @@ const blobStyle = computed(() => {
 
   // If stacked, adjust height and position with overlap
   if (props.stackCount !== undefined && props.stackCount > 1 && props.stackPosition !== undefined) {
-    // Each blob takes 70% height instead of equal division (e.g., 50% for 2 blobs)
-    // This creates visual overlap between stacked blobs
-    const heightPercent = 70
+    // Each blob takes 60% height to show overlap clearly
+    const heightPercent = 60
     const spacing = (100 - heightPercent) / (props.stackCount - 1)
     const topPercent = spacing * props.stackPosition
 
@@ -223,10 +244,16 @@ function handleBlobMouseEnter() {
     }
     showWarningTooltip.value = true
   }
+
+  // Highlight group connections
+  if (props.guestBlob.guest.groupName) {
+    setHoveredGroup(props.guestBlob.guest.groupName)
+  }
 }
 
 function handleBlobMouseLeave() {
   showWarningTooltip.value = false
+  clearHoveredGroup()
 }
 
 function acceptSuggestion() {
@@ -247,23 +274,23 @@ function onBlobClick(event: MouseEvent) {
     return
   }
 
-  emit('pick', props.guestBlob.guestId, props.guestBlob.bedId)
+  emit('pick', props.guestBlob.guestId, props.guestBlob.bedId, event)
 }
 </script>
 
 <style scoped lang="scss">
 .guest-blob {
   position: absolute;
-  top: 2px;
-  bottom: 2px;
-  padding: 4px 8px;
-  background: #9ca3af;
+  top: 0px;
+  bottom: 1px;
+  padding: 2px 8px;
+  background: #E9B051;
   color: #1f2937;
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 500;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  cursor: move;
+  cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -298,21 +325,11 @@ function onBlobClick(event: MouseEvent) {
   }
 
   &.is-picked {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border: 3px solid #f59e0b;
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
-    transform: scale(1.05);
-    z-index: 100;
-    animation: pulse-pick 1.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse-pick {
-    0%, 100% {
-      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
-    }
-    50% {
-      box-shadow: 0 0 20px rgba(245, 158, 11, 0.8), 0 6px 12px rgba(0, 0, 0, 0.4);
-    }
+    background: rgba(156, 163, 175, 0.3);
+    border: 2px dashed #6b7280;
+    box-shadow: none;
+    opacity: 0.7;
+    z-index: 1;
   }
 
   &:hover {
@@ -330,11 +347,27 @@ function onBlobClick(event: MouseEvent) {
 .guest-info {
   display: flex;
   align-items: center;
-  gap: 6px;
   overflow: hidden;
   flex: 1;
   min-width: 0;
-  justify-content: center;
+}
+
+.guest-info-left {
+  flex: 1 1 calc(50% + 50px);
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 6px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.guest-info-right {
+  flex: 1 1 calc(50% - 50px);
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding-left: 0;
 }
 
 .guest-name {
@@ -343,6 +376,7 @@ function onBlobClick(event: MouseEvent) {
   white-space: nowrap;
   font-weight: 500;
   font-size: 0.7rem;
+  text-align: right;
 }
 
 .gender-badge {
@@ -357,18 +391,6 @@ function onBlobClick(event: MouseEvent) {
   font-weight: 600;
   color: #1f2937;
 
-  &.gender-male {
-    background-color: #93c5fd;
-  }
-
-  &.gender-female {
-    background-color: #f9a8d4;
-  }
-
-  &.gender-non-binary {
-    background-color: #c084fc;
-  }
-
   .guest-blob.has-warnings & {
     border: 1px solid #991b1b;
   }
@@ -378,6 +400,16 @@ function onBlobClick(event: MouseEvent) {
   flex-shrink: 0;
   font-size: 0.7rem;
   font-weight: 500;
+}
+
+.lower-bunk-icon {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  opacity: 0.8;
+
+  &.is-hidden {
+    visibility: hidden;
+  }
 }
 
 .suggestion-badge {
@@ -484,7 +516,7 @@ function onBlobClick(event: MouseEvent) {
   position: absolute;
   left: 2px;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-50%) scale(0.6);
   background: rgba(239, 68, 68, 0.9);
   color: white;
   padding: 2px 4px;

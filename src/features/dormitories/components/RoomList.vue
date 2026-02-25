@@ -5,7 +5,8 @@
       <p>{{ emptyMessage }}</p>
     </div>
 
-    <div v-else class="dormitories-container">
+    <div v-else ref="containerRef" class="dormitories-container">
+      <RoomGroupLinesOverlay v-if="isMounted && containerRef" :containerRef="containerRef" />
       <DormitorySection
         v-for="dormitory in activeDormitories"
         :key="dormitory.dormitoryName"
@@ -16,9 +17,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import DormitorySection from './DormitorySection.vue'
+import RoomGroupLinesOverlay from './RoomGroupLinesOverlay.vue'
 
 interface Props {
   emptyTitle?: string
@@ -30,12 +32,18 @@ withDefaults(defineProps<Props>(), {
   emptyMessage: 'Room layout will appear here once configured.',
 })
 
+const containerRef = ref<HTMLElement | null>(null)
+const isMounted = ref(false)
 const dormitoryStore = useDormitoryStore()
 
 const dormitories = computed(() => dormitoryStore.dormitories)
 
 const activeDormitories = computed(() => {
   return dormitories.value.filter(d => d.active)
+})
+
+onMounted(() => {
+  isMounted.value = true
 })
 </script>
 
@@ -66,6 +74,7 @@ const activeDormitories = computed(() => {
 }
 
 .dormitories-container {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 20px;
