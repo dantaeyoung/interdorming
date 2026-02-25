@@ -68,12 +68,13 @@
       </span>
       <span v-else>-</span>
     </td>
+    <td>{{ guest.email || '-' }}</td>
+    <td>{{ guest.firstVisit || '-' }}</td>
+    <td>{{ guest.roomPreference || '-' }}</td>
     <td>{{ guest.retreat || '-' }}</td>
     <td>{{ guest.ratePerNight || '-' }}</td>
     <td>{{ guest.priceQuoted || '-' }}</td>
     <td>{{ guest.amountPaid || '-' }}</td>
-    <td>{{ guest.firstVisit || '-' }}</td>
-    <td>{{ guest.roomPreference || '-' }}</td>
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
     </td>

@@ -262,7 +262,7 @@ function handleDeleteAll() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow: hidden; // vertical only - horizontal scroll handled by table-wrapper
 }
 
 .guest-data-header {

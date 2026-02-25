@@ -50,6 +50,18 @@
             Notes
             <SortIndicator :active="sortColumn === 'notes'" :direction="sortDirection" />
           </th>
+          <th @click="handleSort('email')">
+            Email
+            <SortIndicator :active="sortColumn === 'email'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('firstVisit')">
+            First Visit
+            <SortIndicator :active="sortColumn === 'firstVisit'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('roomPreference')">
+            Rm Preference
+            <SortIndicator :active="sortColumn === 'roomPreference'" :direction="sortDirection" />
+          </th>
           <th @click="handleSort('retreat')">
             Retreat
             <SortIndicator :active="sortColumn === 'retreat'" :direction="sortDirection" />
@@ -66,14 +78,6 @@
             Amount Paid
             <SortIndicator :active="sortColumn === 'amountPaid'" :direction="sortDirection" />
           </th>
-          <th @click="handleSort('firstVisit')">
-            First Visit
-            <SortIndicator :active="sortColumn === 'firstVisit'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('roomPreference')">
-            Rm Preference
-            <SortIndicator :active="sortColumn === 'roomPreference'" :direction="sortDirection" />
-          </th>
           <th>Warnings</th>
         </tr>
       </thead>
@@ -86,7 +90,7 @@
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
-          <td colspan="19" class="empty-cell">
+          <td colspan="20" class="empty-cell">
             <div class="empty-state-inline">
               <template v-if="guestStore.guests.length === 0">
                 <strong>{{ emptyTitle }}</strong>
@@ -466,7 +470,7 @@ export { SortIndicator }
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
 
   &.drag-over {
     background-color: #f0f9ff;
@@ -478,7 +482,31 @@ export { SortIndicator }
 .table-wrapper {
   position: relative;
   flex: 1;
-  overflow: auto;
+  overflow: auto; // Single scroll container for both axes
+
+  // Always show scrollbars
+  &::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #c1c1c1;
+    border-radius: 6px;
+
+    &:hover {
+      background-color: #a8a8a8;
+    }
+  }
+
+  // For Firefox
+  scrollbar-width: auto;
+  scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
 .group-lines-svg {
@@ -518,45 +546,14 @@ export { SortIndicator }
 }
 
 .table {
-  width: 100%;
+  min-width: 2000px; // Wide enough for all columns - scroll handled by .table-wrapper
   border-collapse: separate;
   border-spacing: 0;
   background: white;
-  overflow-x: auto;
-  overflow-y: auto;
-  flex: 1;
-  display: block;
-
-  // Always show scrollbars
-  &::-webkit-scrollbar {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background-color: #f1f1f1;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: #c1c1c1;
-    border-radius: 6px;
-
-    &:hover {
-      background-color: #a8a8a8;
-    }
-  }
-
-  // For Firefox
-  scrollbar-width: auto;
-  scrollbar-color: #c1c1c1 #f1f1f1;
 
   thead,
   tbody,
   tr {
-    display: table;
-    width: 100%;
-    min-width: 2000px; // Ensure table is wide enough for all columns
     table-layout: fixed;
   }
 
