@@ -55,6 +55,7 @@ export function useGroupConnections(containerRef: Ref<HTMLElement | null> | unde
     if (!containerRef?.value) return
 
     const containerRect = containerRef.value.getBoundingClientRect()
+    if (containerRect.width === 0 && containerRect.height === 0) return // hidden container
     const guestElements = containerRef.value.querySelectorAll('[data-guest-id]')
     const positions: GuestPosition[] = []
 

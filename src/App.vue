@@ -130,14 +130,14 @@
     </div>
 
     <!-- Timeline Tab -->
-    <div v-show="activeTab === 'timeline'" class="tab-content">
+    <div v-if="activeTab === 'timeline'" class="tab-content">
       <div class="scrollable-content">
         <TimelineView />
       </div>
     </div>
 
     <!-- Room Configuration Tab -->
-    <div v-show="activeTab === 'configuration'" class="tab-content">
+    <div v-if="activeTab === 'configuration'" class="tab-content">
       <div class="toolbar">
         <div class="toolbar-left">
           <h2>Room Configuration</h2>
@@ -163,7 +163,7 @@
     </div>
 
     <!-- Print Tab -->
-    <div v-show="activeTab === 'print'" class="tab-content">
+    <div v-if="activeTab === 'print'" class="tab-content">
       <div class="scrollable-content">
         <PrintView />
       </div>
