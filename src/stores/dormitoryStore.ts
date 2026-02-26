@@ -13,6 +13,7 @@ export const useDormitoryStore = defineStore(
   () => {
     // State
     const dormitories = ref<Dormitory[]>([])
+    const configName = ref<string>('')
     const selectedDormitoryIndex = ref<number | null>(null)
 
     // Getters
@@ -280,6 +281,7 @@ export const useDormitoryStore = defineStore(
     return {
       // State
       dormitories,
+      configName,
       selectedDormitoryIndex,
 
       // Getters
@@ -308,7 +310,7 @@ export const useDormitoryStore = defineStore(
   {
     persist: {
       key: 'dormAssignments-dormitories',
-      paths: ['dormitories'],
+      paths: ['dormitories', 'configName'],
     },
   }
 )

@@ -552,10 +552,18 @@ function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => strin
     throw new Error('CSV must have at least a header row and one data row')
   }
 
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+  // Check for config name comment line and skip it
+  let startLine = 0
+  if (lines[0].startsWith('# Config:')) {
+    const configName = lines[0].replace('# Config:', '').trim()
+    dormitoryStore.configName = configName
+    startLine = 1
+  }
+
+  const headers = lines[startLine].split(',').map(h => h.trim().replace(/"/g, ''))
   const dormitoriesMap = new Map<string, any>()
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = startLine + 1; i < lines.length; i++) {
     const values = parseCSVRow(lines[i])
 
     const dormitoryName = values[headers.indexOf('Dormitory Name')]?.trim()
