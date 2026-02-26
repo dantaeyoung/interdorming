@@ -123,6 +123,8 @@
           left: `${overlayLeft - scrollLeft + 32}px`,
           top: `${overlayTop + pill.y - 10}px`,
         }"
+        @mouseenter="setHoveredGroup(pill.groupName)"
+        @mouseleave="clearHoveredGroup()"
       >
         <button class="pill-accept" @click="guestStore.acceptGroupSuggestion(pill.groupName)" title="Accept group">
           &#10003;
@@ -227,7 +229,7 @@ const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { validateDrop } = useDropValidation()
 const { useDroppableUnassignedArea, isDragging, draggedGuestId, dragOverBedId, mousePosition, isPicking, pickedGuestId } = useDragDrop()
-const { isLinking, linkingCount, completeLinking, cancelLinking } = useGroupLinking()
+const { isLinking, linkingCount, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 // Template refs
 const tableWrapperRef = ref<HTMLDivElement | null>(null)

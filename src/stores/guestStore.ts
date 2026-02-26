@@ -110,6 +110,16 @@ export const useGuestStore = defineStore(
     }
 
     // Group suggestion computeds
+    const getGuestSuggestedGroup = computed(() => {
+      const map = new Map<string, string>()
+      for (const [groupName, memberIds] of suggestedGroups.value.entries()) {
+        for (const id of memberIds) {
+          map.set(id, groupName)
+        }
+      }
+      return (guestId: string): string | null => map.get(guestId) ?? null
+    })
+
     const hasGuestsWithEmail = computed(() =>
       guests.value.some(g => g.email && g.email.trim())
     )
@@ -233,6 +243,7 @@ export const useGuestStore = defineStore(
       getGuestById,
       guestsByGroup,
       filteredGuests,
+      getGuestSuggestedGroup,
       hasGuestsWithEmail,
       hasGroupSuggestions,
       groupSuggestionCount,

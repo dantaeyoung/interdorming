@@ -31,8 +31,8 @@
     <g v-for="group in suggestedGroupPaths" :key="'suggested-' + group.name + '-' + updateKey">
       <path
         :d="group.path"
-        class="group-path suggested"
-        :stroke="group.color"
+        :class="['group-path', 'suggested', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
+        :stroke="highlightedGroup && group.name !== highlightedGroup ? '#d1d5db' : group.color"
         fill="none"
         stroke-width="2"
         stroke-linecap="round"
@@ -45,9 +45,10 @@
         :cx="dot.x"
         :cy="dot.y"
         r="4"
-        class="group-dot suggested"
-        :fill="group.color"
-        stroke="none"
+        :class="['group-dot', 'suggested', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
+        :fill="highlightedGroup && group.name !== highlightedGroup ? '#d1d5db' : group.color"
+        :stroke="group.name === highlightedGroup ? '#fff' : 'none'"
+        stroke-width="2"
       />
     </g>
   </svg>
@@ -384,10 +385,28 @@ onMounted(() => {
 
   &.suggested {
     opacity: 0.4;
+
+    &.highlighted {
+      r: 5;
+      opacity: 1;
+    }
+
+    &.dimmed {
+      opacity: 0.15;
+    }
   }
 }
 
 .group-path.suggested {
   opacity: 0.4;
+
+  &.highlighted {
+    stroke-width: 3;
+    opacity: 1;
+  }
+
+  &.dimmed {
+    opacity: 0.15;
+  }
 }
 </style>

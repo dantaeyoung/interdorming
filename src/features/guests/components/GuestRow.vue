@@ -147,8 +147,11 @@ const isLinkTarget = computed(() => isLinking.value && !linkingGuestIds.value.ha
 
 // Group hover highlighting
 const isGroupHighlighted = computed(() => {
-  if (!props.guest.groupName || !hoveredGroupName.value) return false
-  return props.guest.groupName === hoveredGroupName.value
+  if (!hoveredGroupName.value) return false
+  if (props.guest.groupName === hoveredGroupName.value) return true
+  // Also highlight if this guest belongs to a suggested group being hovered
+  const suggestedGroup = guestStore.getGuestSuggestedGroup(props.guest.id)
+  return suggestedGroup === hoveredGroupName.value
 })
 
 const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.guest.id)
@@ -224,6 +227,11 @@ function handleRowClick(event: MouseEvent) {
 function handleMouseEnter() {
   if (props.guest.groupName) {
     setHoveredGroup(props.guest.groupName)
+  } else {
+    const suggestedGroup = guestStore.getGuestSuggestedGroup(props.guest.id)
+    if (suggestedGroup) {
+      setHoveredGroup(suggestedGroup)
+    }
   }
 }
 
