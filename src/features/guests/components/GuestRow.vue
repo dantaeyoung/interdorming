@@ -102,6 +102,7 @@ import type { Guest } from '@/types'
 interface Props {
   guest: Guest
   familyPosition?: 'none' | 'first' | 'middle' | 'last' | 'only'
+  readonly?: boolean
 }
 
 interface Emits {
@@ -109,7 +110,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  familyPosition: 'none'
+  familyPosition: 'none',
+  readonly: false,
 })
 
 const emit = defineEmits<Emits>()
@@ -163,7 +165,7 @@ const isUnassigned = computed(() => !assignmentStore.assignments.has(props.guest
 
 const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.id))
 
-const draggableProps = useDraggableGuest(props.guest.id)
+const draggableProps = props.readonly ? {} : useDraggableGuest(props.guest.id)
 
 // Notes modal state
 const showNotesModal = ref(false)
@@ -213,8 +215,10 @@ function handleRowClick(event: MouseEvent) {
     return
   }
 
-  // Handle pick-and-place
-  pickGuest(props.guest.id, event)
+  // Handle pick-and-place (disabled in readonly mode)
+  if (!props.readonly) {
+    pickGuest(props.guest.id, event)
+  }
 }
 
 function handleMouseEnter() {

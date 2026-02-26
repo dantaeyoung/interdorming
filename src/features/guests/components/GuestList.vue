@@ -87,6 +87,7 @@
           :key="guest.id"
           :guest="guest"
           :family-position="getFamilyPosition(guest, index)"
+          :readonly="props.readonly"
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
@@ -210,12 +211,14 @@ interface Props {
   showAssigned?: boolean
   emptyTitle?: string
   emptyMessage?: string
+  readonly?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showAssigned: false,
   emptyTitle: 'No guests loaded',
   emptyMessage: 'Upload a CSV file to begin assigning guests to dormitory beds.',
+  readonly: false,
 })
 
 const guestStore = useGuestStore()

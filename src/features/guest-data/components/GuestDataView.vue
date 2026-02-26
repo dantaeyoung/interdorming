@@ -65,6 +65,7 @@
       <GuestList
         ref="guestListRef"
         :show-assigned="true"
+        :readonly="true"
         empty-title="No guests loaded"
         empty-message="Upload a CSV file or load test data to get started."
       />
