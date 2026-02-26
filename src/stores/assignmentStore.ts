@@ -28,14 +28,27 @@ export const useAssignmentStore = defineStore(
       }
     })
 
+    // Reverse lookup map: bedId -> guestId (O(1) instead of O(n))
+    const bedToGuestMap = computed(() => {
+      const map = new Map<string, string>()
+      for (const [guestId, bedId] of assignments.value.entries()) {
+        map.set(bedId, guestId)
+      }
+      return map
+    })
+
+    // Reverse lookup map for suggestions: bedId -> guestId
+    const suggestedBedToGuestMap = computed(() => {
+      const map = new Map<string, string>()
+      for (const [guestId, bedId] of suggestedAssignments.value.entries()) {
+        map.set(bedId, guestId)
+      }
+      return map
+    })
+
     const getAssignmentByBed = computed(() => {
       return (bedId: string): string | undefined => {
-        for (const [guestId, assignedBedId] of assignments.value.entries()) {
-          if (assignedBedId === bedId) {
-            return guestId
-          }
-        }
-        return undefined
+        return bedToGuestMap.value.get(bedId)
       }
     })
 
@@ -58,20 +71,16 @@ export const useAssignmentStore = defineStore(
 
     // Get all guests assigned to a specific bed
     function getGuestsAssignedToBed(bedId: string): string[] {
-      const guests: string[] = []
-      for (const [guestId, assignedBedId] of assignments.value.entries()) {
-        if (assignedBedId === bedId) {
-          guests.push(guestId)
-        }
-      }
-      return guests
+      const guestId = bedToGuestMap.value.get(bedId)
+      return guestId ? [guestId] : []
     }
 
     // Get all guests assigned to beds in a specific room
     function getGuestsAssignedToRoom(roomBedIds: string[]): string[] {
+      const bedIdSet = new Set(roomBedIds)
       const guests: string[] = []
       for (const [guestId, assignedBedId] of assignments.value.entries()) {
-        if (roomBedIds.includes(assignedBedId)) {
+        if (bedIdSet.has(assignedBedId)) {
           guests.push(guestId)
         }
       }
@@ -80,9 +89,10 @@ export const useAssignmentStore = defineStore(
 
     // Get all guests assigned to beds in a specific dormitory
     function getGuestsAssignedToDormitory(dormitoryBedIds: string[]): string[] {
+      const bedIdSet = new Set(dormitoryBedIds)
       const guests: string[] = []
       for (const [guestId, assignedBedId] of assignments.value.entries()) {
-        if (dormitoryBedIds.includes(assignedBedId)) {
+        if (bedIdSet.has(assignedBedId)) {
           guests.push(guestId)
         }
       }
@@ -315,8 +325,9 @@ export const useAssignmentStore = defineStore(
     function acceptSuggestionsForRoom(roomBedIds: string[]) {
       const suggestionsToAccept: [string, string][] = []
 
-      for (const [guestId, bedId] of suggestedAssignments.value.entries()) {
-        if (roomBedIds.includes(bedId)) {
+      for (const bedId of roomBedIds) {
+        const guestId = suggestedBedToGuestMap.value.get(bedId)
+        if (guestId) {
           suggestionsToAccept.push([guestId, bedId])
         }
       }
@@ -334,8 +345,8 @@ export const useAssignmentStore = defineStore(
     // Get count of suggestions for a specific room
     function getSuggestionsCountForRoom(roomBedIds: string[]): number {
       let count = 0
-      for (const [, bedId] of suggestedAssignments.value.entries()) {
-        if (roomBedIds.includes(bedId)) {
+      for (const bedId of roomBedIds) {
+        if (suggestedBedToGuestMap.value.has(bedId)) {
           count++
         }
       }
@@ -374,6 +385,8 @@ export const useAssignmentStore = defineStore(
       // Getters
       getAssignmentByGuest,
       getAssignmentByBed,
+      bedToGuestMap,
+      suggestedBedToGuestMap,
       canUndo,
       canRedo,
       unassignedGuestIds,

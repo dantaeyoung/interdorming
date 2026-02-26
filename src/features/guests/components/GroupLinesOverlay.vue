@@ -331,15 +331,15 @@ function updateDimensions() {
   updateKey.value++
 }
 
-// Watch for guest changes
-watch(() => props.guests, () => {
+// Watch for guest list length changes (deep not needed — only dimensions matter)
+watch(() => props.guests.length, () => {
   nextTick(updateDimensions)
-}, { deep: true })
+})
 
-// Watch for row position changes
-watch(() => props.rowPositions, () => {
+// Watch for row position changes (use last position as proxy for layout shift)
+watch(() => props.rowPositions.length > 0 ? props.rowPositions[props.rowPositions.length - 1] : 0, () => {
   nextTick(updateDimensions)
-}, { deep: true })
+})
 
 onMounted(() => {
   updateDimensions()

@@ -47,6 +47,12 @@ export function useGroupConnections(containerRef: Ref<HTMLElement | null> | unde
   // ResizeObserver for tracking container changes
   let resizeObserver: ResizeObserver | null = null
   let mutationObserver: MutationObserver | null = null
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+  function debouncedMeasure() {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(measureGuestPositions, 100)
+  }
 
   /**
    * Measure positions of all guest elements within the container
@@ -172,13 +178,13 @@ export function useGroupConnections(containerRef: Ref<HTMLElement | null> | unde
 
     // ResizeObserver for container size changes
     resizeObserver = new ResizeObserver(() => {
-      nextTick(measureGuestPositions)
+      nextTick(debouncedMeasure)
     })
     resizeObserver.observe(containerRef.value)
 
     // MutationObserver for DOM changes (assignments changing)
     mutationObserver = new MutationObserver(() => {
-      nextTick(measureGuestPositions)
+      nextTick(debouncedMeasure)
     })
     mutationObserver.observe(containerRef.value, {
       childList: true,
@@ -191,6 +197,7 @@ export function useGroupConnections(containerRef: Ref<HTMLElement | null> | unde
   function cleanup() {
     resizeObserver?.disconnect()
     mutationObserver?.disconnect()
+    if (debounceTimer) clearTimeout(debounceTimer)
   }
 
   // Watch for containerRef becoming available

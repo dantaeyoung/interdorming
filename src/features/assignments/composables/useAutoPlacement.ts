@@ -366,6 +366,7 @@ export function useAutoPlacement() {
     // Count occupied beds in this dormitory (actual + suggested)
     let occupiedBeds = 0
     let totalBeds = 0
+    const suggestedBedIds = new Set(suggestedAssignments.values())
 
     for (const room of dormitory.rooms) {
       if (!room.active) continue
@@ -375,16 +376,8 @@ export function useAutoPlacement() {
         totalBeds++
 
         // Check if bed is occupied (actual assignment or suggestion)
-        if (dormBed.assignedGuestId) {
+        if (dormBed.assignedGuestId || suggestedBedIds.has(dormBed.bedId)) {
           occupiedBeds++
-        } else {
-          // Check suggested assignments
-          for (const suggestedBedId of suggestedAssignments.values()) {
-            if (suggestedBedId === dormBed.bedId) {
-              occupiedBeds++
-              break
-            }
-          }
         }
       }
     }
