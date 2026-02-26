@@ -1,5 +1,5 @@
 <template>
-  <div class="bed-config-item">
+  <div class="bed-config-item" :class="{ 'is-inactive': !localBed.active }">
     <div class="bed-info">
       <select v-model="localBed.bedType" class="bed-type-select" @change="handleUpdate">
         <option value="upper">Upper</option>
@@ -63,6 +63,11 @@ function handleUpdate() {
   align-items: center;
   padding: 6px 10px;
   border: 1px solid #e5e7eb;
+  transition: opacity 0.2s;
+
+  &.is-inactive {
+    opacity: 0.5;
+  }
   border-radius: 4px;
   background: white;
   gap: 8px;
