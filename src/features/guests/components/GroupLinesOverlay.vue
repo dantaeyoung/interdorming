@@ -72,6 +72,20 @@ const props = withDefaults(defineProps<Props>(), {
   suggestedGroups: () => new Map()
 })
 
+// Normalize suggestedGroups to a Map (pinia persistence can deserialize it as a plain Object)
+const normalizedSuggestedGroups = computed(() => {
+  const sg = props.suggestedGroups
+  if (sg instanceof Map) return sg
+  // Convert plain object to Map<string, Set<string>>
+  const map = new Map<string, Set<string>>()
+  if (sg && typeof sg === 'object') {
+    for (const [key, val] of Object.entries(sg)) {
+      map.set(key, new Set(Array.isArray(val) ? val : []))
+    }
+  }
+  return map
+})
+
 // Update key to force re-render when positions change
 const updateKey = ref(0)
 
@@ -226,15 +240,15 @@ const width = computed(() => {
   const baseTrackX = 18
   const trackSpacing = 5
   let maxTrack = maxConfirmedTrack.value
-  if (props.suggestedGroups && props.suggestedGroups.size > 0) {
-    maxTrack = maxConfirmedTrack.value + 1 + props.suggestedGroups.size
+  if (normalizedSuggestedGroups.value.size > 0) {
+    maxTrack = maxConfirmedTrack.value + 1 + normalizedSuggestedGroups.value.size
   }
   return Math.max(props.columnWidth, baseTrackX + (maxTrack + 1) * trackSpacing + 4)
 })
 
 // Calculate SVG paths for suggested groups
 const suggestedGroupPaths = computed(() => {
-  if (!props.suggestedGroups || props.suggestedGroups.size === 0) return []
+  if (normalizedSuggestedGroups.value.size === 0) return []
 
   const paths: Array<{
     name: string
@@ -255,12 +269,12 @@ const suggestedGroupPaths = computed(() => {
 
   // Assign tracks for suggested groups, starting after confirmed group tracks
   const trackOffset = maxConfirmedTrack.value + 1
-  const suggestedNames = Array.from(props.suggestedGroups.keys())
+  const suggestedNames = Array.from(normalizedSuggestedGroups.value.keys())
 
   // Sort by first appearance
   suggestedNames.sort((a, b) => {
-    const aMembers = props.suggestedGroups!.get(a)!
-    const bMembers = props.suggestedGroups!.get(b)!
+    const aMembers = normalizedSuggestedGroups.value.get(a)!
+    const bMembers = normalizedSuggestedGroups.value.get(b)!
     const aFirst = Math.min(...Array.from(aMembers).map(id => guestIndexMap.get(id) ?? Infinity))
     const bFirst = Math.min(...Array.from(bMembers).map(id => guestIndexMap.get(id) ?? Infinity))
     return aFirst - bFirst
@@ -269,7 +283,7 @@ const suggestedGroupPaths = computed(() => {
   const tracks: { name: string, endIndex: number }[] = []
 
   suggestedNames.forEach((name, sugIdx) => {
-    const memberIds = props.suggestedGroups!.get(name)!
+    const memberIds = normalizedSuggestedGroups.value.get(name)!
     const indices = Array.from(memberIds)
       .map(id => guestIndexMap.get(id))
       .filter((i): i is number => i !== undefined)
