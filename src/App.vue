@@ -138,6 +138,7 @@
 
     <!-- Room Configuration Tab -->
     <div v-if="activeTab === 'configuration'" class="tab-content">
+      <LayoutSelector @status="(msg, type) => showStatus(msg, type)" />
       <div class="toolbar">
         <div class="toolbar-left">
           <h2>Room Configuration</h2>
@@ -218,7 +219,7 @@ import { HintBanner } from '@/features/hints/components'
 import { useHints } from '@/features/hints/composables/useHints'
 import { useTour } from '@/features/hints/composables/useTour'
 import { GuestList, GuestSearch } from '@/features/guests/components'
-import { RoomList, ConfigRoomList } from '@/features/dormitories/components'
+import { RoomList, ConfigRoomList, LayoutSelector } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
@@ -248,6 +249,9 @@ const currentBranch = ref<string | null>(null)
 onMounted(() => {
   // Try to detect git branch from environment variable (set during build)
   currentBranch.value = import.meta.env.VITE_GIT_BRANCH || null
+
+  // Migrate existing dormitory data into layout system
+  dormitoryStore.ensureLayoutsInitialized()
 })
 
 // Tab state - restore from localStorage or default to 'guest-data'

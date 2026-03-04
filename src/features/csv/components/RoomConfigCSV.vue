@@ -4,24 +4,56 @@
       <button v-if="showLoadDefault" class="btn btn-secondary" @click="handleLoadDefault">
         Load Default Rooms
       </button>
-      <button class="btn" @click="handleExport">Export Room Config</button>
-      <button class="btn" @click="triggerImport">Import Room Config</button>
+
+      <!-- Export dropdown -->
+      <div class="dropdown" ref="exportDropdown">
+        <button class="btn" @click="toggleExportMenu">
+          Export
+          <span class="dropdown-arrow">&#9662;</span>
+        </button>
+        <div v-if="showExportMenu" class="dropdown-menu">
+          <button class="dropdown-item" @click="handleExportAllJSON">
+            Export All Layouts (JSON)
+          </button>
+          <button class="dropdown-item" @click="handleExportCurrentJSON">
+            Export Current Layout (JSON)
+          </button>
+          <button class="dropdown-item" @click="handleExportCSV">
+            Export CSV (Legacy)
+          </button>
+        </div>
+      </div>
+
+      <button class="btn" @click="triggerImport">Import</button>
       <input
         ref="fileInput"
         type="file"
-        accept=".csv"
+        accept=".csv,.json"
         style="display: none"
         @change="handleImport"
       />
     </div>
+
+    <!-- Import mode dialog for JSON -->
+    <ConfirmDialog
+      v-model="showImportModeDialog"
+      title="Import Layouts"
+      :message="importModeMessage"
+      confirm-text="Replace All"
+      cancel-text="Merge"
+      variant="warning"
+      @confirm="handleImportReplace"
+      @cancel="handleImportMerge"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useCSV } from '../composables/useCSV'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
-import type { Dormitory } from '@/types'
+import { ConfirmDialog } from '@/shared/components'
+import type { Dormitory, RoomLayout } from '@/types'
 
 interface Props {
   showLoadDefault?: boolean
@@ -40,10 +72,101 @@ const emit = defineEmits<{
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const exportDropdown = ref<HTMLElement | null>(null)
+const showExportMenu = ref(false)
+const showImportModeDialog = ref(false)
+const pendingImportLayouts = ref<RoomLayout[]>([])
+const importModeMessage = ref('')
+
 const dormitoryStore = useDormitoryStore()
 const { generateCSV, downloadCSV, generateTimestampedFilename, parseCSVRow } = useCSV()
 
-function handleExport() {
+// Close export menu when clicking outside
+function handleClickOutside(event: MouseEvent) {
+  if (exportDropdown.value && !exportDropdown.value.contains(event.target as Node)) {
+    showExportMenu.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('click', handleClickOutside))
+onUnmounted(() => document.removeEventListener('click', handleClickOutside))
+
+function toggleExportMenu() {
+  showExportMenu.value = !showExportMenu.value
+}
+
+// --- JSON Export ---
+
+function handleExportAllJSON() {
+  showExportMenu.value = false
+  try {
+    // Save current state first
+    dormitoryStore.saveCurrentToActiveLayout()
+
+    const exportData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      layouts: dormitoryStore.layouts,
+    }
+
+    const jsonString = JSON.stringify(exportData, null, 2)
+    const blob = new Blob([jsonString], { type: 'application/json' })
+    const filename = generateTimestampedFilename('room_layouts', '.json')
+
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+
+    emit('export-success')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to export layouts'
+    emit('export-error', errorMessage)
+  }
+}
+
+function handleExportCurrentJSON() {
+  showExportMenu.value = false
+  try {
+    dormitoryStore.saveCurrentToActiveLayout()
+
+    const activeLayout = dormitoryStore.activeLayout
+    if (!activeLayout) {
+      emit('export-error', 'No active layout to export')
+      return
+    }
+
+    const exportData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      layouts: [activeLayout],
+    }
+
+    const jsonString = JSON.stringify(exportData, null, 2)
+    const blob = new Blob([jsonString], { type: 'application/json' })
+    const slug = activeLayout.name.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+$/, '') || 'layout'
+    const filename = generateTimestampedFilename(slug, '.json')
+
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+
+    emit('export-success')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to export layout'
+    emit('export-error', errorMessage)
+  }
+}
+
+// --- Legacy CSV Export ---
+
+function handleExportCSV() {
+  showExportMenu.value = false
   try {
     const exportData: any[] = []
 
@@ -80,7 +203,6 @@ function handleExport() {
     ]
 
     let csvContent = ''
-    // Add config name as first line if set
     if (dormitoryStore.configName) {
       csvContent += `# Config: ${dormitoryStore.configName}\n`
     }
@@ -100,6 +222,8 @@ function handleExport() {
   }
 }
 
+// --- Import ---
+
 function triggerImport() {
   fileInput.value?.click()
 }
@@ -115,12 +239,14 @@ async function handleImport(event: Event) {
   if (!file) return
 
   try {
-    const csvText = await readFileAsText(file)
-    const dormitories = parseRoomConfigCSV(csvText)
+    const text = await readFileAsText(file)
+    const isJSON = file.name.endsWith('.json')
 
-    dormitoryStore.importDormitories(dormitories)
-
-    emit('import-success', dormitories)
+    if (isJSON) {
+      await handleJSONImport(text)
+    } else {
+      handleCSVImport(text)
+    }
 
     // Reset file input
     if (fileInput.value) {
@@ -130,11 +256,53 @@ async function handleImport(event: Event) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to import room config'
     emit('import-error', errorMessage)
 
-    // Reset file input
     if (fileInput.value) {
       fileInput.value.value = ''
     }
   }
+}
+
+async function handleJSONImport(jsonText: string) {
+  const data = JSON.parse(jsonText)
+
+  if (!data.layouts || !Array.isArray(data.layouts) || data.layouts.length === 0) {
+    throw new Error('Invalid layout JSON: no layouts found')
+  }
+
+  const importedLayouts: RoomLayout[] = data.layouts
+  pendingImportLayouts.value = importedLayouts
+
+  const count = importedLayouts.length
+  const names = importedLayouts.map((l: RoomLayout) => l.name).join(', ')
+  importModeMessage.value = `Import ${count} layout${count > 1 ? 's' : ''} (${names})?\n\n"Replace All" will overwrite existing layouts.\n"Merge" will add them alongside existing ones.`
+  showImportModeDialog.value = true
+}
+
+function handleImportReplace() {
+  dormitoryStore.importLayouts(pendingImportLayouts.value, 'replace')
+  showImportModeDialog.value = false
+  emit('import-success', dormitoryStore.dormitories)
+  pendingImportLayouts.value = []
+}
+
+function handleImportMerge() {
+  dormitoryStore.importLayouts(pendingImportLayouts.value, 'merge')
+  showImportModeDialog.value = false
+  emit('import-success', dormitoryStore.dormitories)
+  pendingImportLayouts.value = []
+}
+
+function handleCSVImport(csvText: string) {
+  const dormitories = parseRoomConfigCSV(csvText)
+
+  // Create a new layout from the CSV import
+  const configName = dormitoryStore.configName || 'Imported Layout'
+  dormitoryStore.createLayout(configName, 'Imported from CSV')
+
+  // Import the dormitories into the new active layout
+  dormitoryStore.importDormitories(dormitories)
+
+  emit('import-success', dormitories)
 }
 
 function parseRoomConfigCSV(csvText: string): Dormitory[] {
@@ -222,6 +390,52 @@ function readFileAsText(file: File): Promise<string> {
   .button-group {
     display: flex;
     gap: 10px;
+    align-items: center;
+  }
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-arrow {
+  font-size: 0.7em;
+  margin-left: 4px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  min-width: 220px;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 0.825rem;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  & + & {
+    border-top: 1px solid #f3f4f6;
   }
 }
 </style>

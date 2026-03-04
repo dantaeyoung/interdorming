@@ -37,6 +37,9 @@ export type {
 } from './Settings'
 export { DEFAULT_SETTINGS } from './Settings'
 
+// Room Layout types
+export type { RoomLayout } from './RoomLayout'
+
 // Storage types
 export type { StorageData, LegacyStorageData } from './Storage'
 
