@@ -1,10 +1,8 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'is-unassigned': isUnassigned }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': isUnassigned }]"
     v-bind="draggableProps"
     @click="handleRowClick"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
   >
     <td class="actions-cell">
       <button
@@ -47,10 +45,19 @@
       <span v-if="guest.lowerBunk" class="badge badge-info">Yes</span>
       <span v-else class="text-muted">No</span>
     </td>
-    <td class="group-cell" :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15 }">
+    <td
+      class="group-cell"
+      :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15 }"
+      @mouseenter="handleMouseEnter"
+      @mouseleave="handleMouseLeave"
+    >
       {{ guest.groupName || '-' }}
     </td>
-    <td class="group-lines-cell">
+    <td
+      class="group-lines-cell"
+      @mouseenter="handleMouseEnter"
+      @mouseleave="handleMouseLeave"
+    >
       <!-- SVG overlay handles group line visualization -->
     </td>
     <td>{{ guest.arrival || '-' }}</td>
@@ -152,6 +159,12 @@ const isGroupHighlighted = computed(() => {
   // Also highlight if this guest belongs to a suggested group being hovered
   const suggestedGroup = guestStore.getGuestSuggestedGroup(props.guest.id)
   return suggestedGroup === hoveredGroupName.value
+})
+
+// Dim rows not in the hovered group
+const isGroupDimmed = computed(() => {
+  if (!hoveredGroupName.value) return false
+  return !isGroupHighlighted.value
 })
 
 const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.guest.id)
@@ -305,6 +318,10 @@ function handleUnlink() {
       transform: scale(1.3);
       box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.4);
     }
+  }
+
+  &.group-dimmed {
+    opacity: 0.25;
   }
 
   &.is-unassigned {

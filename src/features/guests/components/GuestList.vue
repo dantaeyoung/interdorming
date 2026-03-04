@@ -548,7 +548,8 @@ export { SortIndicator }
 .table-wrapper {
   position: relative;
   flex: 1;
-  overflow: auto; // Single scroll container for both axes
+  overflow-x: scroll; // Force persistent horizontal scrollbar on macOS
+  overflow-y: auto;
 
   // Always show scrollbars
   &::-webkit-scrollbar {
