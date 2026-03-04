@@ -1,5 +1,5 @@
 <template>
-  <div class="dormitory-config-section">
+  <div class="dormitory-config-section" :class="{ 'is-inactive': !localDormitory.active }">
     <div class="dormitory-header">
       <div class="dormitory-title">
         <input
@@ -222,6 +222,11 @@ function addRoom() {
   border-radius: 8px;
   padding: 12px;
   background: white;
+  transition: opacity 0.2s;
+
+  &.is-inactive {
+    opacity: 0.5;
+  }
   margin-bottom: 16px;
 }
 

@@ -16,6 +16,13 @@
           @request-reset-confirmation="handleRequestResetConfirmation"
         />
         <button
+          class="btn btn-suggest-groups"
+          :disabled="!guestStore.hasGuestsWithEmail"
+          @click="handleSuggestGroups"
+        >
+          Suggest Groups
+        </button>
+        <button
           class="btn btn-danger"
           :disabled="guestStore.guests.length === 0"
           @click="handleDeleteAll"
@@ -58,6 +65,7 @@
       <GuestList
         ref="guestListRef"
         :show-assigned="true"
+        :readonly="true"
         empty-title="No guests loaded"
         empty-message="Upload a CSV file or load test data to get started."
       />
@@ -93,8 +101,8 @@
         }"
       >
         <span class="link-icon">🔗</span>
-        <span class="link-text">Link {{ groupLinking.linkingGuestName.value }} with ?</span>
-        <span class="link-hint">(click a guest or press Esc)</span>
+        <span class="link-text">{{ groupLinking.linkingCount.value }} selected — click guests to add</span>
+        <span class="link-hint">(Esc to cancel)</span>
       </div>
     </Teleport>
   </div>
@@ -242,6 +250,15 @@ function handleRequestResetConfirmation(callback: () => void) {
   )
 }
 
+function handleSuggestGroups() {
+  const count = guestStore.suggestGroupsByEmail()
+  if (count > 0) {
+    showStatus(`Found ${count} group suggestion${count === 1 ? '' : 's'} by shared email`, 'success')
+  } else {
+    showStatus('No new group suggestions found — guests may already be grouped', 'info')
+  }
+}
+
 function handleDeleteAll() {
   confirmAction(
     'Delete All Guest Data',
@@ -262,7 +279,7 @@ function handleDeleteAll() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow: hidden; // vertical only - horizontal scroll handled by table-wrapper
 }
 
 .guest-data-header {
@@ -321,6 +338,16 @@ function handleDeleteAll() {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  &.btn-suggest-groups {
+    background-color: #8b5cf6;
+    color: white;
+    border-color: #8b5cf6;
+
+    &:hover:not(:disabled) {
+      background-color: #7c3aed;
+    }
   }
 
   &.btn-danger {
@@ -413,7 +440,7 @@ function handleDeleteAll() {
 
 .guest-table-container {
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   padding: 0 16px 16px;
   background: #f3f4f6;
 }

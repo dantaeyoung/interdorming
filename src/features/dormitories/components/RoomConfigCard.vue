@@ -1,5 +1,5 @@
 <template>
-  <div class="room-config-card">
+  <div class="room-config-card" :class="{ 'is-inactive': !localRoom.active }">
     <div class="room-header">
       <div class="room-title">
         <input
@@ -259,6 +259,11 @@ function addBed() {
   border-radius: 8px;
   background: white;
   overflow: hidden;
+  transition: opacity 0.2s;
+
+  &.is-inactive {
+    opacity: 0.5;
+  }
 }
 
 .room-header {

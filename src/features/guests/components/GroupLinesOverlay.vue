@@ -27,6 +27,30 @@
         stroke-width="2"
       />
     </g>
+    <!-- Suggested group lines (dashed, low opacity) -->
+    <g v-for="group in suggestedGroupPaths" :key="'suggested-' + group.name + '-' + updateKey">
+      <path
+        :d="group.path"
+        :class="['group-path', 'suggested', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
+        :stroke="highlightedGroup && group.name !== highlightedGroup ? '#d1d5db' : group.color"
+        fill="none"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-dasharray="4 3"
+      />
+      <circle
+        v-for="(dot, idx) in group.dots"
+        :key="idx"
+        :cx="dot.x"
+        :cy="dot.y"
+        r="4"
+        :class="['group-dot', 'suggested', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
+        :fill="highlightedGroup && group.name !== highlightedGroup ? '#d1d5db' : group.color"
+        :stroke="group.name === highlightedGroup ? '#fff' : 'none'"
+        stroke-width="2"
+      />
+    </g>
   </svg>
 </template>
 
@@ -39,11 +63,27 @@ interface Props {
   guests: Guest[]
   rowPositions?: number[] // Y center positions for each row
   columnWidth?: number
+  suggestedGroups?: Map<string, Set<string>>
 }
 
 const props = withDefaults(defineProps<Props>(), {
   rowPositions: () => [],
-  columnWidth: 30
+  columnWidth: 30,
+  suggestedGroups: () => new Map()
+})
+
+// Normalize suggestedGroups to a Map (pinia persistence can deserialize it as a plain Object)
+const normalizedSuggestedGroups = computed(() => {
+  const sg = props.suggestedGroups
+  if (sg instanceof Map) return sg
+  // Convert plain object to Map<string, Set<string>>
+  const map = new Map<string, Set<string>>()
+  if (sg && typeof sg === 'object') {
+    for (const [key, val] of Object.entries(sg)) {
+      map.set(key, new Set(Array.isArray(val) ? val : []))
+    }
+  }
+  return map
 })
 
 // Update key to force re-render when positions change
@@ -52,9 +92,7 @@ const updateKey = ref(0)
 const { hoveredGroupName } = useGroupLinking()
 
 const svgRef = ref<SVGSVGElement | null>(null)
-const width = ref(props.columnWidth)
 const height = ref(500)
-const rowPositions = ref<Map<string, number>>(new Map())
 
 // Group colors for visual distinction
 const groupColors = [
@@ -188,6 +226,114 @@ const groupPaths = computed(() => {
   return paths
 })
 
+// Calculate the max track used by confirmed groups (for offsetting suggested tracks)
+const maxConfirmedTrack = computed(() => {
+  let max = -1
+  groupOffsets.value.forEach(offset => {
+    if (offset > max) max = offset
+  })
+  return max
+})
+
+// Dynamic width based on tracks used
+const width = computed(() => {
+  const baseTrackX = 18
+  const trackSpacing = 5
+  let maxTrack = maxConfirmedTrack.value
+  if (normalizedSuggestedGroups.value.size > 0) {
+    maxTrack = maxConfirmedTrack.value + 1 + normalizedSuggestedGroups.value.size
+  }
+  return Math.max(props.columnWidth, baseTrackX + (maxTrack + 1) * trackSpacing + 4)
+})
+
+// Calculate SVG paths for suggested groups
+const suggestedGroupPaths = computed(() => {
+  if (normalizedSuggestedGroups.value.size === 0) return []
+
+  const paths: Array<{
+    name: string
+    path: string
+    dots: Array<{ x: number, y: number }>
+    color: string
+  }> = []
+
+  const dotX = 8
+  const trackSpacing = 5
+  const baseTrackX = 18
+
+  // Build guest index lookup from current guest list
+  const guestIndexMap = new Map<string, number>()
+  props.guests.forEach((guest, index) => {
+    guestIndexMap.set(guest.id, index)
+  })
+
+  // Assign tracks for suggested groups, starting after confirmed group tracks
+  const trackOffset = maxConfirmedTrack.value + 1
+  const suggestedNames = Array.from(normalizedSuggestedGroups.value.keys())
+
+  // Sort by first appearance
+  suggestedNames.sort((a, b) => {
+    const aMembers = normalizedSuggestedGroups.value.get(a)!
+    const bMembers = normalizedSuggestedGroups.value.get(b)!
+    const aFirst = Math.min(...Array.from(aMembers).map(id => guestIndexMap.get(id) ?? Infinity))
+    const bFirst = Math.min(...Array.from(bMembers).map(id => guestIndexMap.get(id) ?? Infinity))
+    return aFirst - bFirst
+  })
+
+  const tracks: { name: string, endIndex: number }[] = []
+
+  suggestedNames.forEach((name, sugIdx) => {
+    const memberIds = normalizedSuggestedGroups.value.get(name)!
+    const indices = Array.from(memberIds)
+      .map(id => guestIndexMap.get(id))
+      .filter((i): i is number => i !== undefined)
+      .sort((a, b) => a - b)
+
+    if (indices.length < 2) return
+
+    // Find a free track
+    const startIndex = indices[0]
+    const endIndex = indices[indices.length - 1]
+    let trackIndex = tracks.findIndex(t => t.endIndex < startIndex)
+    if (trackIndex === -1) {
+      trackIndex = tracks.length
+      tracks.push({ name, endIndex })
+    } else {
+      tracks[trackIndex] = { name, endIndex }
+    }
+
+    const offset = trackOffset + trackIndex
+    const trackX = baseTrackX + (offset * trackSpacing)
+    const colorIndex = (Array.from(groups.value.keys()).length + sugIdx) % groupColors.length
+    const color = groupColors[colorIndex]
+
+    const dots: Array<{ x: number, y: number }> = []
+    const yPositions = indices.map(index => {
+      if (props.rowPositions.length > index) {
+        return props.rowPositions[index]
+      }
+      return (index * 49) + 24.5
+    })
+
+    yPositions.forEach(y => {
+      dots.push({ x: dotX, y })
+    })
+
+    let pathD = ''
+    const minY = Math.min(...yPositions)
+    const maxY = Math.max(...yPositions)
+
+    yPositions.forEach(y => {
+      pathD += `M ${dotX} ${y} L ${trackX} ${y} `
+    })
+    pathD += `M ${trackX} ${minY} L ${trackX} ${maxY}`
+
+    paths.push({ name, path: pathD, dots, color })
+  })
+
+  return paths
+})
+
 // Update height based on row positions or guest count
 function updateDimensions() {
   if (props.rowPositions.length > 0) {
@@ -200,15 +346,15 @@ function updateDimensions() {
   updateKey.value++
 }
 
-// Watch for guest changes
-watch(() => props.guests, () => {
+// Watch for guest list length changes (deep not needed — only dimensions matter)
+watch(() => props.guests.length, () => {
   nextTick(updateDimensions)
-}, { deep: true })
+})
 
-// Watch for row position changes
-watch(() => props.rowPositions, () => {
+// Watch for row position changes (use last position as proxy for layout shift)
+watch(() => props.rowPositions.length > 0 ? props.rowPositions[props.rowPositions.length - 1] : 0, () => {
   nextTick(updateDimensions)
-}, { deep: true })
+})
 
 onMounted(() => {
   updateDimensions()
@@ -249,6 +395,32 @@ onMounted(() => {
 
   &.dimmed {
     opacity: 0.3;
+  }
+
+  &.suggested {
+    opacity: 0.4;
+
+    &.highlighted {
+      r: 5;
+      opacity: 1;
+    }
+
+    &.dimmed {
+      opacity: 0.15;
+    }
+  }
+}
+
+.group-path.suggested {
+  opacity: 0.4;
+
+  &.highlighted {
+    stroke-width: 3;
+    opacity: 1;
+  }
+
+  &.dimmed {
+    opacity: 0.15;
   }
 }
 </style>

@@ -13,6 +13,7 @@ export const useDormitoryStore = defineStore(
   () => {
     // State
     const dormitories = ref<Dormitory[]>([])
+    const configName = ref<string>('')
     const selectedDormitoryIndex = ref<number | null>(null)
 
     // Getters
@@ -47,44 +48,39 @@ export const useDormitoryStore = defineStore(
       return allBeds
     })
 
-    const getBedById = computed(() => {
-      return (bedId: string): Bed | undefined => {
-        for (const dormitory of dormitories.value) {
-          for (const room of dormitory.rooms) {
-            const bed = room.beds.find(b => b.bedId === bedId)
-            if (bed) return bed
+    // Pre-built lookup maps for O(1) bed lookups (rebuilt when dormitories change)
+    const bedLookupMap = computed(() => {
+      const bedMap = new Map<string, Bed>()
+      const roomMap = new Map<string, FlatRoom>()
+      const dormMap = new Map<string, Dormitory>()
+      for (const dormitory of dormitories.value) {
+        for (const room of dormitory.rooms) {
+          const flatRoom: FlatRoom = { ...room, dormitoryName: dormitory.dormitoryName }
+          for (const bed of room.beds) {
+            bedMap.set(bed.bedId, bed)
+            roomMap.set(bed.bedId, flatRoom)
+            dormMap.set(bed.bedId, dormitory)
           }
         }
-        return undefined
+      }
+      return { bedMap, roomMap, dormMap }
+    })
+
+    const getBedById = computed(() => {
+      return (bedId: string): Bed | undefined => {
+        return bedLookupMap.value.bedMap.get(bedId)
       }
     })
 
     const getRoomByBedId = computed(() => {
       return (bedId: string): FlatRoom | undefined => {
-        for (const dormitory of dormitories.value) {
-          for (const room of dormitory.rooms) {
-            if (room.beds.some(b => b.bedId === bedId)) {
-              return {
-                ...room,
-                dormitoryName: dormitory.dormitoryName,
-              }
-            }
-          }
-        }
-        return undefined
+        return bedLookupMap.value.roomMap.get(bedId)
       }
     })
 
     const getDormitoryByBedId = computed(() => {
       return (bedId: string): Dormitory | undefined => {
-        for (const dormitory of dormitories.value) {
-          for (const room of dormitory.rooms) {
-            if (room.beds.some(b => b.bedId === bedId)) {
-              return dormitory
-            }
-          }
-        }
-        return undefined
+        return bedLookupMap.value.dormMap.get(bedId)
       }
     })
 
@@ -285,6 +281,7 @@ export const useDormitoryStore = defineStore(
     return {
       // State
       dormitories,
+      configName,
       selectedDormitoryIndex,
 
       // Getters
@@ -313,7 +310,7 @@ export const useDormitoryStore = defineStore(
   {
     persist: {
       key: 'dormAssignments-dormitories',
-      paths: ['dormitories'],
+      paths: ['dormitories', 'configName'],
     },
   }
 )

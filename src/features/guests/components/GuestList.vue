@@ -50,6 +50,18 @@
             Notes
             <SortIndicator :active="sortColumn === 'notes'" :direction="sortDirection" />
           </th>
+          <th @click="handleSort('email')">
+            Email
+            <SortIndicator :active="sortColumn === 'email'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('firstVisit')">
+            First Visit
+            <SortIndicator :active="sortColumn === 'firstVisit'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('roomPreference')">
+            Rm Preference
+            <SortIndicator :active="sortColumn === 'roomPreference'" :direction="sortDirection" />
+          </th>
           <th @click="handleSort('retreat')">
             Retreat
             <SortIndicator :active="sortColumn === 'retreat'" :direction="sortDirection" />
@@ -66,14 +78,6 @@
             Amount Paid
             <SortIndicator :active="sortColumn === 'amountPaid'" :direction="sortDirection" />
           </th>
-          <th @click="handleSort('firstVisit')">
-            First Visit
-            <SortIndicator :active="sortColumn === 'firstVisit'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('roomPreference')">
-            Rm Preference
-            <SortIndicator :active="sortColumn === 'roomPreference'" :direction="sortDirection" />
-          </th>
           <th>Warnings</th>
         </tr>
       </thead>
@@ -83,10 +87,11 @@
           :key="guest.id"
           :guest="guest"
           :family-position="getFamilyPosition(guest, index)"
+          :readonly="props.readonly"
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
-          <td colspan="19" class="empty-cell">
+          <td colspan="20" class="empty-cell">
             <div class="empty-state-inline">
               <template v-if="guestStore.guests.length === 0">
                 <strong>{{ emptyTitle }}</strong>
@@ -105,9 +110,29 @@
         v-if="guests.length > 0"
         :guests="guests"
         :row-positions="rowPositions"
+        :suggested-groups="guestStore.suggestedGroups"
         :style="overlayStyle"
         class="group-lines-svg"
       />
+      <!-- Per-group accept/reject pills for suggestions -->
+      <div
+        v-for="pill in suggestionPills"
+        :key="'pill-' + pill.groupName"
+        class="suggestion-pill"
+        :style="{
+          left: `${overlayLeft - scrollLeft + 32}px`,
+          top: `${overlayTop + pill.y - 10}px`,
+        }"
+        @mouseenter="setHoveredGroup(pill.groupName)"
+        @mouseleave="clearHoveredGroup()"
+      >
+        <button class="pill-accept" @click="guestStore.acceptGroupSuggestion(pill.groupName)" title="Accept group">
+          &#10003;
+        </button>
+        <button class="pill-reject" @click="guestStore.rejectGroupSuggestion(pill.groupName)" title="Reject suggestion">
+          &#10005;
+        </button>
+      </div>
     </div>
 
     <GuestFormModal :show="showModal" :guest="editingGuest" @close="handleCloseModal" @submit="handleSubmitGuest" />
@@ -132,6 +157,40 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Group linking bar -->
+    <Teleport to="body">
+      <Transition name="link-bar">
+        <div v-if="isLinking" class="group-linking-bar">
+          <span class="linking-info">
+            Linking {{ linkingCount }} guest{{ linkingCount === 1 ? '' : 's' }} — click guests to add/remove
+          </span>
+          <button class="btn-finish-group" :disabled="linkingCount < 2" @click="completeLinking()">
+            Finish Group
+          </button>
+          <button class="btn-cancel-group" @click="cancelLinking">
+            Cancel
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Group suggestion bar -->
+    <Teleport to="body">
+      <Transition name="link-bar">
+        <div v-if="guestStore.hasGroupSuggestions && !isLinking" class="group-suggestion-bar">
+          <span class="suggestion-info">
+            {{ guestStore.groupSuggestionCount }} group suggestion{{ guestStore.groupSuggestionCount === 1 ? '' : 's' }} found
+          </span>
+          <button class="btn-accept-all" @click="guestStore.acceptAllGroupSuggestions()">
+            Accept All ({{ guestStore.groupSuggestionCount }})
+          </button>
+          <button class="btn-clear-suggestions" @click="guestStore.clearGroupSuggestions()">
+            Clear
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -144,6 +203,7 @@ import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import { useSortConfig, type SortableField } from '@/shared/composables/useSortConfig'
 import { useUtils } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
+import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import GuestRow from './GuestRow.vue'
 import GuestFormModal from './GuestFormModal.vue'
 import GroupLinesOverlay from './GroupLinesOverlay.vue'
@@ -153,12 +213,14 @@ interface Props {
   showAssigned?: boolean
   emptyTitle?: string
   emptyMessage?: string
+  readonly?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showAssigned: false,
   emptyTitle: 'No guests loaded',
   emptyMessage: 'Upload a CSV file to begin assigning guests to dormitory beds.',
+  readonly: false,
 })
 
 const guestStore = useGuestStore()
@@ -167,6 +229,7 @@ const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { validateDrop } = useDropValidation()
 const { useDroppableUnassignedArea, isDragging, draggedGuestId, dragOverBedId, mousePosition, isPicking, pickedGuestId } = useDragDrop()
+const { isLinking, linkingCount, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 // Template refs
 const tableWrapperRef = ref<HTMLDivElement | null>(null)
@@ -418,6 +481,32 @@ const floatingBlobValidityClass = computed(() => {
   if (!dropValidity.value) return ''
   return dropValidity.value.isValid ? 'is-valid-drop' : 'is-invalid-drop'
 })
+
+// Suggestion pills: position each at the first member's row Y
+const suggestionPills = computed(() => {
+  if (!guestStore.hasGroupSuggestions) return []
+
+  const pills: Array<{ groupName: string, y: number }> = []
+  const guestIndexMap = new Map<string, number>()
+  guests.value.forEach((g, i) => guestIndexMap.set(g.id, i))
+
+  guestStore.suggestedGroups.forEach((memberIds, groupName) => {
+    let firstIndex = Infinity
+    memberIds.forEach(id => {
+      const idx = guestIndexMap.get(id)
+      if (idx !== undefined && idx < firstIndex) firstIndex = idx
+    })
+    if (firstIndex === Infinity) return
+
+    const y = rowPositions.value.length > firstIndex
+      ? rowPositions.value[firstIndex]
+      : (firstIndex * 49) + 24.5
+
+    pills.push({ groupName, y })
+  })
+
+  return pills
+})
 </script>
 
 <script lang="ts">
@@ -459,7 +548,32 @@ export { SortIndicator }
 .table-wrapper {
   position: relative;
   flex: 1;
-  overflow: auto;
+  overflow-x: scroll; // Force persistent horizontal scrollbar on macOS
+  overflow-y: auto;
+
+  // Always show scrollbars
+  &::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #c1c1c1;
+    border-radius: 6px;
+
+    &:hover {
+      background-color: #a8a8a8;
+    }
+  }
+
+  // For Firefox
+  scrollbar-width: auto;
+  scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
 .group-lines-svg {
@@ -498,46 +612,61 @@ export { SortIndicator }
   }
 }
 
-.table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  background: white;
-  overflow-x: auto;
-  overflow-y: auto;
-  flex: 1;
-  display: block;
+.suggestion-pill {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  z-index: 6;
+  pointer-events: auto;
 
-  // Always show scrollbars
-  &::-webkit-scrollbar {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background-color: #f1f1f1;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: #c1c1c1;
-    border-radius: 6px;
+  button {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: transform 0.1s, opacity 0.1s;
 
     &:hover {
-      background-color: #a8a8a8;
+      transform: scale(1.2);
     }
   }
 
-  // For Firefox
-  scrollbar-width: auto;
-  scrollbar-color: #c1c1c1 #f1f1f1;
+  .pill-accept {
+    background: #22c55e;
+    color: white;
+
+    &:hover {
+      background: #16a34a;
+    }
+  }
+
+  .pill-reject {
+    background: #ef4444;
+    color: white;
+
+    &:hover {
+      background: #dc2626;
+    }
+  }
+}
+
+.table {
+  min-width: 2000px; // Wide enough for all columns - scroll handled by .table-wrapper
+  border-collapse: separate;
+  border-spacing: 0;
+  background: white;
 
   thead,
   tbody,
   tr {
-    display: table;
-    width: 100%;
-    min-width: 2000px; // Ensure table is wide enough for all columns
     table-layout: fixed;
   }
 
@@ -702,6 +831,130 @@ body.is-picking {
 
     &.is-hidden {
       visibility: hidden;
+    }
+  }
+}
+
+// Group linking floating bar
+.group-linking-bar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #1e3a5f;
+  color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10000;
+  font-size: 0.85rem;
+  white-space: nowrap;
+
+  .linking-info {
+    font-weight: 500;
+  }
+
+  .btn-finish-group {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #22c55e;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover:not(:disabled) {
+      background: #16a34a;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  .btn-cancel-group {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: transparent;
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.link-bar-enter-active,
+.link-bar-leave-active {
+  transition: all 0.25s ease;
+}
+
+.link-bar-enter-from,
+.link-bar-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
+// Group suggestion floating bar
+.group-suggestion-bar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #1e3a5f;
+  color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10000;
+  font-size: 0.85rem;
+  white-space: nowrap;
+
+  .suggestion-info {
+    font-weight: 500;
+  }
+
+  .btn-accept-all {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #8b5cf6;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+      background: #7c3aed;
+    }
+  }
+
+  .btn-clear-suggestions {
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: transparent;
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
     }
   }
 }

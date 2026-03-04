@@ -97,13 +97,8 @@ const assignedGuest = computed(() => {
 })
 
 const suggestedGuest = computed(() => {
-  // Check if this bed has a suggested assignment
-  for (const [guestId, bedId] of assignmentStore.suggestedAssignments.entries()) {
-    if (bedId === props.bed.bedId) {
-      return guestStore.getGuestById(guestId)
-    }
-  }
-  return null
+  const guestId = assignmentStore.suggestedBedToGuestMap.get(props.bed.bedId)
+  return guestId ? guestStore.getGuestById(guestId) : null
 })
 
 const isSuggestion = computed(() => !!suggestedGuest.value)

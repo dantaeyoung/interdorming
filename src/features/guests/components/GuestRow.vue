@@ -1,17 +1,15 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'group-highlight': isGroupHighlighted, 'is-unassigned': isUnassigned }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': isUnassigned }]"
     v-bind="draggableProps"
     @click="handleRowClick"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
   >
     <td class="actions-cell">
       <button
         @click.stop="handleStartLinking"
         class="btn-link-guest"
-        :class="{ 'is-linking': isCurrentlyLinking, 'has-group': !!guest.groupName }"
-        :title="isCurrentlyLinking ? 'Click another guest to link' : 'Link with another guest'"
+        :class="{ 'is-linking': isSelectedForLinking, 'has-group': !!guest.groupName }"
+        :title="isSelectedForLinking ? 'Selected for group' : isLinking ? 'Click to add to group' : 'Start group linking'"
       >
         🔗
       </button>
@@ -47,10 +45,19 @@
       <span v-if="guest.lowerBunk" class="badge badge-info">Yes</span>
       <span v-else class="text-muted">No</span>
     </td>
-    <td class="group-cell" :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15 }">
+    <td
+      class="group-cell"
+      :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15 }"
+      @mouseenter="handleMouseEnter"
+      @mouseleave="handleMouseLeave"
+    >
       {{ guest.groupName || '-' }}
     </td>
-    <td class="group-lines-cell">
+    <td
+      class="group-lines-cell"
+      @mouseenter="handleMouseEnter"
+      @mouseleave="handleMouseLeave"
+    >
       <!-- SVG overlay handles group line visualization -->
     </td>
     <td>{{ guest.arrival || '-' }}</td>
@@ -68,20 +75,20 @@
       </span>
       <span v-else>-</span>
     </td>
+    <td>{{ guest.email || '-' }}</td>
+    <td>{{ guest.firstVisit || '-' }}</td>
+    <td>{{ guest.roomPreference || '-' }}</td>
     <td>{{ guest.retreat || '-' }}</td>
     <td>{{ guest.ratePerNight || '-' }}</td>
     <td>{{ guest.priceQuoted || '-' }}</td>
     <td>{{ guest.amountPaid || '-' }}</td>
-    <td>{{ guest.firstVisit || '-' }}</td>
-    <td>{{ guest.roomPreference || '-' }}</td>
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
     </td>
 
     <!-- Teleport notes modal to body -->
     <Teleport to="body">
-      <div v-if="showNotesModal && guest.notes" class="notes-modal-overlay" :style="modalPosition">
-        {{ guest.notes }}
+      <div v-if="showNotesModal && guest.notes" class="notes-modal-overlay" :style="modalPosition" v-html="formatNotes(guest.notes)">
       </div>
     </Teleport>
   </tr>
@@ -102,6 +109,7 @@ import type { Guest } from '@/types'
 interface Props {
   guest: Guest
   familyPosition?: 'none' | 'first' | 'middle' | 'last' | 'only'
+  readonly?: boolean
 }
 
 interface Emits {
@@ -109,7 +117,8 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  familyPosition: 'none'
+  familyPosition: 'none',
+  readonly: false,
 })
 
 const emit = defineEmits<Emits>()
@@ -120,7 +129,7 @@ const validationStore = useValidationStore()
 const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { useDraggableGuest, pickGuest, isPicking, pickedGuestId } = useDragDrop()
-const { isLinking, linkingGuestId, hoveredGroupName, startLinking, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
+const { isLinking, linkingGuestIds, hoveredGroupName, startLinking, toggleLinkingGuest, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 const displayName = computed(() => createDisplayName(props.guest))
 
@@ -140,13 +149,22 @@ const genderBadgeStyle = computed(() => {
 })
 
 // Group linking computed
-const isCurrentlyLinking = computed(() => linkingGuestId.value === props.guest.id)
-const isLinkTarget = computed(() => isLinking.value && linkingGuestId.value !== props.guest.id)
+const isSelectedForLinking = computed(() => linkingGuestIds.value.has(props.guest.id))
+const isLinkTarget = computed(() => isLinking.value && !linkingGuestIds.value.has(props.guest.id))
 
 // Group hover highlighting
 const isGroupHighlighted = computed(() => {
-  if (!props.guest.groupName || !hoveredGroupName.value) return false
-  return props.guest.groupName === hoveredGroupName.value
+  if (!hoveredGroupName.value) return false
+  if (props.guest.groupName === hoveredGroupName.value) return true
+  // Also highlight if this guest belongs to a suggested group being hovered
+  const suggestedGroup = guestStore.getGuestSuggestedGroup(props.guest.id)
+  return suggestedGroup === hoveredGroupName.value
+})
+
+// Dim rows not in the hovered group
+const isGroupDimmed = computed(() => {
+  if (!hoveredGroupName.value) return false
+  return !isGroupHighlighted.value
 })
 
 const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.guest.id)
@@ -163,7 +181,7 @@ const isUnassigned = computed(() => !assignmentStore.assignments.has(props.guest
 
 const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.id))
 
-const draggableProps = useDraggableGuest(props.guest.id)
+const draggableProps = props.readonly ? {} : useDraggableGuest(props.guest.id)
 
 // Notes modal state
 const showNotesModal = ref(false)
@@ -173,6 +191,12 @@ const notesCellRef = ref<HTMLSpanElement | null>(null)
 function truncateNotes(notes: string, maxLength: number = 50): string {
   if (notes.length <= maxLength) return notes
   return notes.substring(0, maxLength) + '...'
+}
+
+function formatNotes(notes: string): string {
+  // Escape HTML entities first for safety, then convert <br /> variants to actual line breaks
+  const escaped = notes.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped.replace(/&lt;br\s*\/?\s*&gt;/gi, '<br>')
 }
 
 function handleNotesMouseEnter() {
@@ -191,31 +215,36 @@ function handleEdit() {
 }
 
 function handleStartLinking() {
-  if (isCurrentlyLinking.value) {
-    // Cancel if clicking the same guest's link button
-    cancelLinking()
-  } else if (isLinking.value) {
-    // If another guest is being linked, complete the link to this guest
-    completeLinking(props.guest.id)
-  } else {
+  if (!isLinking.value) {
+    // Start a new linking session with this guest
     startLinking(props.guest.id, displayName.value)
+  } else {
+    // Toggle this guest in/out of the linking selection
+    toggleLinkingGuest(props.guest.id)
   }
 }
 
 function handleRowClick(event: MouseEvent) {
-  // Handle group linking first
+  // Handle group linking first - clicking a row toggles it in the selection
   if (isLinkTarget.value) {
-    completeLinking(props.guest.id)
+    toggleLinkingGuest(props.guest.id)
     return
   }
 
-  // Handle pick-and-place
-  pickGuest(props.guest.id, event)
+  // Handle pick-and-place (disabled in readonly mode)
+  if (!props.readonly) {
+    pickGuest(props.guest.id, event)
+  }
 }
 
 function handleMouseEnter() {
   if (props.guest.groupName) {
     setHoveredGroup(props.guest.groupName)
+  } else {
+    const suggestedGroup = guestStore.getGuestSuggestedGroup(props.guest.id)
+    if (suggestedGroup) {
+      setHoveredGroup(suggestedGroup)
+    }
   }
 }
 
@@ -267,6 +296,12 @@ function handleUnlink() {
     }
   }
 
+  &.selected-for-linking {
+    background-color: #dbeafe;
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
+  }
+
   &.link-target {
     cursor: pointer;
     background-color: #fef3c7;
@@ -283,6 +318,10 @@ function handleUnlink() {
       transform: scale(1.3);
       box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.4);
     }
+  }
+
+  &.group-dimmed {
+    opacity: 0.25;
   }
 
   &.is-unassigned {

@@ -1,14 +1,24 @@
 <template>
   <div class="config-room-list">
     <div class="config-header">
-      <h3>Configure Dormitories & Rooms</h3>
-      <button
-        @click="addDormitory"
-        class="btn-add-dorm"
-        :class="{ highlighted: highlightedElement === 'add-dormitory' }"
-      >
-        + Add Dormitory
-      </button>
+      <div class="config-title-row">
+        <h3>Configure Dormitories & Rooms</h3>
+        <button
+          @click="addDormitory"
+          class="btn-add-dorm"
+          :class="{ highlighted: highlightedElement === 'add-dormitory' }"
+        >
+          + Add Dormitory
+        </button>
+      </div>
+      <div class="config-name-row">
+        <label class="config-name-label">Config Name:</label>
+        <input
+          v-model="dormitoryStore.configName"
+          class="config-name-input"
+          placeholder="e.g., Spring Retreat 2026"
+        />
+      </div>
     </div>
 
     <div v-if="dormitories.length === 0" class="empty-state">
@@ -78,9 +88,6 @@ function addDormitory() {
 }
 
 .config-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
 
   h3 {
@@ -88,6 +95,46 @@ function addDormitory() {
     font-size: 1.125rem;
     font-weight: 600;
     color: #1f2937;
+  }
+}
+
+.config-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.config-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.config-name-label {
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.config-name-input {
+  flex: 1;
+  max-width: 350px;
+  padding: 5px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.825rem;
+  color: #374151;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
   }
 }
 

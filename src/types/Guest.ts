@@ -17,6 +17,7 @@ export interface Guest {
   arrival?: string
   departure?: string
   indivGrp?: string
+  email?: string
   notes?: string
   retreat?: string
   ratePerNight?: string

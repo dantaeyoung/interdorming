@@ -2,21 +2,26 @@
 
 # Interdorming: a Dorm Assignment Tool
 
-A client-side web application for streamlining the assignment of 60-80 retreat guests to dormitory beds at Blue Cliff Monastery. This tool replaces a manual spreadsheet-based workflow used by monastery staff 1-2 times per month.
+A web application for streamlining the assignment of 60-80 retreat guests to dormitory beds at Blue Cliff Monastery. This tool replaces a manual spreadsheet-based workflow used by monastery staff 1-2 times per month.
 
 ## Features
 
 ### Guest Assignment
-- **CSV Import/Export**: Upload guest data from CSV files with flexible column mapping
+- **CSV Import/Export**: Upload guest data from CSV files with flexible column mapping (auto-skips preamble/metadata lines)
 - **Drag & Drop Interface**: Intuitive drag-and-drop to assign guests to beds
-- **Click-Based Pickup/Drop/Swap**: Alternative interaction method for touch devices or accessibility
+- **Click-to-Pick Assignment**: Alternative click-based pickup/drop/swap for touch devices or accessibility
 - **Search & Filter**: Quickly find guests in the unassigned list
+- **Auto-Place**: Automatically assign unassigned guests to compatible beds
 - **Undo Functionality**: Revert the last 10 assignment actions
 - **Visual Warnings**: Automatic validation alerts for:
   - Gender mismatches (wrong gender for room)
   - Bunk accessibility issues (upper bunk for guests requiring lower)
   - Family separation (same group in different rooms)
   - Age compatibility concerns
+
+### Timeline View
+- **Visual Timeline**: See guest arrivals and departures on a scrollable timeline
+- **Overlap Detection**: Identify scheduling conflicts at a glance
 
 ### Room Configuration
 - **Multi-Dormitory Support**: Organize rooms across multiple dormitory buildings
@@ -28,44 +33,53 @@ A client-side web application for streamlining the assignment of 60-80 retreat g
 ### Display & Settings
 - **Age Histograms**: Visual age distribution charts for each room (optional)
 - **Group Connection Lines**: Visual indicators connecting guests in the same family/group
+- **Configurable Gender Colors**: Customize color-coding for gender display
 - **Customizable Warnings**: Toggle specific validation warnings on/off
+- **Contextual Hints & Guided Tour**: Built-in onboarding hints and interactive tour
+- **Print View**: Print-friendly layout for physical reference
 - **Responsive Design**: Works on desktop and tablet devices
 
 ### Data Persistence
-- **Browser Storage**: All data automatically saved to localStorage
+- **Browser Storage**: All data automatically saved to localStorage via Pinia persisted state
 - **No Server Required**: Fully client-side application
 - **Data Migration**: Automatic version detection and data structure migration
 
 ## Quick Start
 
-### Running the Application
+### Prerequisites
+- Node.js 18+
+- npm
 
-1. **Using Python (simplest)**:
-   ```bash
-   python -m http.server 8000
-   ```
-   Then open: http://localhost:8000
+### Development
+```bash
+npm install
+npm run dev
+```
+Then open: http://localhost:5173
 
-2. **Using Node.js**:
-   ```bash
-   npx serve .
-   ```
+### Production Build
+```bash
+npm run build
+npm run preview   # Preview the build at http://localhost:4173
+```
 
-3. **Using any HTTP server**: Just serve the directory containing `index.html`
+See [DEPLOYMENT.md](DEPLOYMENT.md) for hosting configuration (Netlify, Vercel, Apache, Nginx).
 
 ### First Time Setup
 
 1. Open the application in your browser
-2. Click **"Upload CSV File"** in the Guest Assignment tab
+2. Go to the **Guest Data** tab and click **Upload Guest List CSV**
 3. Select your guest CSV file
 4. (Optional) Configure rooms in the **Room Configuration** tab
-5. Start assigning guests by dragging them to beds!
+5. Go to the **Assignment** tab and start assigning guests by dragging them to beds!
 
 ## CSV File Formats
 
 ### Guest CSV Format
 
-The tool accepts flexible column names. Required columns:
+The tool accepts flexible column names and auto-skips non-header preamble lines (e.g., "Reservations From: ...").
+
+Required columns:
 - `firstName` (or `FIRST NAME`, `First Name`)
 - `lastName` (or `LAST NAME`, `Last Name`)
 - `gender` (values: `M`, `F`, `Male`, `Female`, `Non-binary`, `Other`)
@@ -100,74 +114,52 @@ Export and import complete room layouts:
 
 Sample file: [`sample_room_config.csv`](sample_room_config.csv)
 
-## Usage Guide
-
-### Assigning Guests
-
-**Method 1: Drag & Drop**
-1. Drag a guest from the "Unassigned Guests" table
-2. Drop them onto an empty bed in any room
-3. To unassign, drag them back to the "Unassigned Guests" area
-
-**Method 2: Click-Based (Pickup/Drop/Swap)**
-1. Click the **↑** button next to an assigned guest to pick them up
-2. Click the **↓** button on an empty bed to drop them there
-3. Click the **↔** button on another assigned guest to swap positions
-
-### Managing Rooms
-
-1. Go to the **Room Configuration** tab
-2. Click **Add Dormitory** to create a new building
-3. Select a dormitory, then click **Add Room**
-4. Click **Configure Beds** on any room to add/remove/modify beds
-5. Use **Export Room Config** to save your layout
-
-### Settings
-
-Toggle display options and warning types in the **Settings** tab:
-- Show/hide age histograms
-- Enable/disable specific warnings
-- Customize the interface to your workflow
-
-### Exporting Results
-
-Click **Export CSV** to download a CSV file containing:
-- All guest information
-- Assigned room names
-- Assigned bed IDs
-
 ## Architecture
 
 ### Technology Stack
-- **Pure JavaScript** (ES6+) - No frameworks required
-- **HTML5 & CSS3** - Modern, accessible interface
-- **localStorage API** - Client-side data persistence
-- **File API** - CSV import/export
+- **Vue 3** with Composition API and `<script setup>`
+- **TypeScript** for type safety
+- **Pinia** for state management with persisted state plugin
+- **Vite** for build tooling and dev server
+- **SCSS** for component styling (scoped)
+- **driver.js** for guided tour functionality
+- **Vitest** for unit testing
 
 ### Project Structure
 ```
-├── index.html              # Main application HTML
-├── app.js                  # Core application logic (~2,200 lines)
-├── styles.css              # Styling and layout
-├── app-*.js                # Feature modules (utils, storage, validation)
-├── constants.js            # Application constants
-├── test_guests.csv         # Sample guest data for testing
-├── sample_room_config.csv  # Sample room configuration
-├── specs/                  # Technical specifications
-└── CLAUDE.md              # Development workflow guide
+src/
+├── App.vue                     # Root component with tab navigation and layout
+├── main.ts                     # App entry point (Vue, Pinia, plugins)
+├── types/                      # TypeScript type definitions and constants
+│   ├── Guest.ts, Bed.ts, Room.ts, Dormitory.ts
+│   ├── Assignment.ts, Validation.ts, Settings.ts, Storage.ts
+│   ├── Constants.ts            # Field mappings, defaults, messages
+│   └── index.ts                # Central re-export
+├── stores/                     # Pinia stores
+│   ├── guestStore.ts           # Guest data management
+│   ├── dormitoryStore.ts       # Dormitory/room/bed configuration
+│   ├── assignmentStore.ts      # Guest-to-bed assignments and history
+│   ├── settingsStore.ts        # User preferences and display settings
+│   ├── validationStore.ts      # Assignment validation warnings
+│   └── timelineStore.ts        # Timeline view state
+├── features/                   # Feature modules
+│   ├── assignments/            # Drag-drop, click-to-pick, stats, toolbar
+│   ├── csv/                    # CSV import/export (guests and rooms)
+│   ├── dormitories/            # Room list, bed slots, room config cards
+│   ├── guest-data/             # Guest data table view
+│   ├── guests/                 # Guest list, guest rows, search, group lines
+│   ├── hints/                  # Contextual hints and empty states
+│   ├── settings/               # Settings panel and auto-placement config
+│   ├── timeline/               # Timeline view with guest blobs
+│   ├── print/                  # Print-friendly layout
+│   ├── backup/                 # Data backup/restore controls
+│   └── export/                 # Export functionality
+├── shared/                     # Shared utilities
+│   ├── components/             # FloatingActionBar, etc.
+│   └── composables/            # useDropValidation, useGroupConnections
+├── specs/                      # Feature specifications
+└── OLD/                        # Legacy vanilla JS code (reference only)
 ```
-
-### Key Classes & Functions
-
-**Main Class**: `DormAssignmentTool`
-- Manages application state (guests, rooms, assignments)
-- Handles UI rendering and updates
-- Coordinates drag-and-drop interactions
-
-**Mixins**:
-- `AppUtils` - Utility functions (date formatting, name display, etc.)
-- `AppStorage` - localStorage persistence and data migration
-- `AppValidation` - Assignment validation and warning generation
 
 ## Data Model
 
@@ -184,14 +176,15 @@ dormitories[]              // Top-level organizational units
           ├── bedId (unique identifier)
           ├── bedType (upper/lower/single)
           ├── position (number)
-          └── assignedGuestId (reference to guest)
+          └── active (boolean)
 
 guests[]                   // All imported guests
-  ├── id (auto-generated)
-  ├── firstName, lastName
+  ├── id (auto-generated UUID)
+  ├── firstName, lastName, preferredName
   ├── gender, age
   ├── groupName (for families)
   ├── lowerBunk (boolean)
+  ├── arrival, departure
   └── ...other CSV fields
 
 assignments (Map)          // guestId → bedId mapping
@@ -214,26 +207,18 @@ assignments (Map)          // guestId → bedId mapping
 
 ## Development
 
-### Testing
-
-Test the application with sample data:
+### Commands
 ```bash
-# Just open index.html and upload test_guests.csv
-# Or use the auto-load feature (see Development Mode below)
+npm run dev       # Start dev server (http://localhost:5173)
+npm run build     # Type-check and build for production
+npm run preview   # Preview production build
+npm run test      # Run unit tests with Vitest
 ```
 
-### Development Mode
-
-For easier testing during development, you can modify the code to auto-load `test_guests.csv` on startup.
-
 ### Git Workflow
-
 ```bash
 # CSV files are ignored by default
 git status              # Should never show .csv files
-
-# Commit room configurations separately if needed
-git add sample_room_config.csv --force
 ```
 
 ## Troubleshooting
@@ -245,7 +230,7 @@ git add sample_room_config.csv --force
 **Solution**: Check if localStorage is enabled and not in incognito/private mode
 
 **Problem**: CSV import fails
-**Solution**: Ensure CSV has required columns (firstName, lastName, gender, age)
+**Solution**: Ensure CSV has required columns (firstName, lastName, gender, age). Preamble/metadata lines before the header are skipped automatically.
 
 **Problem**: Warnings not showing
 **Solution**: Check Settings tab to ensure warnings are enabled

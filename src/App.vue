@@ -8,6 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
+          <span class="version-tag">v260225-17:18</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -129,14 +130,14 @@
     </div>
 
     <!-- Timeline Tab -->
-    <div v-show="activeTab === 'timeline'" class="tab-content">
+    <div v-if="activeTab === 'timeline'" class="tab-content">
       <div class="scrollable-content">
         <TimelineView />
       </div>
     </div>
 
     <!-- Room Configuration Tab -->
-    <div v-show="activeTab === 'configuration'" class="tab-content">
+    <div v-if="activeTab === 'configuration'" class="tab-content">
       <div class="toolbar">
         <div class="toolbar-left">
           <h2>Room Configuration</h2>
@@ -162,7 +163,7 @@
     </div>
 
     <!-- Print Tab -->
-    <div v-show="activeTab === 'print'" class="tab-content">
+    <div v-if="activeTab === 'print'" class="tab-content">
       <div class="scrollable-content">
         <PrintView />
       </div>
@@ -551,10 +552,18 @@ function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => strin
     throw new Error('CSV must have at least a header row and one data row')
   }
 
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+  // Check for config name comment line and skip it
+  let startLine = 0
+  if (lines[0].startsWith('# Config:')) {
+    const configName = lines[0].replace('# Config:', '').trim()
+    dormitoryStore.configName = configName
+    startLine = 1
+  }
+
+  const headers = lines[startLine].split(',').map(h => h.trim().replace(/"/g, ''))
   const dormitoriesMap = new Map<string, any>()
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = startLine + 1; i < lines.length; i++) {
     const values = parseCSVRow(lines[i])
 
     const dormitoryName = values[headers.indexOf('Dormitory Name')]?.trim()
@@ -713,6 +722,14 @@ function stopResize() {
       font-size: 0.875rem;
       font-weight: 500;
       margin-left: 8px;
+    }
+
+    .version-tag {
+      -webkit-text-fill-color: #999;
+      font-size: 0.65rem;
+      font-weight: 400;
+      margin-left: 8px;
+      letter-spacing: 0.02em;
     }
   }
 }
