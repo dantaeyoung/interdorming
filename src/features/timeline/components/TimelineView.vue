@@ -9,7 +9,6 @@
 
       <!-- Table section - takes most of the width -->
       <div ref="timelineContentRef" class="timeline-content-wrapper" :style="{ '--column-width': `${columnWidthPx}px` }">
-      <RoomGroupLinesOverlay v-if="isMounted && timelineContentRef" :containerRef="timelineContentRef" />
       <!-- Unassigned Guests Section - At the top -->
       <div class="unassigned-section" :style="{ height: `${unassignedSectionHeight}px` }">
         <!-- Fixed label on the left -->
@@ -18,6 +17,7 @@
         </div>
         <!-- Scrollable content area -->
         <div class="unassigned-scrollable" ref="unassignedSectionRef">
+          <RoomGroupLinesOverlay v-if="isMounted && unassignedSectionRef" :containerRef="unassignedSectionRef" />
           <table class="timeline-table unassigned-table">
             <colgroup>
               <col
@@ -164,6 +164,7 @@
 
         <!-- Dorms Section - Independently Scrollable -->
         <div class="dorms-section" ref="dormsSectionRef">
+        <RoomGroupLinesOverlay v-if="isMounted && dormsSectionRef" :containerRef="dormsSectionRef" />
         <table class="timeline-table">
           <colgroup>
             <col style="width: 50px; min-width: 50px; max-width: 50px;" />
@@ -1299,6 +1300,7 @@ function getRoomRowspan(index: number): number {
 }
 
 .unassigned-scrollable {
+  position: relative;
   flex: 1;
   overflow-x: scroll; // Scrollable for JS sync
   overflow-y: auto; // Vertical scroll when needed
@@ -1376,6 +1378,7 @@ function getRoomRowspan(index: number): number {
 }
 
 .dorms-section {
+  position: relative;
   flex: 1;
   overflow-x: auto;
   overflow-y: auto;
