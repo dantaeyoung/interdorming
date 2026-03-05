@@ -10,7 +10,7 @@ import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { DATA_VERSION } from '@/types'
-import type { Guest, Dormitory, Settings, AssignmentEntry, SerializedHistoryState } from '@/types'
+import type { Guest, Dormitory, RoomLayout, Settings, AssignmentEntry, SerializedHistoryState } from '@/types'
 
 /**
  * Full backup data structure
@@ -21,6 +21,8 @@ export interface BackupData {
   data: {
     guests: Guest[]
     dormitories: Dormitory[]
+    layouts?: RoomLayout[]
+    activeLayoutId?: string | null
     assignments: AssignmentEntry[]
     assignmentHistory: SerializedHistoryState[]
     settings: Settings
@@ -74,12 +76,17 @@ export function useDataBackup() {
       timestamp: state.timestamp,
     }))
 
+    // Save current layout state before backup
+    dormitoryStore.saveCurrentToActiveLayout()
+
     return {
       version: DATA_VERSION,
       exportedAt: new Date().toISOString(),
       data: {
         guests: guestStore.guests,
         dormitories: dormitoryStore.dormitories,
+        layouts: dormitoryStore.layouts,
+        activeLayoutId: dormitoryStore.activeLayoutId,
         assignments: assignmentsArray,
         assignmentHistory: historyArray,
         settings: settingsStore.settings,
@@ -294,6 +301,14 @@ export function useDataBackup() {
 
     // Import dormitories (this clears existing dormitories)
     dormitoryStore.importDormitories(data.dormitories || [])
+
+    // Restore layouts if present
+    if (data.layouts && data.layouts.length > 0) {
+      dormitoryStore.importLayouts(data.layouts, 'replace')
+      if (data.activeLayoutId) {
+        dormitoryStore.switchLayout(data.activeLayoutId)
+      }
+    }
 
     // Restore assignments
     assignmentStore.assignments.clear()

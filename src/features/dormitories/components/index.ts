@@ -12,3 +12,7 @@ export { default as ConfigRoomList } from './ConfigRoomList.vue'
 export { default as DormitoryConfigSection } from './DormitoryConfigSection.vue'
 export { default as RoomConfigCard } from './RoomConfigCard.vue'
 export { default as BedConfigItem } from './BedConfigItem.vue'
+
+// Layout management components
+export { default as LayoutSelector } from './LayoutSelector.vue'
+export { default as NewLayoutModal } from './NewLayoutModal.vue'

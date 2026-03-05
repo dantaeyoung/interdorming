@@ -1,11 +1,11 @@
 /**
  * Dormitory Store
- * Manages dormitories, rooms, and beds
+ * Manages dormitories, rooms, beds, and room layout presets
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { Dormitory, DormitoryInput, Room, RoomInput, Bed, FlatRoom } from '@/types'
+import { ref, computed, watch, nextTick } from 'vue'
+import type { Dormitory, DormitoryInput, Room, RoomInput, Bed, FlatRoom, RoomLayout } from '@/types'
 import { DEFAULT_COLORS } from '@/types'
 
 export const useDormitoryStore = defineStore(
@@ -15,6 +15,13 @@ export const useDormitoryStore = defineStore(
     const dormitories = ref<Dormitory[]>([])
     const configName = ref<string>('')
     const selectedDormitoryIndex = ref<number | null>(null)
+
+    // Layout state
+    const layouts = ref<RoomLayout[]>([])
+    const activeLayoutId = ref<string | null>(null)
+
+    // Internal flag to suppress auto-save during layout switch
+    let _suppressAutoSave = false
 
     // Getters
     const getAllRooms = computed((): FlatRoom[] => {
@@ -89,6 +96,11 @@ export const useDormitoryStore = defineStore(
         return dormitories.value[selectedDormitoryIndex.value]
       }
       return null
+    })
+
+    const activeLayout = computed((): RoomLayout | null => {
+      if (!activeLayoutId.value) return null
+      return layouts.value.find(l => l.id === activeLayoutId.value) || null
     })
 
     // Actions
@@ -278,11 +290,196 @@ export const useDormitoryStore = defineStore(
       dormitories.value = importedDormitories
     }
 
+    // --- Layout Management ---
+
+    function _deepCloneDormitories(dorms: Dormitory[]): Dormitory[] {
+      return JSON.parse(JSON.stringify(dorms))
+    }
+
+    /**
+     * Migration: if layouts is empty but dormitories exist, create a layout from them.
+     * Called on app mount.
+     */
+    function ensureLayoutsInitialized() {
+      if (layouts.value.length > 0) return
+
+      const now = new Date().toISOString()
+      const layout: RoomLayout = {
+        id: crypto.randomUUID(),
+        name: configName.value || 'Default Layout',
+        description: '',
+        dormitories: _deepCloneDormitories(dormitories.value),
+        createdAt: now,
+        updatedAt: now,
+      }
+      layouts.value = [layout]
+      activeLayoutId.value = layout.id
+    }
+
+    /**
+     * Save the current working dormitories to the active layout.
+     */
+    function saveCurrentToActiveLayout() {
+      if (!activeLayoutId.value) return
+      const layout = layouts.value.find(l => l.id === activeLayoutId.value)
+      if (layout) {
+        layout.dormitories = _deepCloneDormitories(dormitories.value)
+        layout.updatedAt = new Date().toISOString()
+      }
+    }
+
+    /**
+     * Create a new layout. If cloneFromId is provided, clones that layout's dormitories.
+     * Otherwise starts blank.
+     */
+    function createLayout(name: string, description: string = '', cloneFromId?: string): RoomLayout {
+      // Save current layout first
+      saveCurrentToActiveLayout()
+
+      const now = new Date().toISOString()
+      let newDorms: Dormitory[] = []
+
+      if (cloneFromId) {
+        const source = layouts.value.find(l => l.id === cloneFromId)
+        if (source) {
+          newDorms = _deepCloneDormitories(source.dormitories)
+        }
+      }
+
+      const layout: RoomLayout = {
+        id: crypto.randomUUID(),
+        name,
+        description,
+        dormitories: newDorms,
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      layouts.value.push(layout)
+
+      // Switch to new layout
+      _suppressAutoSave = true
+      activeLayoutId.value = layout.id
+      dormitories.value = _deepCloneDormitories(layout.dormitories)
+      configName.value = layout.name
+      selectedDormitoryIndex.value = null
+      nextTick(() => {
+        _suppressAutoSave = false
+      })
+
+      return layout
+    }
+
+    /**
+     * Switch to a different layout. Caller should handle confirmation first.
+     * Returns true if switched, false if layout not found.
+     */
+    function switchLayout(layoutId: string): boolean {
+      if (layoutId === activeLayoutId.value) return true
+
+      const target = layouts.value.find(l => l.id === layoutId)
+      if (!target) return false
+
+      // Save current layout
+      saveCurrentToActiveLayout()
+
+      // Suppress auto-save during switch
+      _suppressAutoSave = true
+      activeLayoutId.value = target.id
+      dormitories.value = _deepCloneDormitories(target.dormitories)
+      configName.value = target.name
+      selectedDormitoryIndex.value = null
+      nextTick(() => {
+        _suppressAutoSave = false
+      })
+
+      return true
+    }
+
+    /**
+     * Delete a layout. Cannot delete the last one.
+     * Returns true if deleted.
+     */
+    function deleteLayout(layoutId: string): boolean {
+      if (layouts.value.length <= 1) return false
+
+      const index = layouts.value.findIndex(l => l.id === layoutId)
+      if (index === -1) return false
+
+      layouts.value.splice(index, 1)
+
+      // If we deleted the active layout, switch to another
+      if (activeLayoutId.value === layoutId) {
+        const next = layouts.value[0]
+        _suppressAutoSave = true
+        activeLayoutId.value = next.id
+        dormitories.value = _deepCloneDormitories(next.dormitories)
+        configName.value = next.name
+        selectedDormitoryIndex.value = null
+        nextTick(() => {
+          _suppressAutoSave = false
+        })
+      }
+
+      return true
+    }
+
+    /**
+     * Import layouts from JSON data. mode = 'replace' replaces all, 'merge' adds new ones.
+     */
+    function importLayouts(importedLayouts: RoomLayout[], mode: 'replace' | 'merge' = 'replace') {
+      if (mode === 'replace') {
+        _suppressAutoSave = true
+        layouts.value = importedLayouts
+        // Activate the first layout
+        if (importedLayouts.length > 0) {
+          activeLayoutId.value = importedLayouts[0].id
+          dormitories.value = _deepCloneDormitories(importedLayouts[0].dormitories)
+          configName.value = importedLayouts[0].name
+        }
+        selectedDormitoryIndex.value = null
+        nextTick(() => {
+          _suppressAutoSave = false
+        })
+      } else {
+        // Merge: add layouts that don't have duplicate names
+        const existingNames = new Set(layouts.value.map(l => l.name))
+        for (const layout of importedLayouts) {
+          let name = layout.name
+          if (existingNames.has(name)) {
+            let counter = 2
+            while (existingNames.has(`${layout.name} (${counter})`)) counter++
+            name = `${layout.name} (${counter})`
+          }
+          existingNames.add(name)
+          layouts.value.push({ ...layout, id: crypto.randomUUID(), name })
+        }
+      }
+    }
+
+    // Auto-save watcher: debounced save of dormitories to active layout
+    let _autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+    watch(
+      dormitories,
+      () => {
+        if (_suppressAutoSave || !activeLayoutId.value) return
+
+        if (_autoSaveTimer) clearTimeout(_autoSaveTimer)
+        _autoSaveTimer = setTimeout(() => {
+          saveCurrentToActiveLayout()
+        }, 500)
+      },
+      { deep: true }
+    )
+
     return {
       // State
       dormitories,
       configName,
       selectedDormitoryIndex,
+      layouts,
+      activeLayoutId,
 
       // Getters
       getAllRooms,
@@ -291,6 +488,7 @@ export const useDormitoryStore = defineStore(
       getRoomByBedId,
       getDormitoryByBedId,
       selectedDormitory,
+      activeLayout,
 
       // Actions
       addDormitory,
@@ -305,12 +503,20 @@ export const useDormitoryStore = defineStore(
       setSelectedDormitory,
       initializeDefaultDormitories,
       importDormitories,
+
+      // Layout actions
+      ensureLayoutsInitialized,
+      saveCurrentToActiveLayout,
+      createLayout,
+      switchLayout,
+      deleteLayout,
+      importLayouts,
     }
   },
   {
     persist: {
       key: 'dormAssignments-dormitories',
-      paths: ['dormitories', 'configName'],
+      paths: ['dormitories', 'configName', 'layouts', 'activeLayoutId'],
     },
   }
 )
