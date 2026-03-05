@@ -40,7 +40,7 @@
           title="Reset all assignments"
         >
           <span class="btn-icon">🗑</span>
-          <span class="btn-label">Reset All</span>
+          <span class="btn-label">Clear All Assignments</span>
         </button>
       </div>
 
@@ -53,7 +53,7 @@
           title="Accept all suggested placements"
         >
           <span class="btn-icon">✓</span>
-          <span class="btn-label">Accept All ({{ suggestionCount }})</span>
+          <span class="btn-label">Accept All Suggestions ({{ suggestionCount }})</span>
         </button>
         <button
           class="action-btn btn-secondary"
@@ -61,7 +61,7 @@
           title="Clear all suggestions"
         >
           <span class="btn-icon">✕</span>
-          <span class="btn-label">Clear</span>
+          <span class="btn-label">Clear All Suggestions</span>
         </button>
       </div>
     </div>

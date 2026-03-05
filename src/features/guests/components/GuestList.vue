@@ -149,10 +149,13 @@
           <div class="guest-info-left">
             <span class="guest-name">{{ floatingBlobName }}</span>
           </div>
-          <div class="guest-info-right">
+          <div v-if="pickedGroupGuests.length === 0" class="guest-info-right">
             <span class="gender-badge" :style="{ backgroundColor: floatingBlobGenderColor }">{{ floatingBlobGenderCode }}</span>
             <span class="guest-age">{{ floatingBlobGuest?.age }}</span>
             <span class="lower-bunk-icon" :class="{ 'is-hidden': !floatingBlobGuest?.lowerBunk }">🛏️</span>
+          </div>
+          <div v-else class="guest-info-right">
+            <span class="gender-badge" :style="{ backgroundColor: floatingBlobGenderColor }">{{ floatingBlobGenderCode }}</span>
           </div>
         </div>
       </div>
@@ -228,7 +231,7 @@ const assignmentStore = useAssignmentStore()
 const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { validateDrop } = useDropValidation()
-const { useDroppableUnassignedArea, isDragging, draggedGuestId, dragOverBedId, mousePosition, isPicking, pickedGuestId } = useDragDrop()
+const { useDroppableUnassignedArea, isDragging, draggedGuestId, dragOverBedId, mousePosition, isPicking, isPickingGroup, pickedGuestId, pickedGroupGuestIds } = useDragDrop()
 const { isLinking, linkingCount, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 // Template refs
@@ -440,21 +443,48 @@ const pickedGuest = computed(() => {
   return guestStore.guests.find(g => g.id === pickedGuestId.value) || null
 })
 
+// Group pick info
+const pickedGroupGuests = computed(() => {
+  if (!isPickingGroup.value) return []
+  return pickedGroupGuestIds.value
+    .map(id => guestStore.getGuestById(id))
+    .filter((g): g is NonNullable<typeof g> => !!g)
+})
+
 // Use either dragged or picked guest for floating blob
 const floatingBlobGuest = computed(() => draggedGuest.value || pickedGuest.value)
-const isFloatingBlobVisible = computed(() => (isDragging.value && draggedGuest.value) || (isPicking.value && pickedGuest.value))
+const isFloatingBlobVisible = computed(() => (isDragging.value && draggedGuest.value) || (isPicking.value && (pickedGuest.value || pickedGroupGuests.value.length > 0)))
 
 const floatingBlobName = computed(() => {
+  if (pickedGroupGuests.value.length > 0) {
+    const groupName = pickedGroupGuests.value[0]?.groupName || 'Group'
+    return `${groupName} (${pickedGroupGuests.value.length})`
+  }
   if (!floatingBlobGuest.value) return ''
   return createDisplayName(floatingBlobGuest.value)
 })
 
 const floatingBlobGenderCode = computed(() => {
+  if (pickedGroupGuests.value.length > 0) {
+    const genders = new Set(pickedGroupGuests.value.map(g => g.gender.charAt(0).toUpperCase()))
+    return genders.size === 1 ? [...genders][0] : 'Mix'
+  }
   if (!floatingBlobGuest.value) return ''
   return floatingBlobGuest.value.gender.charAt(0).toUpperCase()
 })
 
 const floatingBlobGenderColor = computed(() => {
+  if (pickedGroupGuests.value.length > 0) {
+    const genders = new Set(pickedGroupGuests.value.map(g => g.gender.toLowerCase()))
+    if (genders.size === 1) {
+      const colors = settingsStore.settings.genderColors
+      const gender = [...genders][0]
+      if (gender === 'm') return colors.male
+      if (gender === 'f') return colors.female
+      return colors.nonBinary
+    }
+    return '#a78bfa' // purple for mixed
+  }
   if (!floatingBlobGuest.value) return '#e5e7eb'
   const colors = settingsStore.settings.genderColors
   const gender = floatingBlobGuest.value.gender.toLowerCase()
@@ -578,7 +608,6 @@ export { SortIndicator }
 
 .group-lines-svg {
   position: absolute;
-  pointer-events: none;
   z-index: 5;
 }
 

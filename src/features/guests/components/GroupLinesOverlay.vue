@@ -8,7 +8,7 @@
     <g v-for="group in groupPaths" :key="group.name + '-' + updateKey">
       <path
         :d="group.path"
-        :class="['group-path', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
+        :class="['group-path', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup, picked: isGroupPicked(group.name) }]"
         :stroke="highlightedGroup && group.name !== highlightedGroup ? '#d1d5db' : group.color"
         fill="none"
         stroke-width="2"
@@ -21,7 +21,7 @@
         :cx="dot.x"
         :cy="dot.y"
         r="4"
-        :class="['group-dot', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup }]"
+        :class="['group-dot', { highlighted: group.name === highlightedGroup, dimmed: highlightedGroup && group.name !== highlightedGroup, picked: isGroupPicked(group.name) }]"
         :fill="highlightedGroup && group.name !== highlightedGroup ? '#d1d5db' : group.color"
         :stroke="group.name === highlightedGroup ? '#fff' : 'none'"
         stroke-width="2"
@@ -57,6 +57,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useGroupLinking } from '../composables/useGroupLinking'
+import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import type { Guest } from '@/types'
 
 interface Props {
@@ -90,6 +91,7 @@ const normalizedSuggestedGroups = computed(() => {
 const updateKey = ref(0)
 
 const { hoveredGroupName } = useGroupLinking()
+const { pickedGroupGuestIds } = useDragDrop()
 
 const svgRef = ref<SVGSVGElement | null>(null)
 const height = ref(500)
@@ -334,6 +336,14 @@ const suggestedGroupPaths = computed(() => {
   return paths
 })
 
+// Check if a group is currently picked
+function isGroupPicked(groupName: string): boolean {
+  if (pickedGroupGuestIds.value.length === 0) return false
+  const group = groups.value.get(groupName)
+  if (!group) return false
+  return group.guestIds.some(id => pickedGroupGuestIds.value.includes(id))
+}
+
 // Update height based on row positions or guest count
 function updateDimensions() {
   if (props.rowPositions.length > 0) {
@@ -366,8 +376,10 @@ onMounted(() => {
   position: absolute;
   top: 0;
   left: 0;
-  pointer-events: none;
   z-index: 1;
+  // SVG container doesn't intercept clicks, but children with
+  // explicit pointer-events (stroke/all) still receive them
+  pointer-events: none;
 }
 
 .group-path {
@@ -382,6 +394,18 @@ onMounted(() => {
   &.dimmed {
     opacity: 0.3;
   }
+
+  &.picked {
+    stroke-width: 3;
+    opacity: 1;
+    stroke-dasharray: 6 3;
+    animation: picked-pulse 1s ease-in-out infinite;
+  }
+}
+
+@keyframes picked-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .group-dot {
@@ -395,6 +419,13 @@ onMounted(() => {
 
   &.dimmed {
     opacity: 0.3;
+  }
+
+  &.picked {
+    r: 6;
+    opacity: 1;
+    stroke-width: 2;
+    animation: picked-pulse 1s ease-in-out infinite;
   }
 
   &.suggested {

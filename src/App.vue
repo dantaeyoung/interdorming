@@ -484,8 +484,8 @@ function handleExportExcel() {
 
 function handleResetAssignments() {
   confirmAction(
-    'Reset All Assignments',
-    'Are you sure you want to reset all guest assignments? This cannot be undone.',
+    'Clear All Assignments',
+    'Are you sure you want to clear all guest assignments? This cannot be undone.',
     () => {
       assignmentStore.clearAllAssignments()
       showStatus('All assignments cleared', 'success')

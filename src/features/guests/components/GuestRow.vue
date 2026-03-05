@@ -47,9 +47,10 @@
     </td>
     <td
       class="group-cell"
-      :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15 }"
-      @mouseenter="handleMouseEnter"
-      @mouseleave="handleMouseLeave"
+      :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15, 'has-group': !!guest.groupName && !readonly }"
+      @mouseenter="handleGroupCellMouseEnter"
+      @mouseleave="handleGroupCellMouseLeave"
+      @click.stop="handleGroupCellClick"
     >
       {{ guest.groupName || '-' }}
     </td>
@@ -128,7 +129,7 @@ const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
 const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
-const { useDraggableGuest, pickGuest, isPicking, pickedGuestId } = useDragDrop()
+const { useDraggableGuest, pickGuest, pickGroup, isPicking, pickedGuestId, pickedGroupGuestIds } = useDragDrop()
 const { isLinking, linkingGuestIds, hoveredGroupName, startLinking, toggleLinkingGuest, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 const displayName = computed(() => createDisplayName(props.guest))
@@ -169,8 +170,8 @@ const isGroupDimmed = computed(() => {
 
 const isPickedUp = computed(() => assignmentStore.pickedUpGuestId === props.guest.id)
 
-// Check if this guest is picked in table view pick-and-place
-const isPicked = computed(() => pickedGuestId.value === props.guest.id)
+// Check if this guest is picked in table view pick-and-place (single or group)
+const isPicked = computed(() => pickedGuestId.value === props.guest.id || pickedGroupGuestIds.value.includes(props.guest.id))
 
 // Check if we're in picking mode and this is a valid target (not the picked guest)
 const isPickTarget = computed(() => isPicking.value && pickedGuestId.value !== props.guest.id)
@@ -221,6 +222,23 @@ function handleStartLinking() {
   } else {
     // Toggle this guest in/out of the linking selection
     toggleLinkingGuest(props.guest.id)
+  }
+}
+
+function handleGroupCellMouseEnter() {
+  handleMouseEnter()
+}
+
+function handleGroupCellMouseLeave() {
+  handleMouseLeave()
+}
+
+function handleGroupCellClick(event: MouseEvent) {
+  if (!props.guest.groupName || props.readonly) return
+  // Find all guests in this group and pick them up
+  const groupMembers = guestStore.guests.filter(g => g.groupName === props.guest.groupName)
+  if (groupMembers.length > 0) {
+    pickGroup(groupMembers.map(g => g.id), event)
   }
 }
 
@@ -469,6 +487,32 @@ td {
   &.long-group-name {
     font-size: 0.7rem;
   }
+
+  &.has-group {
+    cursor: grab;
+    position: relative;
+
+    &:hover {
+      background-color: #fef3c7;
+
+      &::after {
+        content: 'Click to pick up group';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        white-space: nowrap;
+        z-index: 99999;
+        pointer-events: none;
+      }
+    }
+  }
 }
 
 .notes-cell {
@@ -491,7 +535,6 @@ td {
   justify-content: center;
   min-width: 100px;
   vertical-align: middle;
-  border-bottom: none;
 }
 
 .btn-link-guest {
@@ -587,4 +630,5 @@ td {
   line-height: 1.4;
   transform: translate(-50%, calc(-100% - 8px));
 }
+
 </style>

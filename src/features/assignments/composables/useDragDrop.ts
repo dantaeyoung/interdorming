@@ -5,6 +5,8 @@
 
 import { ref, computed } from 'vue'
 import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useDormitoryStore } from '@/stores/dormitoryStore'
+import type { Bed } from '@/types'
 
 // Shared state (singleton) for drag tracking across components
 const draggedGuestId = ref<string | null>(null)
@@ -14,7 +16,9 @@ const mousePosition = ref({ x: 0, y: 0 })
 
 // Pick-and-place state (singleton)
 const pickedGuestId = ref<string | null>(null)
-const isPicking = computed(() => pickedGuestId.value !== null)
+const pickedGroupGuestIds = ref<string[]>([])
+const isPicking = computed(() => pickedGuestId.value !== null || pickedGroupGuestIds.value.length > 0)
+const isPickingGroup = computed(() => pickedGroupGuestIds.value.length > 0)
 
 // Mouse move handler for tracking position during drag
 function handleMouseMove(event: MouseEvent) {
@@ -23,7 +27,7 @@ function handleMouseMove(event: MouseEvent) {
 
 // Keyboard handler for escape
 function handleKeyDown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && pickedGuestId.value) {
+  if (event.key === 'Escape' && (pickedGuestId.value || pickedGroupGuestIds.value.length > 0)) {
     cancelPick()
   }
 }
@@ -31,7 +35,9 @@ function handleKeyDown(event: KeyboardEvent) {
 // Pick functions (defined outside useDragDrop so they can be used in handleKeyDown)
 function cancelPick() {
   pickedGuestId.value = null
+  pickedGroupGuestIds.value = []
   document.body.classList.remove('is-picking')
+  document.body.classList.remove('is-picking-group')
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('mousemove', handleMouseMove)
 }
@@ -216,6 +222,11 @@ export function useDragDrop() {
    * Pick up a guest by clicking
    */
   function pickGuest(guestId: string, event?: MouseEvent) {
+    // If a group is picked, cancel it and start single pick
+    if (pickedGroupGuestIds.value.length > 0) {
+      cancelPick()
+    }
+
     // If same guest is already picked, cancel
     if (pickedGuestId.value === guestId) {
       cancelPick()
@@ -291,6 +302,109 @@ export function useDragDrop() {
     return true
   }
 
+  /**
+   * Pick up an entire group by clicking on group lines
+   */
+  function pickGroup(guestIds: string[], event?: MouseEvent) {
+    if (guestIds.length === 0) return
+
+    // If same group is already picked, cancel
+    if (pickedGroupGuestIds.value.length > 0 &&
+        pickedGroupGuestIds.value.length === guestIds.length &&
+        pickedGroupGuestIds.value.every(id => guestIds.includes(id))) {
+      cancelPick()
+      return
+    }
+
+    // Cancel any existing single pick
+    if (pickedGuestId.value) {
+      pickedGuestId.value = null
+    }
+
+    pickedGroupGuestIds.value = [...guestIds]
+    document.body.classList.add('is-picking')
+    document.body.classList.add('is-picking-group')
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('mousemove', handleMouseMove)
+
+    if (event) {
+      mousePosition.value = { x: event.clientX, y: event.clientY }
+    }
+  }
+
+  /**
+   * Place a picked group into a room starting from a clicked bed
+   * Fills empty beds in the same room
+   */
+  function placeGroupOnBed(bedId: string): { placed: number; total: number } {
+    if (pickedGroupGuestIds.value.length === 0) return { placed: 0, total: 0 }
+
+    const dormitoryStore = useDormitoryStore()
+
+    const room = dormitoryStore.getRoomByBedId(bedId)
+    if (!room) {
+      cancelPick()
+      return { placed: 0, total: pickedGroupGuestIds.value.length }
+    }
+
+    // Get all active beds in this room
+    const roomBeds = room.beds.filter((b: Bed) => b.active !== false)
+
+    // Find empty beds in the room (not assigned and not the beds of our group members)
+    const groupGuestSet = new Set(pickedGroupGuestIds.value)
+    const emptyBeds = roomBeds.filter((b: Bed) => {
+      if (!b.assignedGuestId) return true
+      // If the bed is occupied by one of our group members, it's available (they'll be moved)
+      if (groupGuestSet.has(b.assignedGuestId)) return true
+      return false
+    })
+
+    // First unassign all group members from their current beds
+    assignmentStore.saveToHistory()
+    const guestsToPlace = [...pickedGroupGuestIds.value]
+
+    for (const guestId of guestsToPlace) {
+      if (assignmentStore.assignments.has(guestId)) {
+        assignmentStore.unassignGuest(guestId, true)
+      }
+    }
+
+    // Place guests into empty beds, starting from the clicked bed
+    const clickedBedIndex = emptyBeds.findIndex((b: Bed) => b.bedId === bedId)
+    // Reorder so clicked bed is first, then the rest in order
+    const orderedBeds = clickedBedIndex >= 0
+      ? [...emptyBeds.slice(clickedBedIndex), ...emptyBeds.slice(0, clickedBedIndex)]
+      : emptyBeds
+
+    // Re-check which beds are truly empty now (after unassigning group members)
+    const availableBeds = orderedBeds.filter((b: Bed) => !b.assignedGuestId)
+
+    let placed = 0
+    for (let i = 0; i < guestsToPlace.length && i < availableBeds.length; i++) {
+      assignmentStore.assignGuestToBed(guestsToPlace[i], availableBeds[i].bedId, true)
+      placed++
+    }
+
+    cancelPick()
+    return { placed, total: guestsToPlace.length }
+  }
+
+  /**
+   * Unassign all picked group members
+   */
+  function unassignPickedGroup() {
+    if (pickedGroupGuestIds.value.length === 0) return false
+
+    assignmentStore.saveToHistory()
+    for (const guestId of pickedGroupGuestIds.value) {
+      if (assignmentStore.assignments.has(guestId)) {
+        assignmentStore.unassignGuest(guestId, true)
+      }
+    }
+    cancelPick()
+    return true
+  }
+
   return {
     // Drag state
     draggedGuestId,
@@ -299,15 +413,20 @@ export function useDragDrop() {
     mousePosition,
     // Pick state
     pickedGuestId,
+    pickedGroupGuestIds,
     isPicking,
+    isPickingGroup,
     // Drag functions
     useDraggableGuest,
     useDroppableBed,
     useDroppableUnassignedArea,
     // Pick functions
     pickGuest,
+    pickGroup,
     cancelPick,
     placeGuestOnBed,
+    placeGroupOnBed,
     unassignPickedGuest,
+    unassignPickedGroup,
   }
 }

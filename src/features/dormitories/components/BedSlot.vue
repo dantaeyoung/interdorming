@@ -16,7 +16,7 @@
           <span class="guest-details">
             <span class="guest-gender" :style="genderBackgroundStyle">{{ assignedGuest.gender }}</span>
             <span class="guest-age">{{ assignedGuest.age }}</span>
-            <span v-if="assignedGuest.groupName" class="group-badge">
+            <span v-if="assignedGuest.groupName" class="group-badge clickable-group" @click.stop="handleGroupBadgeClick($event, assignedGuest.groupName)">
               {{ assignedGuest.groupName }}
             </span>
           </span>
@@ -36,7 +36,7 @@
           <span class="guest-details">
             <span class="guest-gender">{{ suggestedGuest.gender }}</span>
             <span class="guest-age">{{ suggestedGuest.age }}</span>
-            <span v-if="suggestedGuest.groupName" class="group-badge">
+            <span v-if="suggestedGuest.groupName" class="group-badge clickable-group" @click.stop="handleGroupBadgeClick($event, suggestedGuest.groupName)">
               {{ suggestedGuest.groupName }}
             </span>
           </span>
@@ -86,7 +86,7 @@ const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const validationStore = useValidationStore()
 const settingsStore = useSettingsStore()
-const { useDroppableBed, useDraggableGuest, isDragging, draggedGuestId, isPicking, pickedGuestId, placeGuestOnBed } = useDragDrop()
+const { useDroppableBed, useDraggableGuest, isDragging, draggedGuestId, isPicking, isPickingGroup, pickedGuestId, placeGuestOnBed, placeGroupOnBed, pickGroup } = useDragDrop()
 const { setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 const { createFullName } = useUtils()
 const { validateDrop } = useDropValidation()
@@ -162,10 +162,20 @@ const isInvalidDropTarget = computed(() => {
 // Check if we're in picking mode (for visual feedback)
 const isPickingMode = computed(() => isPicking.value)
 
-// Handle click to place picked guest
+// Handle click to place picked guest or group
 function handleBedClick() {
-  if (isPicking.value) {
+  if (isPickingGroup.value) {
+    placeGroupOnBed(props.bed.bedId)
+  } else if (isPicking.value) {
     placeGuestOnBed(props.bed.bedId)
+  }
+}
+
+// Handle click on group badge to pick up the whole group
+function handleGroupBadgeClick(event: MouseEvent, groupName: string) {
+  const groupMembers = guestStore.guests.filter(g => g.groupName === groupName)
+  if (groupMembers.length > 0) {
+    pickGroup(groupMembers.map(g => g.id), event)
   }
 }
 
@@ -369,6 +379,34 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   border-radius: 3px;
   font-size: 0.65rem;
   white-space: nowrap;
+
+  &.clickable-group {
+    cursor: grab;
+    position: relative;
+
+    &:hover {
+      background-color: #fef3c7;
+      color: #92400e;
+
+      &::after {
+        content: 'Click to pick up group';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-bottom: 4px;
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        white-space: nowrap;
+        z-index: 99999;
+        pointer-events: none;
+      }
+    }
+  }
 }
 
 .date-info {
