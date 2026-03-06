@@ -72,7 +72,7 @@ Dormitories (top level) → Rooms → Beds → Guest Assignments
 - **`guestStore`**: Guest data from CSV import
 - **`dormitoryStore`**: Dormitory/room/bed configuration
 - **`assignmentStore`**: Guest-to-bed assignments, undo/redo history, swaps
-- **`settingsStore`**: User preferences (warnings, display, gender colors, auto-placement)
+- **`settingsStore`**: User preferences (warnings, display, gender colors, auto-placement, group placement order, couple splitting)
 - **`validationStore`**: Computed validation warnings for assignments
 - **`timelineStore`**: Timeline view state
 
@@ -91,7 +91,7 @@ src/
 │   └── index.ts                # Central re-export barrel
 ├── stores/                     # Pinia stores (see above)
 ├── features/                   # Feature modules (components + composables)
-│   ├── assignments/            # useDragDrop composable, AssignmentStats, toolbar
+│   ├── assignments/            # useDragDrop, useAutoPlacement, useGroupClassification composables
 │   ├── csv/                    # useCSV composable, GuestCSVUpload, RoomConfigCSV
 │   ├── dormitories/            # RoomList, BedSlot, RoomConfigCard, RoomGroupLinesOverlay
 │   ├── guest-data/             # GuestDataView (main guest table)
@@ -127,6 +127,14 @@ Non-blocking visual warnings for:
 - Bunk accessibility violations (upper bunk for lower-bunk-required guests)
 - Family separation (same GroupName in different rooms)
 - Age compatibility issues (large age gaps, minors with adults)
+
+### Auto-Placement (`src/features/assignments/composables/useAutoPlacement.ts`)
+- **Two-stage algorithm**: Stage 1 places groups as whole units (largest/hardest first), Stage 2 fills remaining beds with individuals
+- **Group classification** (`useGroupClassification.ts`): 5-tier system — families with minors → groups with minors → families (adults) → groups (adults) → individuals. Tier order is configurable in settings.
+- **Couple handling**: Mixed-gender pairs of 2 adults are split into gendered dorms by default; elderly couples (configurable age threshold) and those with mobility needs stay together in coed rooms
+- **Coed room preservation**: Same-gender groups are penalized for using coed rooms, reserving them for mixed-gender families
+- **3-pass constraint relaxation**: Strict → relaxed → emergency, each running both stages
+- **Room-specific auto-place** (`autoPlaceGuestsInRoom`): Individual-only, unchanged from original algorithm
 
 ### Hints System (`src/features/hints/`)
 - Contextual hints that highlight UI elements based on current state
@@ -185,7 +193,9 @@ A version tag (e.g., `v260225-16:45`) is displayed in the header for deployment 
 
 ### Guest CSV Fields (Flexible)
 Required: `firstName`, `lastName`, `gender`, `age`
-Optional: `preferredName`, `groupName`, `lowerBunk`, `arrival`, `departure`, etc.
+Optional: `preferredName`, `groupName`, `lowerBunk`, `arrival`, `departure`, `indivGrp`, etc.
+
+Key fields for auto-placement: `groupName` (shared group ID), `indivGrp` ("individual"/"group"/"family/friends"), `gender`, `age`, `lowerBunk`.
 
 See `CSV_FIELD_MAPPINGS` in `src/types/Constants.ts` for all recognized variations.
 
@@ -205,3 +215,7 @@ After making changes, verify:
 - [ ] Assignment warnings appear for violations (gender, age, bunk type)
 - [ ] Tab switching works between all modes
 - [ ] Timeline view displays guest arrival/departure data
+- [ ] Auto-place keeps groups/families together in one room
+- [ ] Auto-place respects group placement order from settings
+- [ ] Mixed-gender couple splitting works per age threshold setting
+- [ ] Same-gender groups prefer gendered rooms over coed

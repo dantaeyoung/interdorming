@@ -368,8 +368,13 @@ function handleAutoPlace() {
   try {
     const result = assignmentStore.autoPlace()
 
+    const groupWarning =
+      result.unplaceableGroups.length > 0
+        ? ` (${result.unplaceableGroups.length} group${result.unplaceableGroups.length > 1 ? 's' : ''} couldn't be placed — no room fits)`
+        : ''
+
     if (result.placedCount === 0) {
-      showStatus('No suggestions made. Check settings or room availability.', 'info')
+      showStatus('No suggestions made. Check settings or room availability.' + groupWarning, 'info')
     } else if (result.unplacedCount === 0) {
       showStatus(
         `${result.placedCount} suggested placements created. Accept or adjust them, then click "Accept All".`,
@@ -377,7 +382,7 @@ function handleAutoPlace() {
       )
     } else {
       showStatus(
-        `${result.placedCount} suggestions created, ${result.unplacedCount} guests could not be placed.`,
+        `${result.placedCount} suggestions created, ${result.unplacedCount} guests could not be placed.` + groupWarning,
         'info'
       )
     }

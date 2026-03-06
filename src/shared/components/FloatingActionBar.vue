@@ -63,6 +63,13 @@
           <span class="btn-icon">✕</span>
           <span class="btn-label">Clear All Suggestions</span>
         </button>
+        <span
+          v-if="unplaceableGroupCount > 0"
+          class="unplaceable-warning"
+          :title="unplaceableGroupDetails"
+        >
+          {{ unplaceableGroupCount }} group{{ unplaceableGroupCount > 1 ? 's' : '' }} couldn't be placed
+        </span>
       </div>
     </div>
   </Teleport>
@@ -89,6 +96,12 @@ const canRedo = computed(() => assignmentStore.canRedo)
 const assignedCount = computed(() => assignmentStore.assignedCount)
 const hasSuggestions = computed(() => assignmentStore.hasSuggestions)
 const suggestionCount = computed(() => assignmentStore.suggestedAssignments.size)
+const unplaceableGroupCount = computed(() => assignmentStore.unplaceableGroups.length)
+const unplaceableGroupDetails = computed(() =>
+  assignmentStore.unplaceableGroups
+    .map(g => `${g.groupName} (${g.memberCount} members): ${g.reason}`)
+    .join('\n')
+)
 </script>
 
 <style scoped lang="scss">
@@ -233,5 +246,19 @@ const suggestionCount = computed(() => assignmentStore.suggestedAssignments.size
   &:hover:not(:disabled) {
     background: #e5e7eb;
   }
+}
+
+.unplaceable-warning {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  color: #92400e;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: help;
 }
 </style>

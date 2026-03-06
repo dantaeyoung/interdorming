@@ -5,8 +5,8 @@
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Settings, AutoPlacementPriority, GenderColorSettings } from '@/types'
-import { DEFAULT_SETTINGS } from '@/types'
+import type { Settings, AutoPlacementPriority, GenderColorSettings, GroupType } from '@/types'
+import { DEFAULT_SETTINGS, DEFAULT_GROUP_PLACEMENT_ORDER } from '@/types'
 
 export const useSettingsStore = defineStore(
   'settings',
@@ -41,9 +41,25 @@ export const useSettingsStore = defineStore(
       }
     }
 
+    // Ensure groupPlacementOrder exists for existing users
+    function migrateGroupPlacementOrder() {
+      if (!settings.value.autoPlacement.groupPlacementOrder) {
+        settings.value.autoPlacement.groupPlacementOrder = [...DEFAULT_GROUP_PLACEMENT_ORDER]
+      }
+    }
+
+    // Ensure couple settings exist for existing users
+    function migrateCoupleSettings() {
+      if (!settings.value.autoPlacement.couples) {
+        settings.value.autoPlacement.couples = { ...DEFAULT_SETTINGS.autoPlacement.couples }
+      }
+    }
+
     // Run migration on initialization
     mergePriorities()
     migrateGenderColors()
+    migrateGroupPlacementOrder()
+    migrateCoupleSettings()
 
     // Actions
     function updateWarningSettings(key: keyof Settings['warnings'], value: boolean) {
@@ -79,6 +95,10 @@ export const useSettingsStore = defineStore(
       settings.value.genderColors[gender] = color
     }
 
+    function updateGroupPlacementOrder(order: GroupType[]) {
+      settings.value.autoPlacement.groupPlacementOrder = order
+    }
+
     function resetToDefaults() {
       settings.value = { ...DEFAULT_SETTINGS }
     }
@@ -93,6 +113,7 @@ export const useSettingsStore = defineStore(
       updateAutoPlacementEnabled,
       updateAutoPlacementPriority,
       updateConstraintRelaxation,
+      updateGroupPlacementOrder,
       toggleDeveloperMode,
       updateGenderColor,
       resetToDefaults,

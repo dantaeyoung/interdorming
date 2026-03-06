@@ -34,8 +34,10 @@ export type {
   GenderColorSettings,
   AutoPlacementSettings,
   AutoPlacementPriority,
+  GroupType,
+  CoupleSettings,
 } from './Settings'
-export { DEFAULT_SETTINGS } from './Settings'
+export { DEFAULT_SETTINGS, GROUP_TYPE_LABELS, DEFAULT_GROUP_PLACEMENT_ORDER } from './Settings'
 
 // Room Layout types
 export type { RoomLayout } from './RoomLayout'

@@ -8,6 +8,7 @@ import { ref, computed } from 'vue'
 import { useDormitoryStore } from './dormitoryStore'
 import { useGuestStore } from './guestStore'
 import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
+import type { UnplaceableGroup } from '@/features/assignments/composables/useAutoPlacement'
 import type { AssignmentMap, HistoryState, SuggestedAssignmentMap } from '@/types'
 import { HISTORY_SIZE } from '@/types'
 
@@ -20,6 +21,7 @@ export const useAssignmentStore = defineStore(
     const assignmentHistory = ref<HistoryState[]>([])
     const redoHistory = ref<HistoryState[]>([])
     const pickedUpGuestId = ref<string | null>(null)
+    const unplaceableGroups = ref<UnplaceableGroup[]>([])
 
     // Getters
     const getAssignmentByGuest = computed(() => {
@@ -357,21 +359,26 @@ export const useAssignmentStore = defineStore(
     function autoPlace() {
       const { autoPlaceGuests } = useAutoPlacement()
 
-      // Clear existing suggestions
+      // Clear existing suggestions and unplaceable groups
       suggestedAssignments.value.clear()
+      unplaceableGroups.value = []
 
       // Run auto-placement algorithm
-      const suggestions = autoPlaceGuests()
+      const result = autoPlaceGuests()
 
       // Apply new suggestions
-      suggestions.forEach((bedId, guestId) => {
+      result.suggestions.forEach((bedId, guestId) => {
         suggestedAssignments.value.set(guestId, bedId)
       })
 
+      // Store unplaceable groups for UI feedback
+      unplaceableGroups.value = result.unplaceableGroups
+
       // Return placement results
       return {
-        placedCount: suggestions.size,
-        unplacedCount: unassignedGuestIds.value.length - suggestions.size,
+        placedCount: result.suggestions.size,
+        unplacedCount: unassignedGuestIds.value.length - result.suggestions.size,
+        unplaceableGroups: result.unplaceableGroups,
       }
     }
 
@@ -381,6 +388,7 @@ export const useAssignmentStore = defineStore(
       suggestedAssignments,
       assignmentHistory,
       pickedUpGuestId,
+      unplaceableGroups,
 
       // Getters
       getAssignmentByGuest,

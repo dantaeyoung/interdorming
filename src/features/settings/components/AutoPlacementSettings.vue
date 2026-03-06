@@ -1,8 +1,82 @@
 <template>
   <div class="auto-placement-settings">
-    <h3>Placement Priorities</h3>
+    <h3>Group Placement Order</h3>
     <p class="description">
-      Drag to reorder priorities. Higher priorities have more weight in placement decisions.
+      Groups are placed as whole units before individual guests.
+      Drag to change which group types get placed first.
+    </p>
+
+    <div class="tier-list">
+      <div
+        v-for="(tierType, index) in localTierOrder"
+        :key="tierType"
+        class="tier-item"
+        draggable="true"
+        @dragstart="handleTierDragStart($event, index)"
+        @dragover.prevent="handleTierDragOver($event, index)"
+        @drop="handleTierDrop($event, index)"
+        @dragend="handleTierDragEnd"
+        :class="{ dragging: tierDraggedIndex === index }"
+      >
+        <div class="drag-handle">
+          <span>::</span>
+        </div>
+        <span class="tier-rank">{{ index + 1 }}</span>
+        <span class="tier-label">{{ tierLabels[tierType] }}</span>
+      </div>
+      <div class="tier-item tier-fixed">
+        <div class="drag-handle invisible">
+          <span>::</span>
+        </div>
+        <span class="tier-rank">5</span>
+        <span class="tier-label tier-label-muted">Individual guests (always last)</span>
+      </div>
+    </div>
+
+    <div class="settings-section couple-section">
+      <label class="setting-row">
+        <span>Split mixed-gender couples into gendered dorms</span>
+        <input
+          type="checkbox"
+          :checked="settingsStore.settings.autoPlacement.couples.splitMixedGenderCouples"
+          @change="toggleSplitCouples"
+        />
+      </label>
+      <p class="help-text">
+        When enabled, a mixed-gender pair of 2 adults is placed individually
+        (he in a men's dorm, she in a women's dorm) instead of together in a coed room.
+      </p>
+
+      <div
+        class="age-threshold"
+        v-if="settingsStore.settings.autoPlacement.couples.splitMixedGenderCouples"
+      >
+        <label class="threshold-label">
+          Keep together if either member is
+          <strong>{{ settingsStore.settings.autoPlacement.couples.keepTogetherAge }}+</strong>
+        </label>
+        <input
+          type="range"
+          min="50"
+          max="85"
+          step="5"
+          :value="settingsStore.settings.autoPlacement.couples.keepTogetherAge"
+          @input="updateKeepTogetherAge"
+        />
+        <div class="range-labels">
+          <span>50</span>
+          <span>85</span>
+        </div>
+        <p class="help-text">
+          Elderly couples or those with lower-bunk needs are always kept together.
+        </p>
+      </div>
+    </div>
+
+    <h3>Room Scoring Weights</h3>
+    <p class="description">
+      When choosing which room to place a group or guest in, these weights determine
+      how important each factor is. Drag to reorder.
     </p>
 
     <div class="priorities-list">
@@ -55,20 +129,56 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settingsStore'
-import type { AutoPlacementPriority } from '@/types'
+import type { AutoPlacementPriority, GroupType } from '@/types'
+import { GROUP_TYPE_LABELS } from '@/types'
 
 const settingsStore = useSettingsStore()
 
-const localPriorities = ref<AutoPlacementPriority[]>([])
-const draggedIndex = ref<number | null>(null)
-const dragOverIndex = ref<number | null>(null)
+// --- Group Placement Order ---
+const tierLabels = GROUP_TYPE_LABELS
+const localTierOrder = ref<GroupType[]>([])
+const tierDraggedIndex = ref<number | null>(null)
 
 onMounted(() => {
-  // Clone the priorities array to work with locally
+  localTierOrder.value = [...settingsStore.settings.autoPlacement.groupPlacementOrder]
   localPriorities.value = JSON.parse(
     JSON.stringify(settingsStore.settings.autoPlacement.priorities)
   )
 })
+
+function handleTierDragStart(event: DragEvent, index: number) {
+  tierDraggedIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/html', String(index))
+  }
+}
+
+function handleTierDragOver(_event: DragEvent, _index: number) {
+  // dragover handled by .prevent modifier
+}
+
+function handleTierDrop(event: DragEvent, dropIndex: number) {
+  event.preventDefault()
+  if (tierDraggedIndex.value === null || tierDraggedIndex.value === dropIndex) return
+
+  const newOrder = [...localTierOrder.value]
+  const draggedItem = newOrder[tierDraggedIndex.value]
+  newOrder.splice(tierDraggedIndex.value, 1)
+  newOrder.splice(dropIndex, 0, draggedItem)
+
+  localTierOrder.value = newOrder
+  settingsStore.updateGroupPlacementOrder(newOrder)
+}
+
+function handleTierDragEnd() {
+  tierDraggedIndex.value = null
+}
+
+// --- Room Scoring Weights (existing) ---
+const localPriorities = ref<AutoPlacementPriority[]>([])
+const draggedIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
 
 function handleDragStart(event: DragEvent, index: number) {
   draggedIndex.value = index
@@ -125,6 +235,16 @@ function togglePriority(index: number) {
   settingsStore.settings.autoPlacement.priorities = [...localPriorities.value]
 }
 
+function toggleSplitCouples() {
+  settingsStore.settings.autoPlacement.couples.splitMixedGenderCouples =
+    !settingsStore.settings.autoPlacement.couples.splitMixedGenderCouples
+}
+
+function updateKeepTogetherAge(event: Event) {
+  const value = parseInt((event.target as HTMLInputElement).value)
+  settingsStore.settings.autoPlacement.couples.keepTogetherAge = value
+}
+
 function toggleConstraintRelaxation() {
   const newValue = !settingsStore.settings.autoPlacement.allowConstraintRelaxation
   settingsStore.updateConstraintRelaxation(newValue)
@@ -141,6 +261,10 @@ function toggleConstraintRelaxation() {
     font-size: 1.5rem;
     font-weight: 600;
     color: #1f2937;
+
+    &:not(:first-child) {
+      margin-top: 36px;
+    }
   }
 
   .description {
@@ -150,6 +274,77 @@ function toggleConstraintRelaxation() {
   }
 }
 
+// --- Group Placement Order ---
+.tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tier-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: move;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  &.dragging {
+    opacity: 0.5;
+    border-color: #3b82f6;
+  }
+
+  &.tier-fixed {
+    cursor: default;
+    background: #f9fafb;
+    border-style: dashed;
+
+    &:hover {
+      border-color: #e5e7eb;
+      box-shadow: none;
+    }
+  }
+}
+
+.tier-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+
+  .tier-fixed & {
+    background: #9ca3af;
+  }
+}
+
+.tier-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1f2937;
+
+  &.tier-label-muted {
+    color: #9ca3af;
+    font-style: italic;
+  }
+}
+
+// --- Room Scoring Weights ---
 .priorities-list {
   display: flex;
   flex-direction: column;
@@ -189,6 +384,10 @@ function toggleConstraintRelaxation() {
 
   &:active {
     cursor: grabbing;
+  }
+
+  &.invisible {
+    visibility: hidden;
   }
 
   span {
@@ -260,6 +459,35 @@ function toggleConstraintRelaxation() {
   background: #f9fafb;
   border-radius: 8px;
   margin-top: 24px;
+}
+
+.couple-section {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.age-threshold {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+
+  input[type='range'] {
+    width: 100%;
+    margin: 8px 0 4px;
+    accent-color: #3b82f6;
+  }
+}
+
+.threshold-label {
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #9ca3af;
 }
 
 .setting-row {
