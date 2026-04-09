@@ -78,17 +78,12 @@
 
         <div class="form-group">
           <label for="arrival">Arrival Date</label>
-          <input id="arrival" v-model="formData.arrival" type="text" placeholder="Optional" />
+          <input id="arrival" v-model="formData.arrival" type="date" />
         </div>
 
         <div class="form-group">
           <label for="departure">Departure Date</label>
-          <input
-            id="departure"
-            v-model="formData.departure"
-            type="text"
-            placeholder="Optional"
-          />
+          <input id="departure" v-model="formData.departure" type="date" />
         </div>
 
         <div class="form-group">
