@@ -93,8 +93,28 @@
     <td>{{ guest.creationDate || '-' }}</td>
     <td>{{ guest.arrivalTime || '-' }}</td>
     <td>{{ guest.departureMeals || '-' }}</td>
-    <td>{{ guest.mentalHealth || '-' }}</td>
-    <td>{{ guest.physicalHealth || '-' }}</td>
+    <td class="notes-cell">
+      <span
+        v-if="guest.mentalHealth"
+        class="notes-text"
+        @mouseenter="handleLongTextMouseEnter($event, guest.mentalHealth)"
+        @mouseleave="showLongTextModal = false"
+      >
+        {{ truncateNotes(guest.mentalHealth) }}
+      </span>
+      <span v-else>-</span>
+    </td>
+    <td class="notes-cell">
+      <span
+        v-if="guest.physicalHealth"
+        class="notes-text"
+        @mouseenter="handleLongTextMouseEnter($event, guest.physicalHealth)"
+        @mouseleave="showLongTextModal = false"
+      >
+        {{ truncateNotes(guest.physicalHealth) }}
+      </span>
+      <span v-else>-</span>
+    </td>
     <td>{{ guest.accommodationChoice || '-' }}</td>
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
@@ -103,6 +123,8 @@
     <!-- Teleport notes modal to body -->
     <Teleport to="body">
       <div v-if="showNotesModal && guest.notes" class="notes-modal-overlay" :style="modalPosition" v-html="formatNotes(guest.notes)">
+      </div>
+      <div v-if="showLongTextModal && longTextModalContent" class="notes-modal-overlay" :style="longTextModalPosition" v-html="longTextModalContent">
       </div>
     </Teleport>
   </tr>
@@ -203,6 +225,11 @@ const showNotesModal = ref(false)
 const modalPosition = ref({ top: '0px', left: '0px' })
 const notesCellRef = ref<HTMLSpanElement | null>(null)
 
+// Generic long text modal (for mental health, physical health, etc.)
+const showLongTextModal = ref(false)
+const longTextModalPosition = ref({ top: '0px', left: '0px' })
+const longTextModalContent = ref('')
+
 function truncateNotes(notes: string, maxLength: number = 50): string {
   if (notes.length <= maxLength) return notes
   return notes.substring(0, maxLength) + '...'
@@ -223,6 +250,19 @@ function handleNotesMouseEnter() {
     }
   }
   showNotesModal.value = true
+}
+
+function handleLongTextMouseEnter(event: MouseEvent, text: string) {
+  const target = event.target as HTMLElement
+  if (target) {
+    const rect = target.getBoundingClientRect()
+    longTextModalPosition.value = {
+      top: `${rect.top}px`,
+      left: `${rect.left + rect.width / 2}px`,
+    }
+  }
+  longTextModalContent.value = formatNotes(text)
+  showLongTextModal.value = true
 }
 
 function handleEdit() {

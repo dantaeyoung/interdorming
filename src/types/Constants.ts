@@ -67,9 +67,9 @@ export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
 }
 
 /**
- * Housing types that are assignable to dorm beds
+ * Housing types that are NOT assignable to dorm beds
  */
-export const ASSIGNABLE_HOUSING_TYPES = ['dorm', 'rv']
+export const NON_ASSIGNABLE_HOUSING_TYPES = ['camping', 'commuter']
 
 /**
  * UI Messages

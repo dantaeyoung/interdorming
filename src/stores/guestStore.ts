@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Guest, GuestInput } from '@/types'
-import { ASSIGNABLE_HOUSING_TYPES } from '@/types/Constants'
+import { NON_ASSIGNABLE_HOUSING_TYPES } from '@/types/Constants'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 import { generateGroupNameFromMembers } from '@/features/guests/composables/useGroupLinking'
 
@@ -127,7 +127,7 @@ export const useGuestStore = defineStore(
      */
     function isGuestAssignable(guest: Guest): boolean {
       if (!guest.housingType) return true
-      return ASSIGNABLE_HOUSING_TYPES.includes(guest.housingType.toLowerCase())
+      return !NON_ASSIGNABLE_HOUSING_TYPES.includes(guest.housingType.toLowerCase())
     }
 
     const assignableGuests = computed(() =>
