@@ -63,8 +63,8 @@ export function useAutoPlacement() {
     const suggestedAssignments = new Map<string, string>()
     const unplaceableGroups: UnplaceableGroup[] = []
 
-    // Get all unassigned guests
-    const unassignedGuests = guestStore.guests
+    // Get all unassigned guests (only assignable housing types)
+    const unassignedGuests = guestStore.assignableGuests
       .filter(g => !assignmentStore.assignments.has(g.id))
 
     if (unassignedGuests.length === 0) {
@@ -750,7 +750,7 @@ export function useAutoPlacement() {
 
     // Get unassigned guests and prioritize those with hard constraints
     // Place guests with lower bunk requirements FIRST to ensure they get valid beds
-    let unassignedGuests = guestStore.guests
+    let unassignedGuests = guestStore.assignableGuests
       .filter(g => !assignmentStore.assignments.has(g.id))
       .sort((a, b) => {
         const aRequiresLower = requiresLowerBunk(a)

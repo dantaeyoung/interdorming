@@ -25,6 +25,14 @@ export interface Guest {
   amountPaid?: string
   firstVisit?: string
   roomPreference?: string
+  housingType?: string
+  accommodationChoice?: string
+  creationDate?: string
+  groupOrIndiv?: string
+  arrivalTime?: string
+  departureMeals?: string
+  mentalHealth?: string
+  physicalHealth?: string
   importOrder?: number
 }
 

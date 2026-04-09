@@ -6,6 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Guest, GuestInput } from '@/types'
+import { ASSIGNABLE_HOUSING_TYPES } from '@/types/Constants'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 import { generateGroupNameFromMembers } from '@/features/guests/composables/useGroupLinking'
 
@@ -119,6 +120,19 @@ export const useGuestStore = defineStore(
       }
       return (guestId: string): string | null => map.get(guestId) ?? null
     })
+
+    /**
+     * Whether a guest can be assigned to a bed based on their housing type.
+     * Guests without a housingType are assumed assignable (backwards compat).
+     */
+    function isGuestAssignable(guest: Guest): boolean {
+      if (!guest.housingType) return true
+      return ASSIGNABLE_HOUSING_TYPES.includes(guest.housingType.toLowerCase())
+    }
+
+    const assignableGuests = computed(() =>
+      guests.value.filter(isGuestAssignable)
+    )
 
     const hasGuestsWithEmail = computed(() =>
       guests.value.some(g => g.email && g.email.trim())
@@ -243,6 +257,8 @@ export const useGuestStore = defineStore(
       getGuestById,
       guestsByGroup,
       filteredGuests,
+      isGuestAssignable,
+      assignableGuests,
       getGuestSuggestedGroup,
       hasGuestsWithEmail,
       hasGroupSuggestions,

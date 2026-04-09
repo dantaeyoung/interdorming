@@ -247,6 +247,10 @@ export function useCSV() {
       guest.lowerBunk = parseBoolean(guest.lowerBunk)
       guest.groupName = guest.groupName || ''
       guest.preferredName = guest.preferredName || ''
+      // Clean housingType (CSV may have trailing commas inside quotes like "Dorm,")
+      if (guest.housingType) {
+        guest.housingType = guest.housingType.replace(/,\s*$/, '').trim()
+      }
 
       guests.push(guest as Guest)
     }

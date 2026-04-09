@@ -1,6 +1,6 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': isUnassigned }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': isUnassigned, 'non-assignable': !isAssignable }]"
     v-bind="draggableProps"
     @click="handleRowClick"
   >
@@ -26,6 +26,12 @@
       </button>
     </td>
     <td class="order-cell">{{ guest.importOrder || '-' }}</td>
+    <td>
+      <span v-if="guest.housingType" class="badge" :class="isAssignable ? 'badge-housing-assignable' : 'badge-housing-other'">
+        {{ guest.housingType }}
+      </span>
+      <span v-else>-</span>
+    </td>
     <td>
       <div class="name-cell">
         <span class="name-text">{{ displayName }}</span>
@@ -64,6 +70,7 @@
     <td>{{ guest.arrival || '-' }}</td>
     <td>{{ guest.departure || '-' }}</td>
     <td>{{ guest.indivGrp || '-' }}</td>
+    <td>{{ guest.groupOrIndiv || '-' }}</td>
     <td class="notes-cell">
       <span
         v-if="guest.notes"
@@ -83,6 +90,12 @@
     <td>{{ guest.ratePerNight || '-' }}</td>
     <td>{{ guest.priceQuoted || '-' }}</td>
     <td>{{ guest.amountPaid || '-' }}</td>
+    <td>{{ guest.creationDate || '-' }}</td>
+    <td>{{ guest.arrivalTime || '-' }}</td>
+    <td>{{ guest.departureMeals || '-' }}</td>
+    <td>{{ guest.mentalHealth || '-' }}</td>
+    <td>{{ guest.physicalHealth || '-' }}</td>
+    <td>{{ guest.accommodationChoice || '-' }}</td>
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
     </td>
@@ -179,10 +192,11 @@ const isPickTarget = computed(() => isPicking.value && pickedGuestId.value !== p
 const hasSuggestion = computed(() => assignmentStore.suggestedAssignments.has(props.guest.id))
 
 const isUnassigned = computed(() => !assignmentStore.assignments.has(props.guest.id))
+const isAssignable = computed(() => guestStore.isGuestAssignable(props.guest))
 
 const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.id))
 
-const draggableProps = props.readonly ? {} : useDraggableGuest(props.guest.id)
+const draggableProps = (props.readonly || !isAssignable.value) ? {} : useDraggableGuest(props.guest.id)
 
 // Notes modal state
 const showNotesModal = ref(false)
@@ -249,8 +263,8 @@ function handleRowClick(event: MouseEvent) {
     return
   }
 
-  // Handle pick-and-place (disabled in readonly mode)
-  if (!props.readonly) {
+  // Handle pick-and-place (disabled in readonly mode or non-assignable guests)
+  if (!props.readonly && isAssignable.value) {
     pickGuest(props.guest.id, event)
   }
 }
@@ -363,6 +377,15 @@ function handleUnlink() {
       border-bottom-right-radius: 4px;
     }
   }
+
+  &.non-assignable {
+    opacity: 0.45;
+    cursor: default;
+
+    &:hover {
+      background-color: inherit;
+    }
+  }
 }
 
 .name-cell {
@@ -463,6 +486,16 @@ function handleUnlink() {
   &.badge-info {
     background-color: #d1fae5;
     color: #065f46;
+  }
+
+  &.badge-housing-assignable {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  &.badge-housing-other {
+    background-color: #fef3c7;
+    color: #92400e;
   }
 }
 

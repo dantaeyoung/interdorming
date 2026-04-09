@@ -56,7 +56,20 @@ export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
   amountPaid: ['amountPaid', 'Amount paid', 'AMOUNT PAID', 'Amount Paid', 'amount_paid'],
   firstVisit: ['firstVisit', 'First visit to a TNH monastery', 'FIRST VISIT TO A TNH MONASTERY', 'First Visit', 'first_visit'],
   roomPreference: ['roomPreference', 'Rm Preference', 'RM PREFERENCE', 'Room Preference', 'room_preference', 'Rm preference'],
+  housingType: ['housingType', 'Housing type', 'HOUSING TYPE', 'Housing Type', 'housing_type'],
+  accommodationChoice: ['accommodationChoice', 'Accommodation Choice', 'ACCOMMODATION CHOICE', 'accommodation_choice'],
+  creationDate: ['creationDate', 'Creation Date', 'CREATION DATE', 'creation_date'],
+  groupOrIndiv: ['groupOrIndiv', 'Group or Indiv?', 'GROUP OR INDIV?', 'Group or Indiv', 'group_or_indiv'],
+  arrivalTime: ['arrivalTime', 'Arrival time', 'ARRIVAL TIME', 'Arrival Time', 'arrival_time'],
+  departureMeals: ['departureMeals', 'Departure Meals', 'DEPARTURE MEALS', 'departure_meals'],
+  mentalHealth: ['mentalHealth', 'Mental Health', 'MENTAL HEALTH', 'mental_health'],
+  physicalHealth: ['physicalHealth', 'Physical Health', 'PHYSICAL HEALTH', 'physical_health'],
 }
+
+/**
+ * Housing types that are assignable to dorm beds
+ */
+export const ASSIGNABLE_HOUSING_TYPES = ['dorm', 'rv']
 
 /**
  * UI Messages

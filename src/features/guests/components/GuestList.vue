@@ -9,6 +9,10 @@
             #
             <SortIndicator :active="sortColumn === 'importOrder'" :direction="sortDirection" />
           </th>
+          <th @click="handleSort('housingType')">
+            Housing
+            <SortIndicator :active="sortColumn === 'housingType'" :direction="sortDirection" />
+          </th>
           <th @click="handleSort('firstName')">
             Name
             <SortIndicator :active="sortColumn === 'firstName'" :direction="sortDirection" />
@@ -46,6 +50,10 @@
             Indiv/Grp?
             <SortIndicator :active="sortColumn === 'indivGrp'" :direction="sortDirection" />
           </th>
+          <th @click="handleSort('groupOrIndiv')">
+            Group/Indiv
+            <SortIndicator :active="sortColumn === 'groupOrIndiv'" :direction="sortDirection" />
+          </th>
           <th @click="handleSort('notes')">
             Notes
             <SortIndicator :active="sortColumn === 'notes'" :direction="sortDirection" />
@@ -78,6 +86,30 @@
             Amount Paid
             <SortIndicator :active="sortColumn === 'amountPaid'" :direction="sortDirection" />
           </th>
+          <th @click="handleSort('creationDate')">
+            Created
+            <SortIndicator :active="sortColumn === 'creationDate'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('arrivalTime')">
+            Arrival Time
+            <SortIndicator :active="sortColumn === 'arrivalTime'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('departureMeals')">
+            Dept Meals
+            <SortIndicator :active="sortColumn === 'departureMeals'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('mentalHealth')">
+            Mental Health
+            <SortIndicator :active="sortColumn === 'mentalHealth'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('physicalHealth')">
+            Physical Health
+            <SortIndicator :active="sortColumn === 'physicalHealth'" :direction="sortDirection" />
+          </th>
+          <th @click="handleSort('accommodationChoice')">
+            Accomm Choice
+            <SortIndicator :active="sortColumn === 'accommodationChoice'" :direction="sortDirection" />
+          </th>
           <th>Warnings</th>
         </tr>
       </thead>
@@ -91,7 +123,7 @@
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
-          <td colspan="20" class="empty-cell">
+          <td colspan="28" class="empty-cell">
             <div class="empty-state-inline">
               <template v-if="guestStore.guests.length === 0">
                 <strong>{{ emptyTitle }}</strong>

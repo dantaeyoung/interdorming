@@ -55,5 +55,6 @@ export {
   BED_TYPES,
   ROOM_GENDERS,
   CSV_FIELD_MAPPINGS,
+  ASSIGNABLE_HOUSING_TYPES,
   MESSAGES,
 } from './Constants'
