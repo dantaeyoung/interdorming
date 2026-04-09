@@ -86,7 +86,7 @@
     <td>{{ guest.email || '-' }}</td>
     <td>{{ guest.firstVisit || '-' }}</td>
     <td>{{ guest.roomPreference || '-' }}</td>
-    <td>{{ guest.retreat || '-' }}</td>
+    <td class="retreat-cell">{{ guest.retreat || '-' }}</td>
     <td>{{ guest.ratePerNight || '-' }}</td>
     <td>{{ guest.priceQuoted || '-' }}</td>
     <td>{{ guest.amountPaid || '-' }}</td>
@@ -586,6 +586,10 @@ td {
       }
     }
   }
+}
+
+.retreat-cell {
+  min-width: 200px;
 }
 
 .notes-cell {
