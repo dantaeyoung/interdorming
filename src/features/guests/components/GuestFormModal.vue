@@ -247,6 +247,36 @@ const formData = ref({
 
 const isEditMode = ref(false)
 
+/**
+ * Parse various date formats into YYYY-MM-DD for the date input.
+ * Handles: "Apr 29, 2026", "30-May-25", "May 03, 2026", "2026-04-29", "03/01", etc.
+ */
+function parseDateToISO(dateStr: string): string {
+  if (!dateStr) return ''
+
+  // Already in YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+
+  // Try native Date parsing (handles "Apr 29, 2026", "May 03, 2026", etc.)
+  const parsed = new Date(dateStr)
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2020) {
+    return parsed.toISOString().split('T')[0]
+  }
+
+  // Handle "30-May-25" (DD-Mon-YY) format
+  const dmy = dateStr.match(/^(\d{1,2})-([A-Za-z]+)-(\d{2,4})$/)
+  if (dmy) {
+    const year = dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3]
+    const attempt = new Date(`${dmy[2]} ${dmy[1]}, ${year}`)
+    if (!isNaN(attempt.getTime())) {
+      return attempt.toISOString().split('T')[0]
+    }
+  }
+
+  // Can't parse — return empty so the date picker starts blank
+  return ''
+}
+
 // Watch for guest prop changes to populate form in edit mode
 watch(
   () => props.guest,
@@ -261,8 +291,8 @@ watch(
         age: newGuest.age || '',
         groupName: newGuest.groupName || '',
         lowerBunk: newGuest.lowerBunk || false,
-        arrival: newGuest.arrival || '',
-        departure: newGuest.departure || '',
+        arrival: parseDateToISO(newGuest.arrival || ''),
+        departure: parseDateToISO(newGuest.departure || ''),
         indivGrp: newGuest.indivGrp || '',
         notes: newGuest.notes || '',
         retreat: newGuest.retreat || '',
