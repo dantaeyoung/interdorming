@@ -25,41 +25,87 @@
         ✎
       </button>
     </td>
-    <td class="order-cell">{{ guest.importOrder || '-' }}</td>
-    <td>
-      <span v-if="guest.housingType" class="badge" :class="isAssignable ? 'badge-housing-assignable' : 'badge-housing-other'">
-        {{ guest.housingType }}
-      </span>
-      <span v-else>-</span>
-    </td>
-    <td>
-      <div class="name-cell">
-        <span class="name-text">{{ displayName }}</span>
-        <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
-          ✨
+    <template v-for="col in visibleColumns" :key="col.key">
+      <td v-if="col.key === 'importOrder'" class="order-cell">{{ guest.importOrder || '-' }}</td>
+
+      <td v-else-if="col.key === 'housingType'">
+        <span v-if="guest.housingType" class="badge" :class="isAssignable ? 'badge-housing-assignable' : 'badge-housing-other'">
+          {{ guest.housingType }}
         </span>
-      </div>
-    </td>
-    <td>{{ guest.lastName }}</td>
-    <td>
-      <span class="badge badge-gender" :style="genderBadgeStyle">
-        {{ guest.gender }}
-      </span>
-    </td>
-    <td>{{ guest.age }}</td>
-    <td>
-      <span v-if="guest.lowerBunk" class="badge badge-info">Yes</span>
-      <span v-else class="text-muted">No</span>
-    </td>
-    <td
-      class="group-cell"
-      :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15, 'has-group': !!guest.groupName && !readonly }"
-      @mouseenter="handleGroupCellMouseEnter"
-      @mouseleave="handleGroupCellMouseLeave"
-      @click.stop="handleGroupCellClick"
-    >
-      {{ guest.groupName || '-' }}
-    </td>
+        <span v-else>-</span>
+      </td>
+
+      <td v-else-if="col.key === 'firstName'">
+        <div class="name-cell">
+          <span class="name-text">{{ displayName }}</span>
+          <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
+            ✨
+          </span>
+        </div>
+      </td>
+
+      <td v-else-if="col.key === 'gender'">
+        <span class="badge badge-gender" :style="genderBadgeStyle">
+          {{ guest.gender }}
+        </span>
+      </td>
+
+      <td v-else-if="col.key === 'lowerBunk'">
+        <span v-if="guest.lowerBunk" class="badge badge-info">Yes</span>
+        <span v-else class="text-muted">No</span>
+      </td>
+
+      <td v-else-if="col.key === 'groupName'"
+        class="group-cell"
+        :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15, 'has-group': !!guest.groupName && !readonly }"
+        @mouseenter="handleGroupCellMouseEnter"
+        @mouseleave="handleGroupCellMouseLeave"
+        @click.stop="handleGroupCellClick"
+      >
+        {{ guest.groupName || '-' }}
+      </td>
+
+      <td v-else-if="col.key === 'notes'" class="notes-cell">
+        <span
+          v-if="guest.notes"
+          ref="notesCellRef"
+          class="notes-text"
+          @mouseenter="handleNotesMouseEnter"
+          @mouseleave="showNotesModal = false"
+        >
+          {{ truncateNotes(guest.notes) }}
+        </span>
+        <span v-else>-</span>
+      </td>
+
+      <td v-else-if="col.key === 'mentalHealth'" class="notes-cell">
+        <span
+          v-if="guest.mentalHealth"
+          class="notes-text"
+          @mouseenter="handleLongTextMouseEnter($event, guest.mentalHealth)"
+          @mouseleave="showLongTextModal = false"
+        >
+          {{ truncateNotes(guest.mentalHealth) }}
+        </span>
+        <span v-else>-</span>
+      </td>
+
+      <td v-else-if="col.key === 'physicalHealth'" class="notes-cell">
+        <span
+          v-if="guest.physicalHealth"
+          class="notes-text"
+          @mouseenter="handleLongTextMouseEnter($event, guest.physicalHealth)"
+          @mouseleave="showLongTextModal = false"
+        >
+          {{ truncateNotes(guest.physicalHealth) }}
+        </span>
+        <span v-else>-</span>
+      </td>
+
+      <td v-else-if="col.key === 'retreat'" class="retreat-cell">{{ guest.retreat || '-' }}</td>
+
+      <td v-else>{{ (guest as any)[col.key] || '-' }}</td>
+    </template>
     <td
       class="group-lines-cell"
       @mouseenter="handleMouseEnter"
@@ -67,55 +113,6 @@
     >
       <!-- SVG overlay handles group line visualization -->
     </td>
-    <td>{{ guest.arrival || '-' }}</td>
-    <td>{{ guest.departure || '-' }}</td>
-    <td>{{ guest.indivGrp || '-' }}</td>
-    <td>{{ guest.groupOrIndiv || '-' }}</td>
-    <td class="notes-cell">
-      <span
-        v-if="guest.notes"
-        ref="notesCellRef"
-        class="notes-text"
-        @mouseenter="handleNotesMouseEnter"
-        @mouseleave="showNotesModal = false"
-      >
-        {{ truncateNotes(guest.notes) }}
-      </span>
-      <span v-else>-</span>
-    </td>
-    <td>{{ guest.email || '-' }}</td>
-    <td>{{ guest.firstVisit || '-' }}</td>
-    <td>{{ guest.roomPreference || '-' }}</td>
-    <td class="retreat-cell">{{ guest.retreat || '-' }}</td>
-    <td>{{ guest.ratePerNight || '-' }}</td>
-    <td>{{ guest.priceQuoted || '-' }}</td>
-    <td>{{ guest.amountPaid || '-' }}</td>
-    <td>{{ guest.creationDate || '-' }}</td>
-    <td>{{ guest.arrivalTime || '-' }}</td>
-    <td>{{ guest.departureMeals || '-' }}</td>
-    <td class="notes-cell">
-      <span
-        v-if="guest.mentalHealth"
-        class="notes-text"
-        @mouseenter="handleLongTextMouseEnter($event, guest.mentalHealth)"
-        @mouseleave="showLongTextModal = false"
-      >
-        {{ truncateNotes(guest.mentalHealth) }}
-      </span>
-      <span v-else>-</span>
-    </td>
-    <td class="notes-cell">
-      <span
-        v-if="guest.physicalHealth"
-        class="notes-text"
-        @mouseenter="handleLongTextMouseEnter($event, guest.physicalHealth)"
-        @mouseleave="showLongTextModal = false"
-      >
-        {{ truncateNotes(guest.physicalHealth) }}
-      </span>
-      <span v-else>-</span>
-    </td>
-    <td>{{ guest.accommodationChoice || '-' }}</td>
     <td>
       <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
     </td>
@@ -140,10 +137,11 @@ import { useValidationStore } from '@/stores/validationStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useUtils } from '@/shared/composables/useUtils'
 import { ValidationWarning } from '@/shared/components'
-import type { Guest } from '@/types'
+import type { Guest, ColumnConfig } from '@/types'
 
 interface Props {
   guest: Guest
+  columns: ColumnConfig[]
   familyPosition?: 'none' | 'first' | 'middle' | 'last' | 'only'
   readonly?: boolean
 }
@@ -166,6 +164,8 @@ const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { useDraggableGuest, pickGuest, pickGroup, isPicking, pickedGuestId, pickedGroupGuestIds } = useDragDrop()
 const { isLinking, linkingGuestIds, hoveredGroupName, startLinking, toggleLinkingGuest, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
+
+const visibleColumns = computed(() => props.columns.filter(c => c.visible))
 
 const displayName = computed(() => createDisplayName(props.guest))
 
