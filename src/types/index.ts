@@ -36,8 +36,9 @@ export type {
   AutoPlacementPriority,
   GroupType,
   CoupleSettings,
+  ColumnConfig,
 } from './Settings'
-export { DEFAULT_SETTINGS, GROUP_TYPE_LABELS, DEFAULT_GROUP_PLACEMENT_ORDER } from './Settings'
+export { DEFAULT_SETTINGS, GROUP_TYPE_LABELS, DEFAULT_GROUP_PLACEMENT_ORDER, DEFAULT_GUEST_DATA_COLUMNS, DEFAULT_TABLE_VIEW_COLUMNS } from './Settings'
 
 // Room Layout types
 export type { RoomLayout } from './RoomLayout'

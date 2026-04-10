@@ -47,6 +47,46 @@ export const DEFAULT_GROUP_PLACEMENT_ORDER: GroupType[] = [
   'groupWithoutMinors',
 ]
 
+export interface ColumnConfig {
+  key: string
+  label: string
+  visible: boolean
+}
+
+export const DEFAULT_GUEST_DATA_COLUMNS: ColumnConfig[] = [
+  { key: 'importOrder', label: '#', visible: true },
+  { key: 'housingType', label: 'Housing', visible: true },
+  { key: 'firstName', label: 'Name', visible: true },
+  { key: 'lastName', label: 'Last Name', visible: true },
+  { key: 'gender', label: 'Gender', visible: true },
+  { key: 'age', label: 'Age', visible: true },
+  { key: 'lowerBunk', label: 'Lower Bunk', visible: true },
+  { key: 'groupName', label: 'Group', visible: true },
+  { key: 'arrival', label: 'Arrival', visible: true },
+  { key: 'departure', label: 'Departure', visible: true },
+  { key: 'indivGrp', label: 'Indiv/Grp?', visible: true },
+  { key: 'groupOrIndiv', label: 'Group/Indiv', visible: true },
+  { key: 'notes', label: 'Notes', visible: true },
+  { key: 'email', label: 'Email', visible: true },
+  { key: 'firstVisit', label: 'First Visit', visible: true },
+  { key: 'roomPreference', label: 'Rm Preference', visible: true },
+  { key: 'retreat', label: 'Retreat', visible: true },
+  { key: 'ratePerNight', label: 'Rate/Night', visible: true },
+  { key: 'priceQuoted', label: 'Price Quoted', visible: true },
+  { key: 'amountPaid', label: 'Amount Paid', visible: true },
+  { key: 'creationDate', label: 'Created', visible: true },
+  { key: 'arrivalTime', label: 'Arrival Time', visible: true },
+  { key: 'departureMeals', label: 'Dept Meals', visible: true },
+  { key: 'mentalHealth', label: 'Mental Health', visible: true },
+  { key: 'physicalHealth', label: 'Physical Health', visible: true },
+  { key: 'accommodationChoice', label: 'Accomm Choice', visible: true },
+]
+
+export const DEFAULT_TABLE_VIEW_COLUMNS: ColumnConfig[] = DEFAULT_GUEST_DATA_COLUMNS.map(col => ({
+  ...col,
+  visible: !['email', 'firstVisit', 'ratePerNight', 'priceQuoted', 'amountPaid', 'creationDate', 'arrivalTime', 'departureMeals', 'accommodationChoice'].includes(col.key),
+}))
+
 export interface CoupleSettings {
   splitMixedGenderCouples: boolean
   keepTogetherAge: number
