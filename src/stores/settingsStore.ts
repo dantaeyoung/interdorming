@@ -5,14 +5,16 @@
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Settings, AutoPlacementPriority, GenderColorSettings, GroupType } from '@/types'
-import { DEFAULT_SETTINGS, DEFAULT_GROUP_PLACEMENT_ORDER } from '@/types'
+import type { Settings, AutoPlacementPriority, GenderColorSettings, GroupType, ColumnConfig } from '@/types'
+import { DEFAULT_SETTINGS, DEFAULT_GROUP_PLACEMENT_ORDER, DEFAULT_GUEST_DATA_COLUMNS, DEFAULT_TABLE_VIEW_COLUMNS } from '@/types'
 
 export const useSettingsStore = defineStore(
   'settings',
   () => {
     // State
     const settings = ref<Settings>({ ...DEFAULT_SETTINGS })
+    const guestDataColumns = ref<ColumnConfig[]>([...DEFAULT_GUEST_DATA_COLUMNS.map(c => ({ ...c }))])
+    const tableViewColumns = ref<ColumnConfig[]>([...DEFAULT_TABLE_VIEW_COLUMNS.map(c => ({ ...c }))])
 
     // Merge any new default priorities that don't exist in saved settings
     function mergePriorities() {
@@ -55,11 +57,31 @@ export const useSettingsStore = defineStore(
       }
     }
 
+    // Merge saved column config with defaults (handles new columns added in code)
+    function migrateColumns(saved: ColumnConfig[], defaults: ColumnConfig[]): ColumnConfig[] {
+      const defaultKeys = new Set(defaults.map(c => c.key))
+      const savedKeys = new Set(saved.map(c => c.key))
+
+      // Keep saved columns that still exist in defaults (preserves order + visibility)
+      const merged = saved.filter(c => defaultKeys.has(c.key))
+
+      // Append any new default columns not in saved
+      for (const def of defaults) {
+        if (!savedKeys.has(def.key)) {
+          merged.push({ ...def })
+        }
+      }
+
+      return merged
+    }
+
     // Run migration on initialization
     mergePriorities()
     migrateGenderColors()
     migrateGroupPlacementOrder()
     migrateCoupleSettings()
+    guestDataColumns.value = migrateColumns(guestDataColumns.value, DEFAULT_GUEST_DATA_COLUMNS)
+    tableViewColumns.value = migrateColumns(tableViewColumns.value, DEFAULT_TABLE_VIEW_COLUMNS)
 
     // Actions
     function updateWarningSettings(key: keyof Settings['warnings'], value: boolean) {
@@ -103,9 +125,35 @@ export const useSettingsStore = defineStore(
       settings.value = { ...DEFAULT_SETTINGS }
     }
 
+    function toggleColumnVisibility(view: 'guestData' | 'tableView', key: string) {
+      const cols = view === 'guestData' ? guestDataColumns.value : tableViewColumns.value
+      const col = cols.find(c => c.key === key)
+      if (col) col.visible = !col.visible
+    }
+
+    function reorderColumn(view: 'guestData' | 'tableView', fromKey: string, toKey: string) {
+      const cols = view === 'guestData' ? guestDataColumns.value : tableViewColumns.value
+      const fromIndex = cols.findIndex(c => c.key === fromKey)
+      const toIndex = cols.findIndex(c => c.key === toKey)
+      if (fromIndex === -1 || toIndex === -1) return
+
+      const [removed] = cols.splice(fromIndex, 1)
+      cols.splice(toIndex, 0, removed)
+    }
+
+    function resetColumns(view: 'guestData' | 'tableView') {
+      if (view === 'guestData') {
+        guestDataColumns.value = [...DEFAULT_GUEST_DATA_COLUMNS.map(c => ({ ...c }))]
+      } else {
+        tableViewColumns.value = [...DEFAULT_TABLE_VIEW_COLUMNS.map(c => ({ ...c }))]
+      }
+    }
+
     return {
       // State
       settings,
+      guestDataColumns,
+      tableViewColumns,
 
       // Actions
       updateWarningSettings,
@@ -117,12 +165,15 @@ export const useSettingsStore = defineStore(
       toggleDeveloperMode,
       updateGenderColor,
       resetToDefaults,
+      toggleColumnVisibility,
+      reorderColumn,
+      resetColumns,
     }
   },
   {
     persist: {
       key: 'dormAssignments-settings',
-      paths: ['settings'],
+      paths: ['settings', 'guestDataColumns', 'tableViewColumns'],
     },
   }
 )
