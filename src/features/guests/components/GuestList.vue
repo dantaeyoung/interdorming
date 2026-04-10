@@ -5,111 +5,25 @@
         <thead>
           <tr>
           <th>Actions</th>
-          <th @click="handleSort('importOrder')">
-            #
-            <SortIndicator :active="sortColumn === 'importOrder'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('housingType')">
-            Housing
-            <SortIndicator :active="sortColumn === 'housingType'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('firstName')">
-            Name
-            <SortIndicator :active="sortColumn === 'firstName'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('lastName')">
-            Last Name
-            <SortIndicator :active="sortColumn === 'lastName'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('gender')">
-            Gender
-            <SortIndicator :active="sortColumn === 'gender'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('age')">
-            Age
-            <SortIndicator :active="sortColumn === 'age'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('lowerBunk')">
-            Lower Bunk
-            <SortIndicator :active="sortColumn === 'lowerBunk'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('groupName')">
-            Group
-            <SortIndicator :active="sortColumn === 'groupName'" :direction="sortDirection" />
+          <th
+            v-for="col in visibleColumns"
+            :key="col.key"
+            :class="{
+              'dragging-column': draggedColumnKey === col.key,
+              'drag-over-column': dragOverColumnKey === col.key,
+            }"
+            draggable="true"
+            @click="handleSort(col.key as keyof Guest)"
+            @dragstart="handleColumnDragStart($event, col.key)"
+            @dragover="handleColumnDragOver($event, col.key)"
+            @dragleave="handleColumnDragLeave"
+            @drop="handleColumnDrop($event, col.key)"
+            @dragend="handleColumnDragEnd"
+          >
+            {{ col.label }}
+            <SortIndicator :active="sortColumn === col.key" :direction="sortDirection" />
           </th>
           <th class="group-lines-header"></th>
-          <th @click="handleSort('arrival')">
-            Arrival
-            <SortIndicator :active="sortColumn === 'arrival'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('departure')">
-            Departure
-            <SortIndicator :active="sortColumn === 'departure'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('indivGrp')">
-            Indiv/Grp?
-            <SortIndicator :active="sortColumn === 'indivGrp'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('groupOrIndiv')">
-            Group/Indiv
-            <SortIndicator :active="sortColumn === 'groupOrIndiv'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('notes')">
-            Notes
-            <SortIndicator :active="sortColumn === 'notes'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('email')">
-            Email
-            <SortIndicator :active="sortColumn === 'email'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('firstVisit')">
-            First Visit
-            <SortIndicator :active="sortColumn === 'firstVisit'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('roomPreference')">
-            Rm Preference
-            <SortIndicator :active="sortColumn === 'roomPreference'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('retreat')">
-            Retreat
-            <SortIndicator :active="sortColumn === 'retreat'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('ratePerNight')">
-            Rate/Night
-            <SortIndicator :active="sortColumn === 'ratePerNight'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('priceQuoted')">
-            Price Quoted
-            <SortIndicator :active="sortColumn === 'priceQuoted'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('amountPaid')">
-            Amount Paid
-            <SortIndicator :active="sortColumn === 'amountPaid'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('creationDate')">
-            Created
-            <SortIndicator :active="sortColumn === 'creationDate'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('arrivalTime')">
-            Arrival Time
-            <SortIndicator :active="sortColumn === 'arrivalTime'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('departureMeals')">
-            Dept Meals
-            <SortIndicator :active="sortColumn === 'departureMeals'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('mentalHealth')">
-            Mental Health
-            <SortIndicator :active="sortColumn === 'mentalHealth'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('physicalHealth')">
-            Physical Health
-            <SortIndicator :active="sortColumn === 'physicalHealth'" :direction="sortDirection" />
-          </th>
-          <th @click="handleSort('accommodationChoice')">
-            Accomm Choice
-            <SortIndicator :active="sortColumn === 'accommodationChoice'" :direction="sortDirection" />
-          </th>
           <th>Warnings</th>
         </tr>
       </thead>
@@ -118,12 +32,13 @@
           v-for="(guest, index) in guests"
           :key="guest.id"
           :guest="guest"
+          :columns="columns"
           :family-position="getFamilyPosition(guest, index)"
           :readonly="props.readonly"
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
-          <td colspan="28" class="empty-cell">
+          <td :colspan="visibleColumns.length + 3" class="empty-cell">
             <div class="empty-state-inline">
               <template v-if="guestStore.guests.length === 0">
                 <strong>{{ emptyTitle }}</strong>
@@ -242,13 +157,14 @@ import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import GuestRow from './GuestRow.vue'
 import GuestFormModal from './GuestFormModal.vue'
 import GroupLinesOverlay from './GroupLinesOverlay.vue'
-import type { Guest } from '@/types'
+import type { Guest, ColumnConfig } from '@/types'
 
 interface Props {
   showAssigned?: boolean
   emptyTitle?: string
   emptyMessage?: string
   readonly?: boolean
+  columns: ColumnConfig[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -290,6 +206,49 @@ const guests = computed(() => {
   return filtered.filter(g => !assignmentStore.assignments.has(g.id))
 })
 
+const visibleColumns = computed(() => props.columns.filter(c => c.visible))
+
+// Column drag-to-reorder state
+const draggedColumnKey = ref<string | null>(null)
+const dragOverColumnKey = ref<string | null>(null)
+const justDropped = ref(false)
+
+function handleColumnDragStart(event: DragEvent, key: string) {
+  draggedColumnKey.value = key
+  event.dataTransfer?.setData('text/column-key', key)
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function handleColumnDragOver(event: DragEvent, key: string) {
+  if (!event.dataTransfer?.types.includes('text/column-key')) return
+  event.preventDefault()
+  dragOverColumnKey.value = key
+}
+
+function handleColumnDragLeave() {
+  dragOverColumnKey.value = null
+}
+
+function handleColumnDrop(event: DragEvent, toKey: string) {
+  event.preventDefault()
+  const fromKey = event.dataTransfer?.getData('text/column-key')
+  if (fromKey && fromKey !== toKey) {
+    const view = props.readonly ? 'guestData' : 'tableView'
+    settingsStore.reorderColumn(view, fromKey, toKey)
+  }
+  draggedColumnKey.value = null
+  dragOverColumnKey.value = null
+  justDropped.value = true
+  setTimeout(() => { justDropped.value = false }, 100)
+}
+
+function handleColumnDragEnd() {
+  draggedColumnKey.value = null
+  dragOverColumnKey.value = null
+}
+
 // Sort configuration
 const { sortLevels, clearAllLevels, addLevel } = useSortConfig()
 
@@ -305,6 +264,8 @@ const sortDirection = computed(() => {
 })
 
 function handleSort(column: keyof Guest) {
+  if (justDropped.value) return
+
   // Check if this column is a valid sortable field
   const validFields: SortableField[] = [
     'firstName', 'lastName', 'preferredName', 'gender', 'age',
@@ -760,6 +721,20 @@ export { SortIndicator }
       &:nth-child(2) {
         width: 50px;
         text-align: center;
+      }
+
+      cursor: grab;
+
+      &:active {
+        cursor: grabbing;
+      }
+
+      &.dragging-column {
+        opacity: 0.4;
+      }
+
+      &.drag-over-column {
+        border-left: 3px solid #3b82f6;
       }
 
       &.group-lines-header {
