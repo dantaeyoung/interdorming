@@ -7,6 +7,14 @@
       :placeholder="placeholder"
       @input="handleSearch"
     />
+    <button
+      v-if="searchQuery"
+      class="btn-clear"
+      @click="clearSearch"
+      title="Clear search"
+    >
+      &times;
+    </button>
   </div>
 </template>
 
@@ -29,6 +37,11 @@ function handleSearch() {
   guestStore.setSearchQuery(searchQuery.value)
 }
 
+function clearSearch() {
+  searchQuery.value = ''
+  guestStore.setSearchQuery('')
+}
+
 // Sync with store if changed externally
 watch(
   () => guestStore.searchQuery,
@@ -43,11 +56,30 @@ watch(
 <style scoped lang="scss">
 .guest-search {
   width: 100%;
+  position: relative;
+}
+
+.btn-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #9ca3af;
+  padding: 2px 6px;
+  line-height: 1;
+
+  &:hover {
+    color: #4b5563;
+  }
 }
 
 .form-input {
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 30px 8px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 0.875rem;
