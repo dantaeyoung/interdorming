@@ -1,5 +1,12 @@
 <template>
   <div class="guest-list" v-bind="dropzoneProps">
+    <div class="column-controls">
+      <ColumnsDropdown
+        :columns="columns"
+        @toggle="handleToggleColumn"
+        @reset="handleResetColumns"
+      />
+    </div>
     <div class="table-wrapper" ref="tableWrapperRef">
       <table class="table" ref="tableRef" @scroll="handleTableScroll">
         <thead>
@@ -155,6 +162,7 @@ import { useUtils } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
 import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import GuestRow from './GuestRow.vue'
+import ColumnsDropdown from './ColumnsDropdown.vue'
 import GuestFormModal from './GuestFormModal.vue'
 import GroupLinesOverlay from './GroupLinesOverlay.vue'
 import type { Guest, ColumnConfig } from '@/types'
@@ -247,6 +255,16 @@ function handleColumnDrop(event: DragEvent, toKey: string) {
 function handleColumnDragEnd() {
   draggedColumnKey.value = null
   dragOverColumnKey.value = null
+}
+
+function handleToggleColumn(key: string) {
+  const view = props.readonly ? 'guestData' : 'tableView'
+  settingsStore.toggleColumnVisibility(view, key)
+}
+
+function handleResetColumns() {
+  const view = props.readonly ? 'guestData' : 'tableView'
+  settingsStore.resetColumns(view)
 }
 
 // Sort configuration
@@ -560,6 +578,13 @@ export { SortIndicator }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  .column-controls {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 0;
+    flex-shrink: 0;
+  }
 
   &.drag-over {
     background-color: #f0f9ff;
