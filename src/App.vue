@@ -82,6 +82,7 @@
                 <GuestList
                   ref="guestListRef"
                   :show-assigned="false"
+                  :columns="settingsStore.tableViewColumns"
                   empty-title="No guests loaded"
                   empty-message="Upload a CSV file to begin assigning guests to dormitory beds."
                 />
@@ -212,6 +213,7 @@ import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 
 // Shared components
 import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal } from '@/shared/components'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 
 // Feature components
@@ -238,6 +240,7 @@ import type { Tab } from '@/shared/components/TabNavigation.vue'
 const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
+const settingsStore = useSettingsStore()
 
 // Sort configuration
 const { hasSortLevels, sortDescription } = useSortConfig()

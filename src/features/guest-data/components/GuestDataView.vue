@@ -66,6 +66,7 @@
         ref="guestListRef"
         :show-assigned="true"
         :readonly="true"
+        :columns="settingsStore.guestDataColumns"
         empty-title="No guests loaded"
         empty-message="Upload a CSV file or load test data to get started."
       />
@@ -119,9 +120,11 @@ import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import { useHints } from '@/features/hints/composables/useHints'
 import { ConfirmDialog, SortConfigModal } from '@/shared/components'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
+import { useSettingsStore } from '@/stores/settingsStore'
 import type { Guest } from '@/types'
 
 const guestStore = useGuestStore()
+const settingsStore = useSettingsStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
 const groupLinking = useGroupLinking()
