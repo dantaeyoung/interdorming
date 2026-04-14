@@ -1068,6 +1068,28 @@ function stopResize() {
   padding: 12px 16px;
   background-color: #f3f4f6;
 }
+
+@media print {
+  .app-container {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .tab-content {
+    overflow: visible !important;
+  }
+
+  .scrollable-content {
+    overflow: visible !important;
+  }
+
+  .header,
+  .tab-bar,
+  .floating-action-bar,
+  .combined-toolbar {
+    display: none !important;
+  }
+}
 </style>
 
 <!-- Global styles for Driver.js tour popover -->
