@@ -16,6 +16,10 @@
         <input type="checkbox" v-model="flatTableMode" />
         <span>Flat table (for cutting into strips)</span>
       </label>
+      <label class="checkbox-label">
+        <input type="checkbox" v-model="showCampingCommuter" />
+        <span>Include Camping & Commuter guests</span>
+      </label>
     </div>
 
     <!-- Column Selection -->
@@ -284,6 +288,37 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Camping & Commuter Guests -->
+      <div v-if="showCampingCommuter && campingCommuterGuests.length > 0" class="unassigned-section">
+        <h3>Camping & Commuter Guests</h3>
+        <table class="unassigned-table">
+          <thead>
+            <tr>
+              <th>Housing</th>
+              <th v-if="columns.guestName">Name</th>
+              <th v-if="columns.gender">Gender</th>
+              <th v-if="columns.age">Age</th>
+              <th v-if="columns.group">Group</th>
+              <th v-if="columns.arrival">Arrival</th>
+              <th v-if="columns.departure">Departure</th>
+              <th v-if="columns.notes">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="guest in campingCommuterGuests" :key="guest.id">
+              <td>{{ guest.housingType || '—' }}</td>
+              <td v-if="columns.guestName" class="guest-name">{{ getGuestFullName(guest.id) }}</td>
+              <td v-if="columns.gender">{{ guest.gender || '—' }}</td>
+              <td v-if="columns.age">{{ guest.age || '—' }}</td>
+              <td v-if="columns.group">{{ guest.groupName || '—' }}</td>
+              <td v-if="columns.arrival">{{ guest.arrival || '—' }}</td>
+              <td v-if="columns.departure">{{ guest.departure || '—' }}</td>
+              <td v-if="columns.notes">{{ guest.notes || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -325,6 +360,12 @@ const columns = reactive({
 // Display options
 const showOnlyAssignedBeds = ref(false)
 const flatTableMode = ref(false)
+const showCampingCommuter = ref(false)
+
+// Non-assignable (camping/commuter) guests
+const campingCommuterGuests = computed(() =>
+  guestStore.guests.filter(g => !guestStore.isGuestAssignable(g))
+)
 
 // Load preferences from localStorage
 function loadPreferences() {
@@ -341,6 +382,9 @@ function loadPreferences() {
       if (prefs.flatTableMode !== undefined) {
         flatTableMode.value = prefs.flatTableMode
       }
+      if (prefs.showCampingCommuter !== undefined) {
+        showCampingCommuter.value = prefs.showCampingCommuter
+      }
     }
   } catch (e) {
     console.warn('Failed to load print preferences:', e)
@@ -354,6 +398,7 @@ function savePreferences() {
       columns: { ...columns },
       showOnlyAssignedBeds: showOnlyAssignedBeds.value,
       flatTableMode: flatTableMode.value,
+      showCampingCommuter: showCampingCommuter.value,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
   } catch (e) {

@@ -2,7 +2,7 @@
   <div class="assignment-stats">
     <div class="stat-card">
       <div class="stat-label">Total Guests</div>
-      <div class="stat-value">{{ totalGuests }}</div>
+      <div class="stat-value">{{ assignableGuests }}<span v-if="nonAssignableGuests > 0" class="stat-detail"> / {{ totalGuests }}</span></div>
     </div>
 
     <div class="stat-card">
@@ -18,8 +18,9 @@
     </div>
 
     <div v-if="totalBeds > 0" class="stat-card">
-      <div class="stat-label">Available Beds</div>
-      <div class="stat-value">{{ availableBeds }}</div>
+      <div class="stat-label">Beds</div>
+      <div class="stat-value">{{ availableBeds }}<span class="stat-detail"> / {{ totalBeds }}</span></div>
+      <div class="stat-breakdown">{{ lowerBedsAvail }}L · {{ upperBedsAvail }}U · {{ singleBedsAvail }}S</div>
     </div>
   </div>
 </template>
@@ -35,10 +36,31 @@ const assignmentStore = useAssignmentStore()
 const dormitoryStore = useDormitoryStore()
 
 const totalGuests = computed(() => guestStore.guests.length)
+const assignableGuests = computed(() => guestStore.assignableGuests.length)
+const nonAssignableGuests = computed(() => totalGuests.value - assignableGuests.value)
 const assignedCount = computed(() => assignmentStore.assignedCount)
-const unassignedCount = computed(() => totalGuests.value - assignedCount.value)
+const unassignedCount = computed(() => assignableGuests.value - assignedCount.value)
 const totalBeds = computed(() => dormitoryStore.getAllBeds.length)
 const availableBeds = computed(() => totalBeds.value - assignedCount.value)
+
+// Bed type breakdown (available only)
+const assignedBedIds = computed(() => {
+  const ids = new Set<string>()
+  for (const [, bedId] of assignmentStore.assignments) {
+    ids.add(bedId)
+  }
+  return ids
+})
+
+const lowerBedsAvail = computed(() =>
+  dormitoryStore.getAllBeds.filter(b => b.bedType === 'lower' && !assignedBedIds.value.has(b.bedId)).length
+)
+const upperBedsAvail = computed(() =>
+  dormitoryStore.getAllBeds.filter(b => b.bedType === 'upper' && !assignedBedIds.value.has(b.bedId)).length
+)
+const singleBedsAvail = computed(() =>
+  dormitoryStore.getAllBeds.filter(b => b.bedType === 'single' && !assignedBedIds.value.has(b.bedId)).length
+)
 </script>
 
 <style scoped lang="scss">
@@ -89,5 +111,19 @@ const availableBeds = computed(() => totalBeds.value - assignedCount.value)
     -webkit-background-clip: text;
     background-clip: text;
   }
+}
+
+.stat-detail {
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0.6;
+}
+
+.stat-breakdown {
+  font-size: 0.55rem;
+  color: #6b7280;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-top: 1px;
 }
 </style>

@@ -19,27 +19,64 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { useGuestStore } from '@/stores/guestStore'
+import { useAssignmentStore } from '@/stores/assignmentStore'
 import DormitorySection from './DormitorySection.vue'
 import RoomGroupLinesOverlay from './RoomGroupLinesOverlay.vue'
 
 interface Props {
   emptyTitle?: string
   emptyMessage?: string
+  searchQuery?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   emptyTitle: 'No rooms configured',
   emptyMessage: 'Room layout will appear here once configured.',
+  searchQuery: '',
 })
 
 const containerRef = ref<HTMLElement | null>(null)
 const isMounted = ref(false)
 const dormitoryStore = useDormitoryStore()
+const guestStore = useGuestStore()
+const assignmentStore = useAssignmentStore()
 
 const dormitories = computed(() => dormitoryStore.dormitories)
 
+function normalizeText(text: string): string {
+  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
 const activeDormitories = computed(() => {
-  return dormitories.value.filter(d => d.active)
+  const active = dormitories.value.filter(d => d.active)
+  if (!props.searchQuery.trim()) return active
+
+  const query = normalizeText(props.searchQuery)
+
+  // Filter dormitories to only include rooms with matching guests or room names
+  return active.map(dorm => {
+    const matchingRooms = dorm.rooms.filter(room => {
+      if (!room.active) return false
+      // Match room name
+      if (normalizeText(room.roomName).includes(query)) return true
+      if (normalizeText(dorm.dormitoryName).includes(query)) return true
+      // Match any assigned guest in this room
+      return room.beds.some(bed => {
+        if (bed.active === false) return false
+        const guestId = assignmentStore.getGuestsAssignedToBed(bed.bedId)[0]
+        if (!guestId) return false
+        const guest = guestStore.getGuestById(guestId)
+        if (!guest) return false
+        return normalizeText(guest.firstName).includes(query) ||
+          normalizeText(guest.lastName).includes(query) ||
+          (guest.preferredName && normalizeText(guest.preferredName).includes(query)) ||
+          (guest.groupName && normalizeText(guest.groupName).includes(query))
+      })
+    })
+    if (matchingRooms.length === 0) return null
+    return { ...dorm, rooms: matchingRooms }
+  }).filter(Boolean) as typeof active
 })
 
 onMounted(() => {

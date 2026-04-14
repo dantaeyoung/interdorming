@@ -116,8 +116,25 @@
               </div>
             </div>
             <div class="card-body">
+              <div class="search-section">
+                <div class="room-search-wrapper">
+                  <input
+                    v-model="roomSearchQuery"
+                    type="text"
+                    class="form-input room-search-input"
+                    placeholder="Search rooms..."
+                  />
+                  <button
+                    v-if="roomSearchQuery"
+                    class="btn-clear-room-search"
+                    @click="roomSearchQuery = ''"
+                    title="Clear search"
+                  >&times;</button>
+                </div>
+              </div>
               <div class="panel-content">
                 <RoomList
+                  :search-query="roomSearchQuery"
                   empty-title="No rooms configured"
                   empty-message="Room layout will appear here once configured."
                 />
@@ -243,6 +260,7 @@ const settingsStore = useSettingsStore()
 // Sort configuration
 const { hasSortLevels, sortDescription } = useSortConfig()
 const showSortModal = ref(false)
+const roomSearchQuery = ref('')
 
 // Git branch detection
 const currentBranch = ref<string | null>(null)
@@ -1028,6 +1046,47 @@ function stopResize() {
 
   &:hover {
     background: #2563eb;
+  }
+}
+
+.room-search-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.room-search-input {
+  width: 100%;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.8rem;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+}
+
+.btn-clear-room-search {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #9ca3af;
+  padding: 2px 6px;
+  line-height: 1;
+
+  &:hover {
+    color: #4b5563;
   }
 }
 
