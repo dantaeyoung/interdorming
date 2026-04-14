@@ -347,6 +347,7 @@ import RoomGroupLinesOverlay from '@/features/dormitories/components/RoomGroupLi
 import { GuestFormModal } from '@/features/guests/components'
 import type { GuestBlobData } from '../types/timeline'
 import type { Guest } from '@/types'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 
 const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
@@ -498,10 +499,8 @@ const unassignedGuestBlobs = computed((): GuestBlobData[] => {
     // Only show guests with arrival/departure dates
     if (!guest.arrival || !guest.departure) return
 
-    const arrival = new Date(guest.arrival)
-    arrival.setHours(0, 0, 0, 0)
-    const departure = new Date(guest.departure)
-    departure.setHours(0, 0, 0, 0)
+    const arrival = parseLocalDate(guest.arrival)
+    const departure = parseLocalDate(guest.departure)
 
     // Skip if guest stay doesn't overlap with visible range
     if (departure < rangeStart || arrival > rangeEnd) return

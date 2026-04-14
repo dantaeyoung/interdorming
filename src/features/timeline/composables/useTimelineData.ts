@@ -9,6 +9,7 @@ import { useTimelineStore } from '@/stores/timelineStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 import type {
   DateColumn,
   TimelineBedRow,
@@ -186,11 +187,9 @@ export function useTimelineData() {
       // Use guest's arrival and departure dates
       if (!guest.arrival || !guest.departure) return null
 
-      // Normalize dates to midnight for comparison
-      const arrival = new Date(guest.arrival)
-      arrival.setHours(0, 0, 0, 0)
-      const departure = new Date(guest.departure)
-      departure.setHours(0, 0, 0, 0)
+      // Parse dates as local midnight to avoid UTC timezone shift
+      const arrival = parseLocalDate(guest.arrival)
+      const departure = parseLocalDate(guest.departure)
 
       const rangeStart = new Date(timelineStore.config.dateRangeStart)
       rangeStart.setHours(0, 0, 0, 0)

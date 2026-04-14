@@ -9,6 +9,7 @@ import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useTimelineStore } from '@/stores/timelineStore'
 import type { Guest } from '@/types'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 
 // Thin gray border style for grid lines
 const thinBorder = {
@@ -52,7 +53,7 @@ function formatDateWithFullYear(dateStr: string | undefined): string {
   if (!dateStr) return ''
 
   try {
-    const date = new Date(dateStr)
+    const date = parseLocalDate(dateStr)
     if (isNaN(date.getTime())) return dateStr
 
     const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -99,10 +100,8 @@ export function useExcelExport() {
       const guest = guestStore.getGuestById(guestId)
       if (!guest || !guest.arrival || !guest.departure) return
 
-      const arrival = new Date(guest.arrival)
-      arrival.setHours(0, 0, 0, 0)
-      const departure = new Date(guest.departure)
-      departure.setHours(0, 0, 0, 0)
+      const arrival = parseLocalDate(guest.arrival)
+      const departure = parseLocalDate(guest.departure)
 
       let startCol = -1
       let endCol = -1

@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useGuestStore } from './guestStore'
 import { useAssignmentStore } from './assignmentStore'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 import type { TimelineConfig } from '@/features/timeline/types/timeline'
 import { DateRangePreset } from '@/features/timeline/types/timeline'
 
@@ -56,10 +57,8 @@ export const useTimelineStore = defineStore(
 
           // Check if guest's date range includes target date
           if (guest.arrival && guest.departure) {
-            const arrival = new Date(guest.arrival)
-            arrival.setHours(0, 0, 0, 0)
-            const departure = new Date(guest.departure)
-            departure.setHours(0, 0, 0, 0)
+            const arrival = parseLocalDate(guest.arrival)
+            const departure = parseLocalDate(guest.departure)
 
             if (targetDate >= arrival && targetDate <= departure) {
               guestsOnBed.push(guestId)
@@ -117,8 +116,7 @@ export const useTimelineStore = defineStore(
 
       guestStore.guests.forEach(guest => {
         if (guest.arrival) {
-          const arrivalDate = new Date(guest.arrival)
-          arrivalDate.setHours(0, 0, 0, 0)
+          const arrivalDate = parseLocalDate(guest.arrival)
           if (!isNaN(arrivalDate.getTime())) {
             if (!earliestArrival || arrivalDate < earliestArrival) {
               earliestArrival = arrivalDate
@@ -126,8 +124,7 @@ export const useTimelineStore = defineStore(
           }
         }
         if (guest.departure) {
-          const departureDate = new Date(guest.departure)
-          departureDate.setHours(0, 0, 0, 0)
+          const departureDate = parseLocalDate(guest.departure)
           if (!isNaN(departureDate.getTime())) {
             if (!latestDeparture || departureDate > latestDeparture) {
               latestDeparture = departureDate

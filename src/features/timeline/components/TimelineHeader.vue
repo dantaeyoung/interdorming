@@ -59,6 +59,7 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useTimelineData } from '../composables/useTimelineData'
 import { useExcelExport } from '@/features/export/composables/useExcelExport'
 import { DateRangePreset } from '../types/timeline'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 
 const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
@@ -86,8 +87,7 @@ const autoDetectedRange = computed(() => {
 
   guestStore.guests.forEach(guest => {
     if (guest.arrival) {
-      const arrivalDate = new Date(guest.arrival)
-      arrivalDate.setHours(0, 0, 0, 0)
+      const arrivalDate = parseLocalDate(guest.arrival)
       if (!isNaN(arrivalDate.getTime())) {
         if (!earliestArrival || arrivalDate < earliestArrival) {
           earliestArrival = arrivalDate
@@ -95,8 +95,7 @@ const autoDetectedRange = computed(() => {
       }
     }
     if (guest.departure) {
-      const departureDate = new Date(guest.departure)
-      departureDate.setHours(0, 0, 0, 0)
+      const departureDate = parseLocalDate(guest.departure)
       if (!isNaN(departureDate.getTime())) {
         if (!latestDeparture || departureDate > latestDeparture) {
           latestDeparture = departureDate

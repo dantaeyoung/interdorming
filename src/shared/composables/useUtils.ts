@@ -3,6 +3,26 @@
  * Provides common utility functions
  */
 
+/**
+ * Parse a date string as local midnight, avoiding the UTC timezone trap.
+ * new Date("2025-12-01") parses as UTC midnight, which rolls back one day
+ * in negative-offset timezones (e.g. US Eastern). This function parses
+ * YYYY-MM-DD strings as local midnight instead.
+ */
+export function parseLocalDate(dateStr: string): Date {
+  if (!dateStr) return new Date(NaN)
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  }
+  // Fallback: try native parsing but normalize to local midnight
+  const d = new Date(dateStr)
+  if (!isNaN(d.getTime())) {
+    d.setHours(0, 0, 0, 0)
+  }
+  return d
+}
+
 export function useUtils() {
   /**
    * Creates a display name from first name and preferred name
