@@ -16,6 +16,7 @@ export const useGuestStore = defineStore(
     // State
     const guests = ref<Guest[]>([])
     const searchQuery = ref('')
+    const savedScrollTop = ref(0)
 
     // Ephemeral suggestion state (not persisted)
     const suggestedGroups = ref<Map<string, Set<string>>>(new Map())
@@ -42,18 +43,25 @@ export const useGuestStore = defineStore(
     // Get sortGuests from useSortConfig composable
     const { sortGuests } = useSortConfig()
 
+    /**
+     * Strip diacritics/accents for accent-insensitive search
+     */
+    function normalizeText(text: string): string {
+      return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    }
+
     const filteredGuests = computed(() => {
       let filtered = guests.value
 
-      // Apply search filter
+      // Apply search filter (accent-insensitive)
       if (searchQuery.value.trim()) {
-        const query = searchQuery.value.toLowerCase()
+        const query = normalizeText(searchQuery.value)
         filtered = filtered.filter(
           g =>
-            g.firstName.toLowerCase().includes(query) ||
-            g.lastName.toLowerCase().includes(query) ||
-            (g.preferredName && g.preferredName.toLowerCase().includes(query)) ||
-            (g.groupName && g.groupName.toLowerCase().includes(query))
+            normalizeText(g.firstName).includes(query) ||
+            normalizeText(g.lastName).includes(query) ||
+            (g.preferredName && normalizeText(g.preferredName).includes(query)) ||
+            (g.groupName && normalizeText(g.groupName).includes(query))
         )
       }
 
@@ -251,6 +259,7 @@ export const useGuestStore = defineStore(
       // State
       guests,
       searchQuery,
+      savedScrollTop,
       suggestedGroups,
 
       // Getters

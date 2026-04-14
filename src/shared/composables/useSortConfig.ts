@@ -22,6 +22,13 @@ export type SortableField =
   | 'priceQuoted'
   | 'amountPaid'
   | 'importOrder'
+  | 'housingType'
+  | 'indivGrp'
+  | 'email'
+  | 'creationDate'
+  | 'lowerBunk'
+  | 'firstVisit'
+  | 'roomPreference'
 
 export interface SortLevel {
   id: string
@@ -49,6 +56,13 @@ export const SORT_FIELD_OPTIONS: SortFieldOption[] = [
   { value: 'priceQuoted', label: 'Price Quoted', type: 'money' },
   { value: 'amountPaid', label: 'Amount Paid', type: 'money' },
   { value: 'importOrder', label: 'Import Order', type: 'number' },
+  { value: 'housingType', label: 'Housing Type', type: 'string' },
+  { value: 'indivGrp', label: 'Individual/Group', type: 'string' },
+  { value: 'email', label: 'Email', type: 'string' },
+  { value: 'creationDate', label: 'Creation Date', type: 'date' },
+  { value: 'lowerBunk', label: 'Lower Bunk', type: 'string' },
+  { value: 'firstVisit', label: 'First Visit', type: 'string' },
+  { value: 'roomPreference', label: 'Room Preference', type: 'string' },
 ]
 
 const STORAGE_KEY = 'dormAssignments-sortConfig'

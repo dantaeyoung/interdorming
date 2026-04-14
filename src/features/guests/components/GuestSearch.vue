@@ -19,27 +19,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
 
 interface Props {
   placeholder?: string
+  scrollContainer?: string // CSS selector for the scrollable container to save/restore position
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   placeholder: 'Search guests...',
+  scrollContainer: '.guest-table-container',
 })
 
 const guestStore = useGuestStore()
 const searchQuery = ref(guestStore.searchQuery)
 
+function getScrollEl(): HTMLElement | null {
+  return document.querySelector(props.scrollContainer)
+}
+
 function handleSearch() {
+  // Save scroll position when first character is typed
+  if (searchQuery.value.length === 1 && !guestStore.searchQuery) {
+    const el = getScrollEl()
+    if (el) {
+      guestStore.savedScrollTop = el.scrollTop
+    }
+  }
   guestStore.setSearchQuery(searchQuery.value)
 }
 
 function clearSearch() {
   searchQuery.value = ''
   guestStore.setSearchQuery('')
+  // Restore scroll position after DOM updates
+  nextTick(() => {
+    const el = getScrollEl()
+    if (el && guestStore.savedScrollTop > 0) {
+      el.scrollTop = guestStore.savedScrollTop
+      guestStore.savedScrollTop = 0
+    }
+  })
 }
 
 // Sync with store if changed externally

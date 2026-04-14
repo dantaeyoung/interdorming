@@ -69,6 +69,17 @@
         </div>
 
         <div class="form-group">
+          <label for="housingType">Housing Type</label>
+          <select id="housingType" v-model="formData.housingType">
+            <option value="">Not set</option>
+            <option value="Dorm">Dorm</option>
+            <option value="BCM-RV">BCM-RV</option>
+            <option value="Camping">Camping</option>
+            <option value="Commuter">Commuter</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="lowerBunk">Lower Bunk Required</label>
           <select id="lowerBunk" v-model="formData.lowerBunk">
             <option :value="false">No</option>
@@ -212,6 +223,7 @@ const initialFormData = {
   gender: '' as Gender | '',
   age: '' as string | number,
   groupName: '',
+  housingType: '',
   lowerBunk: false,
   arrival: '',
   departure: '',
@@ -232,6 +244,7 @@ const formData = ref({
   gender: '' as Gender | '',
   age: '' as string | number,
   groupName: '',
+  housingType: '',
   lowerBunk: false,
   arrival: '',
   departure: '',
@@ -290,6 +303,7 @@ watch(
         gender: newGuest.gender || '',
         age: newGuest.age || '',
         groupName: newGuest.groupName || '',
+        housingType: newGuest.housingType || '',
         lowerBunk: newGuest.lowerBunk || false,
         arrival: parseDateToISO(newGuest.arrival || ''),
         departure: parseDateToISO(newGuest.departure || ''),
@@ -331,6 +345,7 @@ function hasUnsavedChanges(): boolean {
       formData.value.gender !== (props.guest.gender || '') ||
       normalizeAge(formData.value.age) !== normalizeAge(props.guest.age) ||
       formData.value.groupName !== (props.guest.groupName || '') ||
+      formData.value.housingType !== (props.guest.housingType || '') ||
       formData.value.lowerBunk !== (props.guest.lowerBunk || false) ||
       formData.value.arrival !== (props.guest.arrival || '') ||
       formData.value.departure !== (props.guest.departure || '') ||
@@ -352,6 +367,7 @@ function hasUnsavedChanges(): boolean {
       formData.value.gender !== '' ||
       normalizeAge(formData.value.age) !== '' ||
       formData.value.groupName !== '' ||
+      formData.value.housingType !== '' ||
       formData.value.lowerBunk !== false ||
       formData.value.arrival !== '' ||
       formData.value.departure !== '' ||
@@ -399,6 +415,7 @@ function handleSubmit() {
     gender: formData.value.gender as Gender,
     age: formData.value.age,
     groupName: formData.value.groupName || undefined,
+    housingType: formData.value.housingType || undefined,
     lowerBunk: formData.value.lowerBunk,
     arrival: formData.value.arrival || undefined,
     departure: formData.value.departure || undefined,
