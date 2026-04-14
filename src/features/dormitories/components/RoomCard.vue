@@ -25,14 +25,14 @@
           Auto-place
         </button>
         <div class="room-info">
-          {{ occupiedCount }}/{{ room.beds.length }} beds
+          {{ occupiedCount }}/{{ activeBeds.length }} beds
           <span v-if="ageRange" class="age-range">{{ ageRange }}</span>
         </div>
       </div>
     </div>
 
     <div class="beds-grid">
-      <BedSlot v-for="bed in room.beds" :key="bed.bedId" :bed="bed" />
+      <BedSlot v-for="bed in activeBeds" :key="bed.bedId" :bed="bed" />
     </div>
   </div>
 </template>
@@ -55,8 +55,12 @@ const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const { autoPlaceGuestsInRoom } = useAutoPlacement()
 
+const activeBeds = computed(() => {
+  return props.room.beds.filter(bed => bed.active !== false)
+})
+
 const occupiedCount = computed(() => {
-  return props.room.beds.filter(bed => bed.assignedGuestId).length
+  return activeBeds.value.filter(bed => bed.assignedGuestId).length
 })
 
 const hasAvailableBeds = computed(() => {
