@@ -46,13 +46,6 @@
     <div v-show="activeTab === 'assignment'" class="tab-content">
       <!-- Toolbar Section -->
       <div class="combined-toolbar">
-        <div class="toolbar-left-section">
-          <button class="btn-sort" @click="showSortModal = true" :title="sortDescription">
-            <span class="sort-icon">↕</span>
-            Sort
-            <span v-if="hasSortLevels" class="sort-indicator">*</span>
-          </button>
-        </div>
         <div class="toolbar-right-section">
           <AssignmentToolbar
             @export="handleExport"
@@ -74,6 +67,11 @@
               <!-- Search and Add Guest - Fixed at top -->
               <div class="search-section">
                 <GuestSearch />
+                <button class="btn-sort" @click="showSortModal = true" :title="sortDescription">
+                  <span class="sort-icon">↕</span>
+                  Sort
+                  <span v-if="hasSortLevels" class="sort-indicator">*</span>
+                </button>
                 <button class="btn-add-guest-sm" @click="handleAddGuestClick">+ Add</button>
               </div>
 
