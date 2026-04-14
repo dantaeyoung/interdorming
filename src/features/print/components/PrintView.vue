@@ -773,6 +773,7 @@ function handlePrint() {
   .print-view {
     padding: 0;
     max-width: none;
+    font-size: 0.7rem;
   }
 
   .no-print {
@@ -783,20 +784,77 @@ function handlePrint() {
     background: white;
   }
 
+  .print-header {
+    margin-bottom: 12px;
+
+    h1 { font-size: 1.2rem; margin: 0; }
+    h2 { font-size: 1rem; margin: 0 0 4px 0; }
+    .print-date { font-size: 0.75rem; margin: 0; }
+  }
+
   .summary-section {
     background: white;
     border: 1px solid #d1d5db;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+
+    h3 { font-size: 0.85rem; margin: 0 0 6px 0; }
   }
 
-  .room-section {
-    page-break-inside: avoid;
+  .summary-grid {
+    gap: 4px;
+
+    .stat-value { font-size: 1rem; }
+    .stat-label { font-size: 0.65rem; }
   }
 
   .dormitory-section {
-    page-break-after: always;
+    margin-bottom: 12px;
+    page-break-after: auto;
+
+    > h3 {
+      font-size: 1rem;
+      margin: 0 0 6px 0;
+      padding-bottom: 4px;
+    }
 
     &:last-child {
       page-break-after: auto;
+    }
+  }
+
+  .room-section {
+    margin-bottom: 8px;
+    page-break-inside: avoid;
+  }
+
+  .room-header {
+    margin-bottom: 4px;
+
+    h4 { font-size: 0.8rem; margin: 0; }
+    .room-badge { font-size: 0.6rem; padding: 1px 4px; }
+    .room-occupancy { font-size: 0.65rem; }
+  }
+
+  .room-table, .flat-table {
+    th {
+      padding: 3px 6px;
+      font-size: 0.7rem;
+    }
+
+    td {
+      padding: 3px 6px;
+      font-size: 0.7rem;
+    }
+  }
+
+  .unassigned-section {
+    margin-top: 12px;
+
+    h3 {
+      font-size: 1rem;
+      margin: 0 0 6px 0;
+      padding-bottom: 4px;
     }
   }
 
@@ -807,7 +865,7 @@ function handlePrint() {
   /* Ensure proper printing on letter paper */
   @page {
     size: letter;
-    margin: 0.75in;
+    margin: 0.5in;
   }
 }
 </style>
