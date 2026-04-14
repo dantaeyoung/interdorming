@@ -218,7 +218,7 @@
                   <td v-if="columns.bedInfo" class="bed-info">
                     {{ bed.position }} {{ bed.bedType }}
                   </td>
-                  <td v-if="columns.guestName" class="guest-name">{{ getGuestName(bed.assignedGuestId) }}</td>
+                  <td v-if="columns.guestName" class="guest-name">{{ getGuestFullName(bed.assignedGuestId) }}</td>
                   <td v-if="columns.gender">{{ getGuestField(bed.assignedGuestId, 'gender') }}</td>
                   <td v-if="columns.age">{{ getGuestField(bed.assignedGuestId, 'age') }}</td>
                   <td v-if="columns.group">{{ getGuestField(bed.assignedGuestId, 'groupName') }}</td>
