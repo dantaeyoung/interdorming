@@ -2,10 +2,25 @@
   <div class="print-view">
     <div class="print-header no-print">
       <h2>Room Assignment Report</h2>
-      <div class="header-actions">
-        <button @click="handlePrint" class="print-button">🖨️ Print</button>
-        <button @click="showNameTagExport = !showNameTagExport" class="export-button">🏷️ Name Tags</button>
+    </div>
+
+    <!-- Date Range Filter - at the top -->
+    <div class="date-filter-section no-print">
+      <div class="date-range-filter">
+        <label class="date-label">
+          Date range:
+          <input type="date" class="date-input" v-model="filterDateStart" />
+          <span>to</span>
+          <input type="date" class="date-input" v-model="filterDateEnd" />
+        </label>
+        <button v-if="filterDateStart || filterDateEnd" class="btn-clear-dates" @click="filterDateStart = ''; filterDateEnd = ''">Clear</button>
       </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons no-print">
+      <button @click="handlePrint" class="print-button">🖨️ Print</button>
+      <button @click="showNameTagExport = !showNameTagExport" class="export-button">🏷️ Name Tags</button>
     </div>
 
     <!-- Name Tag Export Section -->
@@ -32,7 +47,7 @@
             <td>{{ guest.lastName }}</td>
             <td>{{ guest.firstName }}</td>
             <td>{{ getGuestRoom(guest.id) }}</td>
-            <td>{{ getGuestBed(guest.id) }}</td>
+            <td>{{ getGuestBedType(guest.id) }}</td>
             <td>
               <input
                 type="checkbox"
@@ -60,15 +75,6 @@
         <input type="checkbox" v-model="showCampingCommuter" />
         <span>Include Camping & Commuter guests</span>
       </label>
-      <div class="date-range-filter">
-        <label class="date-label">
-          Filter by date range:
-          <input type="date" class="date-input" v-model="filterDateStart" />
-          <span>to</span>
-          <input type="date" class="date-input" v-model="filterDateEnd" />
-        </label>
-        <button v-if="filterDateStart || filterDateEnd" class="btn-clear-dates" @click="filterDateStart = ''; filterDateEnd = ''">Clear</button>
-      </div>
     </div>
 
     <!-- Column Selection -->
@@ -156,15 +162,15 @@
         <div class="summary-grid">
           <div class="summary-item">
             <span class="summary-label">Total Guests:</span>
-            <span class="summary-value">{{ guestStore.guests.length }}</span>
+            <span class="summary-value">{{ filteredGuestCount }}</span>
           </div>
           <div class="summary-item">
             <span class="summary-label">Assigned:</span>
-            <span class="summary-value">{{ assignmentStore.assignedCount }}</span>
+            <span class="summary-value">{{ filteredAssignedCount }}</span>
           </div>
           <div class="summary-item">
             <span class="summary-label">Unassigned:</span>
-            <span class="summary-value">{{ assignmentStore.unassignedCount }}</span>
+            <span class="summary-value">{{ filteredGuestCount - filteredAssignedCount }}</span>
           </div>
           <div class="summary-item">
             <span class="summary-label">Total Beds:</span>
@@ -535,6 +541,21 @@ const totalBeds = computed(() => {
   return dormitoryStore.getAllBeds.length
 })
 
+// Filtered summary stats based on date range
+const filteredGuestCount = computed(() => {
+  if (!hasDateFilter.value) return guestStore.guests.length
+  return guestStore.guests.filter(g => isGuestInDateRange(g.id)).length
+})
+
+const filteredAssignedCount = computed(() => {
+  if (!hasDateFilter.value) return assignmentStore.assignedCount
+  let count = 0
+  assignmentStore.assignments.forEach((_, guestId) => {
+    if (isGuestInDateRange(guestId)) count++
+  })
+  return count
+})
+
 function getOccupiedCount(room: Room): number {
   return room.beds.filter(bed => bed.assignedGuestId).length
 }
@@ -688,16 +709,27 @@ function handlePrint() {
 }
 
 .print-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 
   h2 {
     margin: 0;
     font-size: 1.5rem;
     color: #1f2937;
   }
+}
+
+.date-filter-section {
+  background: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .header-actions {
