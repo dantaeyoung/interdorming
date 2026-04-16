@@ -189,7 +189,7 @@ function handleNotesMouseEnter() {
     const rect = notesButtonRef.value.getBoundingClientRect()
     tooltipPosition.value = {
       top: `${rect.bottom + 6}px`,
-      left: `${rect.left}px`,
+      left: `${Math.max(8, rect.right - 320)}px`,
     }
     showNotesTooltip.value = true
   }
