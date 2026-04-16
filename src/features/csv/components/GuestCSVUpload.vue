@@ -186,12 +186,18 @@ function handleAddAndUpdate() {
     )
 
     if (existingIndex !== -1) {
-      // Update existing guest (preserve ID and importOrder)
-      existingGuests[existingIndex] = {
-        ...newGuest,
-        id: existingGuests[existingIndex].id,
-        importOrder: existingGuests[existingIndex].importOrder
+      // Update existing guest: preserve ID, importOrder, and any existing
+      // fields that the CSV didn't supply (e.g. manually-set groupName, notes)
+      const existing = existingGuests[existingIndex]
+      const merged: Record<string, any> = { ...existing }
+      for (const [key, value] of Object.entries(newGuest)) {
+        if (key === 'id' || key === 'importOrder') continue
+        // Only overwrite if the CSV actually supplied a value
+        if (value !== undefined && value !== '' && value !== null) {
+          merged[key] = value
+        }
       }
+      existingGuests[existingIndex] = merged as typeof existing
     } else {
       // Add new guest
       existingGuests.push(newGuest)
