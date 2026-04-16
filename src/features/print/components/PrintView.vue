@@ -60,6 +60,15 @@
         <input type="checkbox" v-model="showCampingCommuter" />
         <span>Include Camping & Commuter guests</span>
       </label>
+      <div class="date-range-filter">
+        <label class="date-label">
+          Filter by date range:
+          <input type="date" class="date-input" v-model="filterDateStart" />
+          <span>to</span>
+          <input type="date" class="date-input" v-model="filterDateEnd" />
+        </label>
+        <button v-if="filterDateStart || filterDateEnd" class="btn-clear-dates" @click="filterDateStart = ''; filterDateEnd = ''">Clear</button>
+      </div>
     </div>
 
     <!-- Column Selection -->
@@ -258,7 +267,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="bed in room.beds.filter(b => b.active !== false && (!showOnlyAssignedBeds || b.assignedGuestId))" :key="bed.bedId">
+                <tr v-for="bed in room.beds.filter(b => b.active !== false && (!showOnlyAssignedBeds || b.assignedGuestId) && (!hasDateFilter || !b.assignedGuestId || isGuestInDateRange(b.assignedGuestId)))" :key="bed.bedId">
                   <td v-if="columns.bedInfo" class="bed-info">
                     {{ bed.position }} {{ bed.bedType }}
                   </td>
@@ -308,7 +317,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="guestId in assignmentStore.unassignedGuestIds" :key="guestId">
+            <tr v-for="guestId in assignmentStore.unassignedGuestIds.filter(id => !hasDateFilter || isGuestInDateRange(id))" :key="guestId">
               <td v-if="columns.guestName" class="guest-name">{{ getGuestFullName(guestId) }}</td>
               <td v-if="columns.gender">{{ getGuestFieldById(guestId, 'gender') }}</td>
               <td v-if="columns.age">{{ getGuestFieldById(guestId, 'age') }}</td>
@@ -367,7 +376,7 @@
 import { computed, reactive, ref, watch, onMounted } from 'vue'
 import type { Dormitory } from '@/types'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
-import { useUtils } from '@/shared/composables/useUtils'
+import { useUtils, parseLocalDate } from '@/shared/composables/useUtils'
 import type { Room } from '@/types'
 
 const STORAGE_KEY = 'dormAssignments-printPreferences'
@@ -402,10 +411,34 @@ const showOnlyAssignedBeds = ref(false)
 const flatTableMode = ref(false)
 const showCampingCommuter = ref(false)
 
+// Date range filter
+const filterDateStart = ref('')
+const filterDateEnd = ref('')
+
+function isGuestInDateRange(guestId: string | null): boolean {
+  if (!guestId) return false
+  if (!filterDateStart.value && !filterDateEnd.value) return true
+  const guest = guestStore.getGuestById(guestId)
+  if (!guest) return false
+  if (!guest.arrival || !guest.departure) return true // Show if no dates
+  const arrival = parseLocalDate(guest.arrival).getTime()
+  const departure = parseLocalDate(guest.departure).getTime()
+  const rangeStart = filterDateStart.value ? parseLocalDate(filterDateStart.value).getTime() : -Infinity
+  const rangeEnd = filterDateEnd.value ? parseLocalDate(filterDateEnd.value).getTime() : Infinity
+  // Guest overlaps range if arrival < rangeEnd and departure > rangeStart
+  return arrival <= rangeEnd && departure > rangeStart
+}
+
+const hasDateFilter = computed(() => !!(filterDateStart.value || filterDateEnd.value))
+
 // Non-assignable (camping/commuter) guests
-const campingCommuterGuests = computed(() =>
-  guestStore.guests.filter(g => !guestStore.isGuestAssignable(g))
-)
+const campingCommuterGuests = computed(() => {
+  let guests = guestStore.guests.filter(g => !guestStore.isGuestAssignable(g))
+  if (hasDateFilter.value) {
+    guests = guests.filter(g => isGuestInDateRange(g.id))
+  }
+  return guests
+})
 
 // Load preferences from localStorage
 function loadPreferences() {
@@ -560,7 +593,11 @@ const showNameTagExport = ref(false)
 const staffOverrides = ref<Map<string, boolean>>(new Map())
 
 const nameTagGuests = computed(() => {
-  return [...guestStore.guests].sort((a, b) =>
+  let guests = [...guestStore.guests]
+  if (hasDateFilter.value) {
+    guests = guests.filter(g => isGuestInDateRange(g.id))
+  }
+  return guests.sort((a, b) =>
     a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
   )
 })
@@ -804,6 +841,42 @@ function handlePrint() {
   &:hover {
     color: #1f2937;
   }
+}
+
+.date-range-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.date-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.date-input {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.btn-clear-dates {
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: #6b7280;
+
+  &:hover { background: #f3f4f6; }
 }
 
 .print-content {

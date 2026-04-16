@@ -29,11 +29,11 @@
         </div>
         <div class="guest-actions">
           <button
-            v-if="hasNotes"
             ref="notesButtonRef"
             class="icon-button notes-icon"
+            :class="{ 'has-notes': hasNotes, 'no-notes': !hasNotes }"
             @click.stop
-            @mouseenter="handleNotesMouseEnter"
+            @mouseenter="hasNotes && handleNotesMouseEnter()"
             @mouseleave="showNotesTooltip = false"
           >📝</button>
           <button
@@ -551,10 +551,18 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   border-radius: 3px;
   opacity: 0.5;
   transition: opacity 0.2s;
+  min-width: 20px;
+  text-align: center;
 
   &:hover {
     opacity: 1;
     background: #f3f4f6;
+  }
+
+  &.no-notes {
+    opacity: 0;
+    cursor: default;
+    pointer-events: none;
   }
 }
 
