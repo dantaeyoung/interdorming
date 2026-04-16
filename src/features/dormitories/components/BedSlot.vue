@@ -57,6 +57,9 @@
         </div>
       </div>
     </div>
+    <div v-else-if="isFilteredByDate" class="bed-empty bed-filtered">
+      <span class="drop-hint filtered-hint">{{ rawAssignedGuest?.firstName }} {{ rawAssignedGuest?.lastName }} (not on this date)</span>
+    </div>
     <div v-else class="bed-empty">
       <span class="drop-hint">Drop guest here</span>
     </div>
@@ -73,14 +76,18 @@ import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import { useUtils } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 import { ValidationWarning } from '@/shared/components'
 import type { Bed } from '@/types'
 
 interface Props {
   bed: Bed
+  viewDate?: Date | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  viewDate: null,
+})
 
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
@@ -91,9 +98,25 @@ const { setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 const { createFullName } = useUtils()
 const { validateDrop } = useDropValidation()
 
-const assignedGuest = computed(() => {
+const rawAssignedGuest = computed(() => {
   if (!props.bed.assignedGuestId) return null
   return guestStore.getGuestById(props.bed.assignedGuestId)
+})
+
+// When viewDate is set, only show guest if their stay includes that date
+const assignedGuest = computed(() => {
+  const guest = rawAssignedGuest.value
+  if (!guest || !props.viewDate) return guest
+  if (!guest.arrival || !guest.departure) return guest // Show if no dates set
+  const vd = props.viewDate.getTime()
+  const arrival = parseLocalDate(guest.arrival).getTime()
+  const departure = parseLocalDate(guest.departure).getTime()
+  return (vd >= arrival && vd <= departure) ? guest : null
+})
+
+// Guest is assigned but filtered out by view date
+const isFilteredByDate = computed(() => {
+  return rawAssignedGuest.value && !assignedGuest.value
 })
 
 const suggestedGuest = computed(() => {
@@ -454,6 +477,16 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   font-size: 0.7rem;
   color: #9ca3af;
   font-style: italic;
+}
+
+.bed-filtered {
+  background: #f9fafb;
+  border-style: dotted;
+}
+
+.filtered-hint {
+  color: #d1d5db;
+  font-size: 0.65rem;
 }
 
 .bed-suggestion {

@@ -5,7 +5,7 @@
       <span class="room-count">{{ dormitory.rooms.length }} rooms</span>
     </div>
     <div class="rooms-container">
-      <RoomCard v-for="room in activeRooms" :key="room.roomName" :room="room" />
+      <RoomCard v-for="room in activeRooms" :key="room.roomName" :room="room" :view-date="viewDate" />
     </div>
   </div>
 </template>
@@ -17,9 +17,12 @@ import type { Dormitory } from '@/types'
 
 interface Props {
   dormitory: Dormitory
+  viewDate?: Date | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  viewDate: null,
+})
 
 const activeRooms = computed(() => {
   return props.dormitory.rooms.filter(room => room.active)

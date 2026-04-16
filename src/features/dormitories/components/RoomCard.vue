@@ -32,7 +32,7 @@
     </div>
 
     <div class="beds-grid">
-      <BedSlot v-for="bed in activeBeds" :key="bed.bedId" :bed="bed" />
+      <BedSlot v-for="bed in activeBeds" :key="bed.bedId" :bed="bed" :view-date="viewDate" />
     </div>
   </div>
 </template>
@@ -47,9 +47,12 @@ import type { Room } from '@/types'
 
 interface Props {
   room: Room
+  viewDate?: Date | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  viewDate: null,
+})
 
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()

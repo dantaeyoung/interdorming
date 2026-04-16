@@ -11,6 +11,7 @@
         v-for="dormitory in activeDormitories"
         :key="dormitory.dormitoryName"
         :dormitory="dormitory"
+        :view-date="viewDate"
       />
     </div>
   </div>
@@ -28,12 +29,14 @@ interface Props {
   emptyTitle?: string
   emptyMessage?: string
   searchQuery?: string
+  viewDate?: Date | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   emptyTitle: 'No rooms configured',
   emptyMessage: 'Room layout will appear here once configured.',
   searchQuery: '',
+  viewDate: null,
 })
 
 const containerRef = ref<HTMLElement | null>(null)

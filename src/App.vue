@@ -46,6 +46,23 @@
     <div v-show="activeTab === 'assignment'" class="tab-content">
       <!-- Toolbar Section -->
       <div class="combined-toolbar">
+        <div class="toolbar-left-section">
+          <label class="view-date-label">
+            View Date:
+            <input
+              type="date"
+              class="view-date-input"
+              :value="viewDateISO"
+              @input="handleViewDateChange"
+            />
+          </label>
+          <button
+            v-if="viewDate"
+            class="btn-clear-date"
+            @click="viewDate = null"
+            title="Show all dates"
+          >Show All</button>
+        </div>
         <div class="toolbar-right-section">
           <AssignmentToolbar
             @export="handleExport"
@@ -81,6 +98,7 @@
                   ref="guestListRef"
                   :show-assigned="false"
                   :columns="settingsStore.tableViewColumns"
+                  :view-date="viewDate"
                   empty-title="No guests loaded"
                   empty-message="Upload a CSV file to begin assigning guests to dormitory beds."
                 />
@@ -135,6 +153,7 @@
               <div class="panel-content">
                 <RoomList
                   :search-query="roomSearchQuery"
+                  :view-date="viewDate"
                   empty-title="No rooms configured"
                   empty-message="Room layout will appear here once configured."
                 />
@@ -261,6 +280,26 @@ const settingsStore = useSettingsStore()
 const { hasSortLevels, sortDescription } = useSortConfig()
 const showSortModal = ref(false)
 const roomSearchQuery = ref('')
+const viewDate = ref<Date | null>(null)
+
+const viewDateISO = computed(() => {
+  if (!viewDate.value) return ''
+  const d = viewDate.value
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+})
+
+function handleViewDateChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.value) {
+    const [year, month, day] = input.value.split('-').map(Number)
+    viewDate.value = new Date(year, month - 1, day)
+  } else {
+    viewDate.value = null
+  }
+}
 
 // Git branch detection
 const currentBranch = ref<string | null>(null)
@@ -856,6 +895,43 @@ function stopResize() {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.view-date-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.view-date-input {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8rem;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+}
+
+.btn-clear-date {
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #6b7280;
+
+  &:hover {
+    background: #f3f4f6;
+  }
 }
 
 .toolbar-right-section {

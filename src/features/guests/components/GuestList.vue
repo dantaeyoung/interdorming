@@ -165,6 +165,7 @@ import GuestRow from './GuestRow.vue'
 import ColumnsDropdown from './ColumnsDropdown.vue'
 import GuestFormModal from './GuestFormModal.vue'
 import GroupLinesOverlay from './GroupLinesOverlay.vue'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 import type { Guest, ColumnConfig } from '@/types'
 
 interface Props {
@@ -173,6 +174,7 @@ interface Props {
   emptyMessage?: string
   readonly?: boolean
   columns: ColumnConfig[]
+  viewDate?: Date | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -180,6 +182,7 @@ const props = withDefaults(defineProps<Props>(), {
   emptyTitle: 'No guests loaded',
   emptyMessage: 'Upload a CSV file to begin assigning guests to dormitory beds.',
   readonly: false,
+  viewDate: null,
 })
 
 const guestStore = useGuestStore()
@@ -204,14 +207,25 @@ const showModal = ref(false)
 const editingGuest = ref<Guest | undefined>(undefined)
 
 const guests = computed(() => {
-  const filtered = guestStore.filteredGuests
+  let filtered = guestStore.filteredGuests
 
-  if (props.showAssigned) {
-    return filtered
+  if (!props.showAssigned) {
+    // Show only unassigned guests
+    filtered = filtered.filter(g => !assignmentStore.assignments.has(g.id))
   }
 
-  // Show only unassigned guests
-  return filtered.filter(g => !assignmentStore.assignments.has(g.id))
+  // Filter by view date if set
+  if (props.viewDate) {
+    const vd = props.viewDate.getTime()
+    filtered = filtered.filter(g => {
+      if (!g.arrival || !g.departure) return true // Show guests without dates
+      const arrival = parseLocalDate(g.arrival).getTime()
+      const departure = parseLocalDate(g.departure).getTime()
+      return vd >= arrival && vd <= departure
+    })
+  }
+
+  return filtered
 })
 
 const visibleColumns = computed(() => props.columns.filter(c => c.visible))
