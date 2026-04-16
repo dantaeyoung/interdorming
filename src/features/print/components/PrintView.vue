@@ -2,7 +2,45 @@
   <div class="print-view">
     <div class="print-header no-print">
       <h2>Room Assignment Report</h2>
-      <button @click="handlePrint" class="print-button">🖨️ Print</button>
+      <div class="header-actions">
+        <button @click="handlePrint" class="print-button">🖨️ Print</button>
+        <button @click="showNameTagExport = !showNameTagExport" class="export-button">🏷️ Name Tags</button>
+      </div>
+    </div>
+
+    <!-- Name Tag Export Section -->
+    <div v-if="showNameTagExport" class="name-tag-section no-print">
+      <div class="name-tag-header">
+        <h3>Export Name Tags</h3>
+        <button @click="exportNameTagsCSV" class="btn-export-csv">Export CSV</button>
+      </div>
+      <p class="name-tag-help">
+        Staff status is auto-detected from retreat name containing "staff". Check/uncheck to override.
+      </p>
+      <table class="name-tag-table">
+        <thead>
+          <tr>
+            <th>Last Name</th>
+            <th>First Name</th>
+            <th>Accommodation</th>
+            <th>Staff</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="guest in nameTagGuests" :key="guest.id">
+            <td>{{ guest.lastName }}</td>
+            <td>{{ guest.firstName }}</td>
+            <td>{{ guest.housingType || '—' }}</td>
+            <td>
+              <input
+                type="checkbox"
+                :checked="isStaff(guest.id)"
+                @change="toggleStaff(guest.id)"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Display Options -->
@@ -515,6 +553,62 @@ function getGuestFieldById(guestId: string, field: string): string {
   return getGuestField(guestId, field)
 }
 
+// Name tag export
+const showNameTagExport = ref(false)
+const staffOverrides = ref<Map<string, boolean>>(new Map())
+
+const nameTagGuests = computed(() => {
+  return [...guestStore.guests].sort((a, b) =>
+    a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
+  )
+})
+
+function isStaffFromRetreat(guest: { retreat?: string }): boolean {
+  if (!guest.retreat) return false
+  return guest.retreat.toLowerCase().includes('staff')
+}
+
+function isStaff(guestId: string): boolean {
+  if (staffOverrides.value.has(guestId)) {
+    return staffOverrides.value.get(guestId)!
+  }
+  const guest = guestStore.getGuestById(guestId)
+  return guest ? isStaffFromRetreat(guest) : false
+}
+
+function toggleStaff(guestId: string) {
+  const current = isStaff(guestId)
+  staffOverrides.value.set(guestId, !current)
+}
+
+function exportNameTagsCSV() {
+  const rows = [['Last Name', 'First Name', 'Accommodation', 'Staff']]
+
+  nameTagGuests.value.forEach(guest => {
+    rows.push([
+      guest.lastName || '',
+      guest.firstName || '',
+      guest.housingType || '',
+      isStaff(guest.id) ? 'Yes' : '',
+    ])
+  })
+
+  const csvContent = rows.map(row =>
+    row.map(cell => {
+      const escaped = String(cell).replace(/"/g, '""')
+      return `"${escaped}"`
+    }).join(',')
+  ).join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'name_tags.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 function handlePrint() {
   window.print()
 }
@@ -540,9 +634,13 @@ function handlePrint() {
   }
 }
 
-.print-button {
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.print-button, .export-button {
   padding: 12px 24px;
-  background-color: #3b82f6;
   color: white;
   border: none;
   border-radius: 6px;
@@ -550,9 +648,84 @@ function handlePrint() {
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
+}
 
-  &:hover {
-    background-color: #2563eb;
+.print-button {
+  background-color: #3b82f6;
+  &:hover { background-color: #2563eb; }
+}
+
+.export-button {
+  background-color: #8b5cf6;
+  &:hover { background-color: #7c3aed; }
+}
+
+.name-tag-section {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.name-tag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+}
+
+.name-tag-help {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+}
+
+.btn-export-csv {
+  padding: 8px 16px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover { background: #059669; }
+}
+
+.name-tag-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th {
+    text-align: left;
+    padding: 6px 10px;
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  td {
+    padding: 5px 10px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  tr:hover td {
+    background: #f9fafb;
+  }
+
+  input[type="checkbox"] {
+    cursor: pointer;
   }
 }
 
