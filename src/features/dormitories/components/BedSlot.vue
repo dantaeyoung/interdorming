@@ -57,9 +57,6 @@
         </div>
       </div>
     </div>
-    <div v-else-if="isFilteredByDate" class="bed-empty bed-filtered">
-      <span class="drop-hint filtered-hint">{{ rawAssignedGuest?.firstName }} {{ rawAssignedGuest?.lastName }} (not on this date)</span>
-    </div>
     <div v-else class="bed-empty">
       <span class="drop-hint">Drop guest here</span>
     </div>
