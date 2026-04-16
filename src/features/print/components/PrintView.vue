@@ -627,6 +627,14 @@ function getGuestRoom(guestId: string): string {
   return room ? room.roomName : '—'
 }
 
+function getGuestBedType(guestId: string): string {
+  const bedId = assignmentStore.getAssignmentByGuest(guestId)
+  if (!bedId) return ''
+  const bed = dormitoryStore.getBedById(bedId)
+  if (!bed) return ''
+  return bed.bedType === 'upper' ? 'upper' : 'lower'
+}
+
 function getGuestBed(guestId: string): string {
   const bedId = assignmentStore.getAssignmentByGuest(guestId)
   if (!bedId) return '—'
@@ -639,11 +647,12 @@ function exportNameTagsCSV() {
   const rows = [['Last Name', 'First Name', 'Room', 'Bed', 'Staff']]
 
   nameTagGuests.value.forEach(guest => {
+    const room = getGuestRoom(guest.id)
     rows.push([
       guest.lastName || '',
       guest.firstName || '',
-      getGuestRoom(guest.id),
-      getGuestBed(guest.id),
+      room === '—' ? '' : room,
+      getGuestBedType(guest.id),
       isStaff(guest.id) ? 'Yes' : '',
     ])
   })
@@ -655,7 +664,9 @@ function exportNameTagsCSV() {
     }).join(',')
   ).join('\n')
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  // UTF-8 BOM so Excel correctly reads diacritics
+  const bom = '\uFEFF'
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
