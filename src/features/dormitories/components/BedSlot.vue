@@ -16,6 +16,7 @@
           <span class="guest-details">
             <span class="guest-gender" :style="genderBackgroundStyle">{{ assignedGuest.gender }}</span>
             <span class="guest-age">{{ assignedGuest.age }}</span>
+            <span v-if="needsLowerBunk" class="lower-bunk-icon" title="Needs lower/single bunk">🛏️</span>
             <span v-if="assignedGuest.groupName" class="group-badge clickable-group" @click.stop="handleGroupBadgeClick($event, assignedGuest.groupName)">
               {{ assignedGuest.groupName }}
             </span>
@@ -26,9 +27,25 @@
             <span v-if="assignedGuest.departure">{{ assignedGuest.departure }}</span>
           </span>
         </div>
+        <div class="guest-actions">
+          <button
+            v-if="hasNotes"
+            ref="notesButtonRef"
+            class="icon-button notes-icon"
+            @click.stop
+            @mouseenter="handleNotesMouseEnter"
+            @mouseleave="showNotesTooltip = false"
+          >📝</button>
+          <button
+            class="icon-button edit-icon"
+            title="View/Edit guest details"
+            @click.stop="showEditModal = true"
+          >✏️</button>
+        </div>
         <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
       </div>
     </div>
+
     <div v-else-if="suggestedGuest" class="bed-suggestion">
       <div class="suggested-guest">
         <div class="guest-info">
@@ -60,11 +77,26 @@
     <div v-else class="bed-empty">
       <span class="drop-hint">Drop guest here</span>
     </div>
+
+    <!-- Notes tooltip -->
+    <Teleport to="body">
+      <div v-if="showNotesTooltip" class="notes-tooltip-overlay" :style="tooltipPosition">
+        {{ assignedGuest?.notes }}
+      </div>
+    </Teleport>
+
+    <!-- Edit modal -->
+    <GuestFormModal
+      :show="showEditModal"
+      :guest="assignedGuest || undefined"
+      @close="showEditModal = false"
+      @submit="handleGuestSubmit"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useValidationStore } from '@/stores/validationStore'
@@ -75,7 +107,8 @@ import { useUtils } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
 import { parseLocalDate } from '@/shared/composables/useUtils'
 import { ValidationWarning } from '@/shared/components'
-import type { Bed } from '@/types'
+import GuestFormModal from '@/features/guests/components/GuestFormModal.vue'
+import type { Bed, Guest } from '@/types'
 
 interface Props {
   bed: Bed
@@ -141,6 +174,36 @@ const warnings = computed(() => validationStore.getWarningsForBed(props.bed.bedI
 const hasWarning = computed(() => warnings.value.length > 0)
 
 const bedTypeClass = computed(() => `bed-${props.bed.bedType}`)
+
+// Lower bunk indicator
+const needsLowerBunk = computed(() => assignedGuest.value?.lowerBunk === true)
+
+// Notes
+const hasNotes = computed(() => !!assignedGuest.value?.notes?.trim())
+const notesButtonRef = ref<HTMLButtonElement | null>(null)
+const showNotesTooltip = ref(false)
+const tooltipPosition = ref({ top: '0px', left: '0px' })
+
+function handleNotesMouseEnter() {
+  if (notesButtonRef.value) {
+    const rect = notesButtonRef.value.getBoundingClientRect()
+    tooltipPosition.value = {
+      top: `${rect.bottom + 6}px`,
+      left: `${rect.left}px`,
+    }
+    showNotesTooltip.value = true
+  }
+}
+
+// Edit modal
+const showEditModal = ref(false)
+
+function handleGuestSubmit(guestData: Partial<Guest>) {
+  if (assignedGuest.value) {
+    guestStore.updateGuest(assignedGuest.value.id, guestData)
+  }
+  showEditModal.value = false
+}
 
 // Gender-based background color for assigned guest
 const genderBackgroundStyle = computed(() => {
@@ -471,6 +534,34 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   }
 }
 
+.guest-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 1px 3px;
+  border-radius: 3px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 1;
+    background: #f3f4f6;
+  }
+}
+
+.lower-bunk-icon {
+  font-size: 0.65rem;
+}
+
 .drop-hint {
   font-size: 0.7rem;
   color: #9ca3af;
@@ -566,5 +657,22 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   &:hover {
     background-color: #dc2626;
   }
+}
+</style>
+
+<style lang="scss">
+.notes-tooltip-overlay {
+  position: fixed;
+  z-index: 99999;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 0.8rem;
+  color: #374151;
+  max-width: 300px;
+  white-space: pre-wrap;
+  pointer-events: none;
 }
 </style>
