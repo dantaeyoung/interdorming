@@ -221,7 +221,8 @@ const guests = computed(() => {
       if (!g.arrival || !g.departure) return true // Show guests without dates
       const arrival = parseLocalDate(g.arrival).getTime()
       const departure = parseLocalDate(g.departure).getTime()
-      return vd >= arrival && vd <= departure
+      // Departure day = guest leaves in the morning, bed is free that night
+      return vd >= arrival && vd < departure
     })
   }
 

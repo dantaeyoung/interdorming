@@ -111,7 +111,8 @@ const assignedGuest = computed(() => {
   const vd = props.viewDate.getTime()
   const arrival = parseLocalDate(guest.arrival).getTime()
   const departure = parseLocalDate(guest.departure).getTime()
-  return (vd >= arrival && vd <= departure) ? guest : null
+  // Departure day = guest leaves in the morning, bed is free that night
+  return (vd >= arrival && vd < departure) ? guest : null
 })
 
 // Guest is assigned but filtered out by view date
