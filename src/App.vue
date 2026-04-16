@@ -46,23 +46,6 @@
     <div v-show="activeTab === 'assignment'" class="tab-content">
       <!-- Toolbar Section -->
       <div class="combined-toolbar">
-        <div class="toolbar-left-section">
-          <label class="view-date-label">
-            View Date:
-            <input
-              type="date"
-              class="view-date-input"
-              :value="viewDateISO"
-              @input="handleViewDateChange"
-            />
-          </label>
-          <button
-            v-if="viewDate"
-            class="btn-clear-date"
-            @click="viewDate = null"
-            title="Show all dates"
-          >Show All</button>
-        </div>
         <div class="toolbar-right-section">
           <AssignmentToolbar
             @export="handleExport"
@@ -131,6 +114,22 @@
                 >
                   Auto-place
                 </button>
+              </div>
+              <div class="card-header-right">
+                <label class="view-date-label">
+                  <input
+                    type="date"
+                    class="view-date-input"
+                    :value="viewDateISO"
+                    @input="handleViewDateChange"
+                  />
+                </label>
+                <button
+                  v-if="viewDate"
+                  class="btn-clear-date"
+                  @click="viewDate = null"
+                  title="Show all dates"
+                >All</button>
               </div>
             </div>
             <div class="card-body">
@@ -1053,6 +1052,12 @@ function stopResize() {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn-auto-place {
