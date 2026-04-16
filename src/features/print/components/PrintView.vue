@@ -22,7 +22,8 @@
           <tr>
             <th>Last Name</th>
             <th>First Name</th>
-            <th>Accommodation</th>
+            <th>Room</th>
+            <th>Bed</th>
             <th>Staff</th>
           </tr>
         </thead>
@@ -30,7 +31,8 @@
           <tr v-for="guest in nameTagGuests" :key="guest.id">
             <td>{{ guest.lastName }}</td>
             <td>{{ guest.firstName }}</td>
-            <td>{{ guest.housingType || '—' }}</td>
+            <td>{{ getGuestRoom(guest.id) }}</td>
+            <td>{{ getGuestBed(guest.id) }}</td>
             <td>
               <input
                 type="checkbox"
@@ -581,14 +583,30 @@ function toggleStaff(guestId: string) {
   staffOverrides.value.set(guestId, !current)
 }
 
+function getGuestRoom(guestId: string): string {
+  const bedId = assignmentStore.getAssignmentByGuest(guestId)
+  if (!bedId) return '—'
+  const room = dormitoryStore.getRoomByBedId(bedId)
+  return room ? room.roomName : '—'
+}
+
+function getGuestBed(guestId: string): string {
+  const bedId = assignmentStore.getAssignmentByGuest(guestId)
+  if (!bedId) return '—'
+  const bed = dormitoryStore.getBedById(bedId)
+  if (!bed) return '—'
+  return `${bed.position} ${bed.bedType}`
+}
+
 function exportNameTagsCSV() {
-  const rows = [['Last Name', 'First Name', 'Accommodation', 'Staff']]
+  const rows = [['Last Name', 'First Name', 'Room', 'Bed', 'Staff']]
 
   nameTagGuests.value.forEach(guest => {
     rows.push([
       guest.lastName || '',
       guest.firstName || '',
-      guest.housingType || '',
+      getGuestRoom(guest.id),
+      getGuestBed(guest.id),
       isStaff(guest.id) ? 'Yes' : '',
     ])
   })
