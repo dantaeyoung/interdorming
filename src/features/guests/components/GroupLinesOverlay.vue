@@ -64,7 +64,7 @@ interface Props {
   guests: Guest[]
   rowPositions?: number[] // Y center positions for each row
   columnWidth?: number
-  suggestedGroups?: Map<string, Set<string>>
+  suggestedGroups?: Map<string, Set<string>> | Record<string, string[]>
 }
 
 const props = withDefaults(defineProps<Props>(), {
