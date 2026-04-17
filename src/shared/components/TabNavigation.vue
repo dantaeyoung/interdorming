@@ -56,8 +56,9 @@ function selectTab(tabId: string) {
 
 .tab {
   background: transparent;
-  border: none;
-  padding: 10px 20px;
+  border: 3px solid transparent;
+  border-bottom: none;
+  padding: 7px 17px;
   font-size: 0.875rem;
   font-weight: 500;
   color: #6b7280;
@@ -65,9 +66,10 @@ function selectTab(tabId: string) {
   transition: all 0.15s ease;
   position: relative;
   border-radius: 8px 8px 0 0;
-  // Fixed height to prevent layout shift when font-weight changes
   height: 42px;
   box-sizing: border-box;
+  min-width: 120px;
+  text-align: center;
 
   &:hover:not(.active):not(.highlighted) {
     color: #374151;
