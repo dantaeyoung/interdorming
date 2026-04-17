@@ -104,6 +104,8 @@
 
       <td v-else-if="col.key === 'retreat'" class="retreat-cell">{{ guest.retreat || '-' }}</td>
 
+      <td v-else-if="col.key === 'arrival' || col.key === 'departure'" class="date-cell">{{ (guest as any)[col.key] || '-' }}</td>
+
       <td v-else>{{ (guest as any)[col.key] || '-' }}</td>
     </template>
     <td
@@ -591,6 +593,10 @@ td {
 
 .retreat-cell {
   min-width: 200px;
+}
+
+.date-cell {
+  white-space: nowrap;
 }
 
 .notes-cell {

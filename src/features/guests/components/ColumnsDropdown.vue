@@ -75,7 +75,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .columns-panel {
   position: absolute;
   top: 100%;
-  left: 0;
+  right: 0;
   z-index: 100;
   background: white;
   border: 1px solid #d1d5db;

@@ -44,6 +44,11 @@
         data-hint-target="add-guest"
         @click="handleAddGuest"
       >+ Add Guest</button>
+      <ColumnsDropdown
+        :columns="settingsStore.guestDataColumns"
+        @toggle="settingsStore.toggleColumnVisibility('guestData', $event)"
+        @reset="settingsStore.resetColumns('guestData')"
+      />
     </div>
 
     <!-- Sort Config Modal -->
@@ -109,6 +114,7 @@ import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { GuestCSVUpload } from '@/features/csv/components'
 import { GuestList, GuestSearch } from '@/features/guests/components'
+import ColumnsDropdown from '@/features/guests/components/ColumnsDropdown.vue'
 import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import { useHints } from '@/features/hints/composables/useHints'
 import { ConfirmDialog, SortConfigModal } from '@/shared/components'
