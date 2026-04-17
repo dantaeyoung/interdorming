@@ -65,6 +65,7 @@
         :show-assigned="true"
         :readonly="true"
         :columns="settingsStore.guestDataColumns"
+        :hide-column-controls="true"
         empty-title="No guests loaded"
         empty-message="Upload a CSV file or load test data to get started."
       />

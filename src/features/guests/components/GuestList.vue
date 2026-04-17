@@ -1,6 +1,6 @@
 <template>
   <div class="guest-list" v-bind="dropzoneProps">
-    <div class="column-controls">
+    <div v-if="!hideColumnControls" class="column-controls">
       <ColumnsDropdown
         :columns="columns"
         @toggle="handleToggleColumn"
@@ -175,6 +175,7 @@ interface Props {
   readonly?: boolean
   columns: ColumnConfig[]
   viewDate?: Date | null
+  hideColumnControls?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -183,6 +184,7 @@ const props = withDefaults(defineProps<Props>(), {
   emptyMessage: 'Upload a CSV file to begin assigning guests to dormitory beds.',
   readonly: false,
   viewDate: null,
+  hideColumnControls: false,
 })
 
 const guestStore = useGuestStore()
