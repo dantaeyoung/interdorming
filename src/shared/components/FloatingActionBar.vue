@@ -32,20 +32,6 @@
 
       <div class="action-divider"></div>
 
-      <div class="action-group">
-        <button
-          class="action-btn btn-danger"
-          :disabled="assignedCount === 0"
-          @click="$emit('reset-assignments')"
-          title="Reset all assignments"
-        >
-          <span class="btn-icon">🗑</span>
-          <span class="btn-label">Clear All Assignments</span>
-        </button>
-      </div>
-
-      <div class="action-divider"></div>
-
       <div class="action-group suggestions-group" v-if="hasSuggestions">
         <button
           class="action-btn btn-success"

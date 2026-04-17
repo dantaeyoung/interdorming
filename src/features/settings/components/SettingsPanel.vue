@@ -80,6 +80,16 @@
       <div class="danger-actions">
         <button
           class="btn-danger"
+          :disabled="assignmentStore.assignedCount === 0"
+          @click="handleClearAssignments"
+        >
+          Clear All Assignments
+        </button>
+        <span class="setting-description">Removes all guests from their assigned beds.</span>
+      </div>
+      <div class="danger-actions">
+        <button
+          class="btn-danger"
           :disabled="guestStore.guests.length === 0"
           @click="handleDeleteAll"
         >
@@ -118,6 +128,17 @@ const confirmTitle = ref('')
 const confirmMessage = ref('')
 const confirmText = ref('')
 const confirmAction = ref(() => {})
+
+function handleClearAssignments() {
+  confirmTitle.value = 'Clear All Assignments'
+  confirmMessage.value = 'Are you sure you want to remove all guests from their assigned beds? Guest data will be preserved. This cannot be undone.'
+  confirmText.value = 'Clear All'
+  confirmAction.value = () => {
+    assignmentStore.clearAllAssignments()
+    showConfirmDialog.value = false
+  }
+  showConfirmDialog.value = true
+}
 
 function handleDeleteAll() {
   confirmTitle.value = 'Delete All Guest Data'
