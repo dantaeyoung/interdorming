@@ -7,6 +7,7 @@
         :class="['tab', { active: modelValue === tab.id, highlighted: highlightedTab === tab.id }]"
         :data-tour="'tab-' + tab.id"
         @click="selectTab(tab.id)"
+        :data-label="tab.label"
       >
         {{ tab.label }}
       </button>
@@ -68,8 +69,17 @@ function selectTab(tabId: string) {
   border-radius: 8px 8px 0 0;
   height: 42px;
   box-sizing: border-box;
-  min-width: 120px;
   text-align: center;
+
+  // Reserve bold-width space so tab doesn't shift when active
+  &::after {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+  }
 
   &:hover:not(.active):not(.highlighted) {
     color: #374151;
