@@ -89,7 +89,7 @@
       </div>
     </div>
 
-    <GuestFormModal :show="showModal" :guest="editingGuest" @close="handleCloseModal" @submit="handleSubmitGuest" />
+    <GuestFormModal :show="showModal" :guest="editingGuest" @close="handleCloseModal" @submit="handleSubmitGuest" @delete="handleDeleteGuest" />
 
     <!-- Cursor overlay during drag -->
     <Teleport to="body">
@@ -354,6 +354,14 @@ function handleSubmitGuest(guestData: Partial<Guest>) {
     // Add new guest
     guestStore.addGuest(guestData)
   }
+  handleCloseModal()
+}
+
+function handleDeleteGuest(guestId: string) {
+  // Remove assignment if any
+  assignmentStore.unassignGuest(guestId)
+  // Delete guest
+  guestStore.deleteGuest(guestId)
   handleCloseModal()
 }
 

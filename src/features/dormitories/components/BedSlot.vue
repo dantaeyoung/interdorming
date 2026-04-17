@@ -91,6 +91,7 @@
       :guest="assignedGuest || undefined"
       @close="showEditModal = false"
       @submit="handleGuestSubmit"
+      @delete="handleGuestDelete"
     />
   </div>
 </template>
@@ -202,6 +203,12 @@ function handleGuestSubmit(guestData: Partial<Guest>) {
   if (assignedGuest.value) {
     guestStore.updateGuest(assignedGuest.value.id, guestData)
   }
+  showEditModal.value = false
+}
+
+function handleGuestDelete(guestId: string) {
+  assignmentStore.unassignGuest(guestId)
+  guestStore.deleteGuest(guestId)
   showEditModal.value = false
 }
 

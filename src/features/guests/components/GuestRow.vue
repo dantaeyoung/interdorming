@@ -269,6 +269,7 @@ function handleEdit() {
   emit('edit', props.guest)
 }
 
+
 function handleStartLinking() {
   if (!isLinking.value) {
     // Start a new linking session with this guest

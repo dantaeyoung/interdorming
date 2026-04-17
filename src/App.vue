@@ -25,7 +25,7 @@
             {{ statusMessage }}
           </div>
         </Transition>
-        <AssignmentStats class="header-stats" data-tour="header-stats" />
+        <!-- <AssignmentStats class="header-stats" data-tour="header-stats" /> -->
       </div>
     </div>
 

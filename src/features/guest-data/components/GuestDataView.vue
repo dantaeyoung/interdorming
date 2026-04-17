@@ -22,13 +22,6 @@
         >
           Suggest Groups
         </button>
-        <button
-          class="btn btn-danger"
-          :disabled="guestStore.guests.length === 0"
-          @click="handleDeleteAll"
-        >
-          Delete All
-        </button>
       </div>
     </div>
 

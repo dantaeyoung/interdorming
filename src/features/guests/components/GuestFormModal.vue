@@ -169,8 +169,11 @@
       </div>
 
       <div class="form-actions">
-        <button type="button" @click="handleClose" class="btn-cancel">Cancel</button>
-        <button type="submit" class="btn-submit">{{ isEditMode ? 'Update' : 'Add' }} Guest</button>
+        <button v-if="isEditMode" type="button" @click="handleDelete" class="btn-delete">Delete Guest</button>
+        <div class="form-actions-right">
+          <button type="button" @click="handleClose" class="btn-cancel">Cancel</button>
+          <button type="submit" class="btn-submit">{{ isEditMode ? 'Update' : 'Add' }} Guest</button>
+        </div>
       </div>
     </form>
   </Modal>
@@ -189,6 +192,7 @@ interface Props {
 interface Emits {
   (e: 'close'): void
   (e: 'submit', guest: Partial<Guest>): void
+  (e: 'delete', guestId: string): void
 }
 
 const props = defineProps<Props>()
@@ -407,6 +411,17 @@ function handleClose() {
   }, 100)
 }
 
+function handleDelete() {
+  if (!props.guest) return
+  const name = `${props.guest.firstName} ${props.guest.lastName}`
+  const confirmed = window.confirm(`Are you sure you want to delete ${name}? This will also remove any room assignment. This cannot be undone.`)
+  if (confirmed) {
+    emit('delete', props.guest.id)
+    internalShow.value = false
+    emit('close')
+  }
+}
+
 function handleSubmit() {
   const guestData: Partial<Guest> = {
     firstName: formData.value.firstName,
@@ -504,10 +519,32 @@ function handleSubmit() {
 
 .form-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
   padding-top: 20px;
   border-top: 1px solid #e5e7eb;
+}
+
+.form-actions-right {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-delete {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #dc2626;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
+  }
 }
 
 .btn-cancel,

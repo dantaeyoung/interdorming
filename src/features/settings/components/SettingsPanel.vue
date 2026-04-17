@@ -70,15 +70,66 @@
         <span class="setting-description">Show developer tools like "Load Test Data" button</span>
       </div>
     </div>
+
+    <!-- Danger Zone -->
+    <div class="settings-section danger-section">
+      <h2>Danger Zone</h2>
+      <p class="section-description">
+        These actions are destructive and cannot be undone.
+      </p>
+      <div class="danger-actions">
+        <button
+          class="btn-danger"
+          :disabled="guestStore.guests.length === 0"
+          @click="handleDeleteAll"
+        >
+          Delete All Guest Data
+        </button>
+        <span class="setting-description">Deletes all guests and clears all room assignments.</span>
+      </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <ConfirmDialog
+      v-model="showConfirmDialog"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :confirm-text="confirmText"
+      @confirm="confirmAction"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import AutoPlacementSettings from './AutoPlacementSettings.vue'
 import { DataBackupControls } from '@/features/backup/components'
+import { ConfirmDialog } from '@/shared/components'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useGuestStore } from '@/stores/guestStore'
+import { useAssignmentStore } from '@/stores/assignmentStore'
 
 const settingsStore = useSettingsStore()
+const guestStore = useGuestStore()
+const assignmentStore = useAssignmentStore()
+
+const showConfirmDialog = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const confirmText = ref('')
+const confirmAction = ref(() => {})
+
+function handleDeleteAll() {
+  confirmTitle.value = 'Delete All Guest Data'
+  confirmMessage.value = 'Are you sure you want to delete all guest data? This will also clear all room assignments. This cannot be undone.'
+  confirmText.value = 'Delete All'
+  confirmAction.value = () => {
+    guestStore.clearAllGuests()
+    assignmentStore.clearAllAssignments()
+    showConfirmDialog.value = false
+  }
+  showConfirmDialog.value = true
+}
 </script>
 
 <style scoped lang="scss">
@@ -180,5 +231,41 @@ const settingsStore = useSettingsStore()
   font-size: 0.875rem;
   color: #6b7280;
   text-transform: uppercase;
+}
+
+.danger-section {
+  background: #fef2f2 !important;
+  border: 1px solid #fca5a5;
+
+  h2 {
+    color: #dc2626 !important;
+  }
+}
+
+.danger-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-danger {
+  padding: 10px 20px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: #dc2626;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 </style>
