@@ -75,6 +75,15 @@
         <input type="checkbox" v-model="showCampingCommuter" />
         <span>Include Camping & Commuter guests</span>
       </label>
+      <label class="checkbox-label">
+        <input type="checkbox" v-model="showAlphabeticalList" />
+        <span>Alphabetical guest list</span>
+      </label>
+      <div v-if="showAlphabeticalList" class="sort-toggle">
+        Sort by:
+        <button :class="{ active: alphabeticalSortBy === 'last' }" @click="alphabeticalSortBy = 'last'">Last Name</button>
+        <button :class="{ active: alphabeticalSortBy === 'first' }" @click="alphabeticalSortBy = 'first'">First Name</button>
+      </div>
     </div>
 
     <!-- Column Selection -->
@@ -371,6 +380,39 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Alphabetical Guest List -->
+      <div v-if="showAlphabeticalList" class="alphabetical-section">
+        <h3>Alphabetical Guest List (by {{ alphabeticalSortBy === 'first' ? 'First' : 'Last' }} Name)</h3>
+        <table class="room-table">
+          <thead>
+            <tr>
+              <th>Last Name</th>
+              <th>First Name</th>
+              <th>Accommodation</th>
+              <th v-if="columns.gender">Gender</th>
+              <th v-if="columns.age">Age</th>
+              <th v-if="columns.group">Group</th>
+              <th v-if="columns.arrival">Arrival</th>
+              <th v-if="columns.departure">Departure</th>
+              <th v-if="columns.notes">Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="guest in alphabeticalGuests" :key="guest.id">
+              <td>{{ guest.lastName }}</td>
+              <td>{{ guest.firstName }}</td>
+              <td>{{ getGuestAccommodation(guest.id) }}</td>
+              <td v-if="columns.gender">{{ guest.gender || '' }}</td>
+              <td v-if="columns.age">{{ guest.age || '' }}</td>
+              <td v-if="columns.group">{{ guest.groupName || '' }}</td>
+              <td v-if="columns.arrival">{{ guest.arrival || '' }}</td>
+              <td v-if="columns.departure">{{ guest.departure || '' }}</td>
+              <td v-if="columns.notes">{{ guest.notes || '' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -413,6 +455,21 @@ const columns = reactive({
 const showOnlyAssignedBeds = ref(false)
 const flatTableMode = ref(false)
 const showCampingCommuter = ref(false)
+const showAlphabeticalList = ref(false)
+const alphabeticalSortBy = ref<'first' | 'last'>('last')
+
+const alphabeticalGuests = computed(() => {
+  let guests = [...guestStore.guests]
+  if (hasDateFilter.value) {
+    guests = guests.filter(g => isGuestInDateRange(g.id))
+  }
+  return guests.sort((a, b) => {
+    if (alphabeticalSortBy.value === 'first') {
+      return a.firstName.localeCompare(b.firstName) || a.lastName.localeCompare(b.lastName)
+    }
+    return a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
+  })
+})
 
 // Date range filter
 const filterDateStart = ref('')
@@ -883,6 +940,48 @@ function handlePrint() {
 
   &:hover {
     color: #1f2937;
+  }
+}
+
+.sort-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  margin-left: 24px;
+  font-size: 0.85rem;
+  color: #374151;
+
+  button {
+    padding: 4px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+
+    &.active {
+      background: #3b82f6;
+      color: white;
+      border-color: #3b82f6;
+    }
+
+    &:hover:not(.active) {
+      background: #f3f4f6;
+    }
+  }
+}
+
+.alphabetical-section {
+  margin-top: 32px;
+  page-break-before: always;
+
+  h3 {
+    margin: 0 0 16px 0;
+    font-size: 1.25rem;
+    color: #1f2937;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #3b82f6;
   }
 }
 
