@@ -959,29 +959,51 @@ function handlePrint() {
 
 .print-sub-tabs {
   display: flex;
-  gap: 0;
+  gap: 4px;
   margin-bottom: 16px;
+  position: relative;
 }
 
 .sub-tab {
   padding: 10px 24px;
-  border: 1px solid #d1d5db;
+  border: 3px solid transparent;
   border-bottom: none;
-  background: #f9fafb;
+  background: transparent;
   color: #6b7280;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   border-radius: 8px 8px 0 0;
   transition: all 0.15s;
-  margin-right: -1px;
+  position: relative;
 
   &.active {
     background: white;
     color: #1f2937;
     font-weight: 600;
-    border-color: #9ca3af;
-    z-index: 1;
+    border: 3px solid #9ca3af;
+    border-bottom: none;
+    z-index: 2;
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 100%;
+      width: 100vw;
+      height: 3px;
+      background: #9ca3af;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 100%;
+      width: 100vw;
+      height: 3px;
+      background: #9ca3af;
+    }
   }
 
   &:hover:not(.active) {
