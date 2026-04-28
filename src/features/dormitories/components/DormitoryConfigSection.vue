@@ -18,8 +18,9 @@
       </div>
       <div class="dormitory-actions">
         <div class="move-buttons">
-          <button @click="emit('move-up')" class="btn-move" :disabled="isFirst" title="Move up">▲</button>
-          <button @click="emit('move-down')" class="btn-move" :disabled="isLast" title="Move down">▼</button>
+          <button @click="emit('move-up')" class="btn-move" :disabled="isFirst" title="Move dorm up">▲</button>
+          <button @click="emit('move-down')" class="btn-move" :disabled="isLast" title="Move dorm down">▼</button>
+          <span class="move-label">Reorder</span>
         </div>
         <label class="checkbox-label">
           <input
@@ -294,7 +295,15 @@ function addRoom() {
 .move-buttons {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 2px;
+}
+
+.move-label {
+  font-size: 0.55rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .btn-move {
