@@ -17,52 +17,27 @@
       </div>
     </div>
 
-    <!-- Action Buttons -->
+    <!-- Sub-tabs -->
+    <div class="print-sub-tabs no-print">
+      <button :class="['sub-tab', { active: printMode === 'dorm' }]" @click="printMode = 'dorm'">
+        <span class="sub-tab-label" data-label="List by Dorm">List by Dorm</span>
+      </button>
+      <button :class="['sub-tab', { active: printMode === 'alpha' }]" @click="printMode = 'alpha'">
+        <span class="sub-tab-label" data-label="List by A-Z">List by A-Z</span>
+      </button>
+      <button :class="['sub-tab', { active: printMode === 'nametags' }]" @click="printMode = 'nametags'">
+        <span class="sub-tab-label" data-label="Name Tags">Name Tags</span>
+      </button>
+    </div>
+
+    <!-- Print button -->
     <div class="action-buttons no-print">
       <button @click="handlePrint" class="print-button">🖨️ Print</button>
-      <button @click="showNameTagExport = !showNameTagExport" class="export-button">🏷️ Name Tags</button>
+      <button v-if="printMode === 'nametags'" @click="exportNameTagsCSV" class="export-button">📥 Export CSV</button>
     </div>
 
-    <!-- Name Tag Export Section -->
-    <div v-if="showNameTagExport" class="name-tag-section no-print">
-      <div class="name-tag-header">
-        <h3>Export Name Tags</h3>
-        <button @click="exportNameTagsCSV" class="btn-export-csv">Export CSV</button>
-      </div>
-      <p class="name-tag-help">
-        Staff status is auto-detected from retreat name containing "staff". Check/uncheck to override.
-      </p>
-      <table class="name-tag-table">
-        <thead>
-          <tr>
-            <th>Last Name</th>
-            <th>First Name</th>
-            <th>Accommodation</th>
-            <th>Bed</th>
-            <th>Staff</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="guest in nameTagGuests" :key="guest.id">
-            <td>{{ guest.lastName }}</td>
-            <td>{{ guest.firstName }}</td>
-            <td>{{ getGuestAccommodation(guest.id) }}</td>
-            <td>{{ getGuestBedType(guest.id) }}</td>
-            <td>
-              <input
-                type="checkbox"
-                :checked="isStaff(guest.id)"
-                @change="toggleStaff(guest.id)"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Display Options -->
-    <div class="display-options no-print">
-      <h3>Display Options</h3>
+    <!-- Dorm mode options -->
+    <div v-if="printMode === 'dorm'" class="display-options no-print">
       <label class="checkbox-label">
         <input type="checkbox" v-model="showOnlyAssignedBeds" />
         <span>Only show beds with guests assigned</span>
@@ -75,19 +50,26 @@
         <input type="checkbox" v-model="showCampingCommuter" />
         <span>Include Camping & Commuter guests</span>
       </label>
-      <label class="checkbox-label">
-        <input type="checkbox" v-model="showAlphabeticalList" />
-        <span>Alphabetical guest list</span>
-      </label>
-      <div v-if="showAlphabeticalList" class="sort-toggle">
+    </div>
+
+    <!-- A-Z mode options -->
+    <div v-if="printMode === 'alpha'" class="display-options no-print">
+      <div class="sort-toggle">
         Sort by:
         <button :class="{ active: alphabeticalSortBy === 'last' }" @click="alphabeticalSortBy = 'last'">Last Name</button>
         <button :class="{ active: alphabeticalSortBy === 'first' }" @click="alphabeticalSortBy = 'first'">First Name</button>
       </div>
     </div>
 
-    <!-- Column Selection -->
-    <div class="column-selector no-print">
+    <!-- Name Tags options -->
+    <div v-if="printMode === 'nametags'" class="display-options no-print">
+      <p class="name-tag-help">
+        Staff status is auto-detected from retreat name containing "staff". Check/uncheck to override.
+      </p>
+    </div>
+
+    <!-- Column Selection (dorm and alpha modes) -->
+    <div v-if="printMode !== 'nametags'" class="column-selector no-print">
       <h3>Select Columns to Print</h3>
       <div class="checkbox-grid">
         <label class="checkbox-label">
@@ -188,6 +170,8 @@
         </div>
       </div>
 
+      <!-- === DORM MODE === -->
+      <template v-if="printMode === 'dorm'">
       <!-- Flat Table Mode (for cutting into strips) -->
       <div v-if="flatTableMode" class="flat-table-section">
         <table class="flat-table">
@@ -380,9 +364,11 @@
           </tbody>
         </table>
       </div>
+      </template>
 
-      <!-- Alphabetical Guest List -->
-      <div v-if="showAlphabeticalList" class="alphabetical-section">
+      <!-- === ALPHA MODE === -->
+      <template v-if="printMode === 'alpha'">
+      <div class="alphabetical-section">
         <h3>Alphabetical Guest List (by {{ alphabeticalSortBy === 'first' ? 'First' : 'Last' }} Name)</h3>
         <table class="room-table">
           <thead>
@@ -413,6 +399,34 @@
           </tbody>
         </table>
       </div>
+      </template>
+
+      <!-- === NAME TAGS MODE === -->
+      <template v-if="printMode === 'nametags'">
+      <div class="name-tag-print-section">
+        <h3>Name Tags</h3>
+        <table class="name-tag-table">
+          <thead>
+            <tr>
+              <th>Last Name</th>
+              <th>First Name</th>
+              <th>Accommodation</th>
+              <th>Bed</th>
+              <th>Staff</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="guest in nameTagGuests" :key="guest.id">
+              <td>{{ guest.lastName }}</td>
+              <td>{{ guest.firstName }}</td>
+              <td>{{ getGuestAccommodation(guest.id) }}</td>
+              <td>{{ getGuestBedType(guest.id) }}</td>
+              <td>{{ isStaff(guest.id) ? 'Yes' : '' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -455,7 +469,7 @@ const columns = reactive({
 const showOnlyAssignedBeds = ref(false)
 const flatTableMode = ref(false)
 const showCampingCommuter = ref(false)
-const showAlphabeticalList = ref(false)
+const printMode = ref<'dorm' | 'alpha' | 'nametags'>('dorm')
 const alphabeticalSortBy = ref<'first' | 'last'>('last')
 
 const alphabeticalGuests = computed(() => {
@@ -940,6 +954,64 @@ function handlePrint() {
 
   &:hover {
     color: #1f2937;
+  }
+}
+
+.print-sub-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+}
+
+.sub-tab {
+  padding: 10px 24px;
+  border: 1px solid #d1d5db;
+  border-bottom: none;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.15s;
+  margin-right: -1px;
+
+  &.active {
+    background: white;
+    color: #1f2937;
+    font-weight: 600;
+    border-color: #9ca3af;
+    z-index: 1;
+  }
+
+  &:hover:not(.active) {
+    background: #f3f4f6;
+    color: #374151;
+  }
+}
+
+.sub-tab-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+
+  &::after {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+  }
+}
+
+.name-tag-print-section {
+  h3 {
+    margin: 0 0 16px 0;
+    font-size: 1.25rem;
+    color: #1f2937;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #8b5cf6;
   }
 }
 
