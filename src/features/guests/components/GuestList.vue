@@ -1,5 +1,5 @@
 <template>
-  <div class="guest-list" v-bind="dropzoneProps">
+  <div class="guest-list" v-bind="dropzoneProps" @click="handleListClick">
     <div v-if="!hideColumnControls" class="column-controls">
       <ColumnsDropdown
         :columns="columns"
@@ -192,7 +192,7 @@ const assignmentStore = useAssignmentStore()
 const settingsStore = useSettingsStore()
 const { createDisplayName } = useUtils()
 const { validateDrop } = useDropValidation()
-const { useDroppableUnassignedArea, isDragging, draggedGuestId, dragOverBedId, mousePosition, isPicking, isPickingGroup, pickedGuestId, pickedGroupGuestIds } = useDragDrop()
+const { useDroppableUnassignedArea, isDragging, draggedGuestId, dragOverBedId, mousePosition, isPicking, isPickingGroup, pickedGuestId, pickedGroupGuestIds, cancelPick } = useDragDrop()
 const { isLinking, linkingCount, completeLinking, cancelLinking, setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 
 // Template refs
@@ -328,6 +328,20 @@ function handleSort(column: keyof Guest) {
 
 function handleUnassign(guestId: string) {
   assignmentStore.unassignGuest(guestId)
+}
+
+function handleListClick() {
+  // If a group is picked, unassign all members and cancel pick
+  if (isPickingGroup.value && pickedGroupGuestIds.value.length > 0) {
+    pickedGroupGuestIds.value.forEach(id => {
+      assignmentStore.unassignGuest(id)
+    })
+    cancelPick()
+  } else if (isPicking.value && pickedGuestId.value) {
+    // Single picked guest — unassign and cancel
+    assignmentStore.unassignGuest(pickedGuestId.value)
+    cancelPick()
+  }
 }
 
 const dropzoneProps = useDroppableUnassignedArea(handleUnassign)
