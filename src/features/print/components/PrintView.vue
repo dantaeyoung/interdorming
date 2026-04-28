@@ -37,7 +37,7 @@
           <tr>
             <th>Last Name</th>
             <th>First Name</th>
-            <th>Room</th>
+            <th>Accommodation</th>
             <th>Bed</th>
             <th>Staff</th>
           </tr>
@@ -46,7 +46,7 @@
           <tr v-for="guest in nameTagGuests" :key="guest.id">
             <td>{{ guest.lastName }}</td>
             <td>{{ guest.firstName }}</td>
-            <td>{{ getGuestRoom(guest.id) }}</td>
+            <td>{{ getGuestAccommodation(guest.id) }}</td>
             <td>{{ getGuestBedType(guest.id) }}</td>
             <td>
               <input
@@ -246,9 +246,6 @@
             <div class="room-header">
               <h4>{{ room.roomName }}</h4>
               <span class="room-gender">{{ room.roomGender }}</span>
-              <span class="room-capacity"
-                >{{ getOccupiedCount(room) }}/{{ room.beds.length }} beds</span
-              >
             </div>
 
             <table class="room-table">
@@ -641,11 +638,15 @@ function toggleStaff(guestId: string) {
   staffOverrides.value.set(guestId, !current)
 }
 
-function getGuestRoom(guestId: string): string {
+function getGuestAccommodation(guestId: string): string {
   const bedId = assignmentStore.getAssignmentByGuest(guestId)
-  if (!bedId) return '—'
-  const room = dormitoryStore.getRoomByBedId(bedId)
-  return room ? room.roomName : '—'
+  if (bedId) {
+    const room = dormitoryStore.getRoomByBedId(bedId)
+    return room ? room.roomName : ''
+  }
+  // No room assigned — show housing type (Camping, Commuter, etc.)
+  const guest = guestStore.getGuestById(guestId)
+  return guest?.housingType || ''
 }
 
 function getGuestBedType(guestId: string): string {
@@ -665,14 +666,13 @@ function getGuestBed(guestId: string): string {
 }
 
 function exportNameTagsCSV() {
-  const rows = [['Last Name', 'First Name', 'Room', 'Bed', 'Staff']]
+  const rows = [['Last Name', 'First Name', 'Accommodation', 'Bed', 'Staff']]
 
   nameTagGuests.value.forEach(guest => {
-    const room = getGuestRoom(guest.id)
     rows.push([
       guest.lastName || '',
       guest.firstName || '',
-      room === '—' ? '' : room,
+      getGuestAccommodation(guest.id),
       getGuestBedType(guest.id),
       isStaff(guest.id) ? 'Yes' : '',
     ])
