@@ -18,7 +18,7 @@
       <p>{{ emptyMessage }}</p>
     </div>
 
-    <div v-else class="dormitories-list">
+    <TransitionGroup v-else name="dorm-reorder" tag="div" class="dormitories-list">
       <DormitoryConfigSection
         v-for="(dormitory, index) in dormitories"
         :key="dormitory.dormitoryName"
@@ -30,7 +30,7 @@
         @move-up="moveDormitory(index, index - 1)"
         @move-down="moveDormitory(index, index + 1)"
       />
-    </div>
+    </TransitionGroup>
   </div>
 </template>
 
@@ -165,5 +165,9 @@ function addDormitory() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.dorm-reorder-move {
+  transition: transform 0.35s ease;
 }
 </style>
