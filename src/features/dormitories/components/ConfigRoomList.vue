@@ -23,8 +23,12 @@
         v-for="(dormitory, index) in dormitories"
         :key="dormitory.dormitoryName"
         :dormitory="dormitory"
+        :is-first="index === 0"
+        :is-last="index === dormitories.length - 1"
         @update="(updated) => updateDormitory(index, updated)"
         @remove="handleRemoveDormitory(index)"
+        @move-up="moveDormitory(index, index - 1)"
+        @move-down="moveDormitory(index, index + 1)"
       />
     </div>
   </div>
@@ -60,6 +64,13 @@ function updateDormitory(index: number, updatedDormitory: Dormitory) {
 // This is called after user confirms the removal
 function handleRemoveDormitory(index: number) {
   dormitoryStore.dormitories.splice(index, 1)
+}
+
+function moveDormitory(from: number, to: number) {
+  if (to < 0 || to >= dormitoryStore.dormitories.length) return
+  const arr = dormitoryStore.dormitories
+  const item = arr.splice(from, 1)[0]
+  arr.splice(to, 0, item)
 }
 
 function addDormitory() {

@@ -17,6 +17,10 @@
         />
       </div>
       <div class="dormitory-actions">
+        <div class="move-buttons">
+          <button @click="emit('move-up')" class="btn-move" :disabled="isFirst" title="Move up">▲</button>
+          <button @click="emit('move-down')" class="btn-move" :disabled="isLast" title="Move down">▼</button>
+        </div>
         <label class="checkbox-label">
           <input
             type="checkbox"
@@ -73,13 +77,20 @@ import type { Dormitory, Room } from '@/types'
 
 interface Props {
   dormitory: Dormitory
+  isFirst?: boolean
+  isLast?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  isFirst: false,
+  isLast: false,
+})
 
 const emit = defineEmits<{
   update: [dormitory: Dormitory]
   remove: []
+  'move-up': []
+  'move-down': []
 }>()
 
 const assignmentStore = useAssignmentStore()
@@ -278,6 +289,33 @@ function addRoom() {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.move-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.btn-move {
+  padding: 1px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  background: white;
+  font-size: 0.6rem;
+  cursor: pointer;
+  line-height: 1;
+  color: #6b7280;
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+    color: #374151;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
 }
 
 .checkbox-label {
