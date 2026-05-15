@@ -98,6 +98,9 @@
           <input type="checkbox" v-model="guestmasterShowEmpty" />
           <span>Include empty beds</span>
         </label>
+        <button class="btn-reset-prefs" @click="resetGuestmasterPrefs" title="Restore default checkboxes">
+          ↺ Reset
+        </button>
       </div>
     </div>
 
@@ -628,14 +631,73 @@ onBeforeUnmount(() => {
 
 const alphabeticalSortBy = ref<'first' | 'last'>('last')
 
-// Guestmaster compact view options
-const guestmasterColumns = reactive({
+// Guestmaster compact view options. Defaults match operator's preferred
+// minimal layout: just the bed grid + empty rows. Persist user
+// overrides in localStorage so the choice survives reloads.
+const GUESTMASTER_PREFS_KEY = 'dormAssignments-guestmasterPrefs'
+const GUESTMASTER_DEFAULTS = {
   beds: true,
-  age: true,
+  age: false,
   gender: false,
   group: false,
+  showEmpty: true,
+}
+
+function loadGuestmasterPrefs() {
+  try {
+    const saved = localStorage.getItem(GUESTMASTER_PREFS_KEY)
+    if (!saved) return { ...GUESTMASTER_DEFAULTS }
+    const parsed = JSON.parse(saved)
+    return { ...GUESTMASTER_DEFAULTS, ...parsed }
+  } catch {
+    return { ...GUESTMASTER_DEFAULTS }
+  }
+}
+
+const _initialPrefs = loadGuestmasterPrefs()
+const guestmasterColumns = reactive({
+  beds: _initialPrefs.beds,
+  age: _initialPrefs.age,
+  gender: _initialPrefs.gender,
+  group: _initialPrefs.group,
 })
-const guestmasterShowEmpty = ref(true)
+const guestmasterShowEmpty = ref(_initialPrefs.showEmpty)
+
+function saveGuestmasterPrefs() {
+  try {
+    localStorage.setItem(
+      GUESTMASTER_PREFS_KEY,
+      JSON.stringify({
+        beds: guestmasterColumns.beds,
+        age: guestmasterColumns.age,
+        gender: guestmasterColumns.gender,
+        group: guestmasterColumns.group,
+        showEmpty: guestmasterShowEmpty.value,
+      })
+    )
+  } catch {
+    /* localStorage unavailable — ignore */
+  }
+}
+
+watch(
+  () => [
+    guestmasterColumns.beds,
+    guestmasterColumns.age,
+    guestmasterColumns.gender,
+    guestmasterColumns.group,
+    guestmasterShowEmpty.value,
+  ],
+  saveGuestmasterPrefs
+)
+
+function resetGuestmasterPrefs() {
+  guestmasterColumns.beds = GUESTMASTER_DEFAULTS.beds
+  guestmasterColumns.age = GUESTMASTER_DEFAULTS.age
+  guestmasterColumns.gender = GUESTMASTER_DEFAULTS.gender
+  guestmasterColumns.group = GUESTMASTER_DEFAULTS.group
+  guestmasterShowEmpty.value = GUESTMASTER_DEFAULTS.showEmpty
+}
 
 interface GuestmasterRow {
   bedId: string
@@ -1248,9 +1310,29 @@ function handlePrint() {
 }
 
 .checkbox-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
+}
+
+.btn-reset-prefs {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: white;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #1f2937;
+    border-color: #9ca3af;
+  }
 }
 
 .checkbox-label {
