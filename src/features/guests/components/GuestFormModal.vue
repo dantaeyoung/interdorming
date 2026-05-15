@@ -269,6 +269,27 @@ const formData = ref({
 const isEditMode = ref(false)
 
 /**
+ * Convert a YYYY-MM-DD ISO string (from `<input type="date">`) back into
+ * the human-readable "Month DD, YYYY" format the rest of the app uses
+ * (e.g. "May 15, 2026"). Returns the input unchanged if it's not in
+ * recognized ISO form.
+ */
+function isoToDisplayDate(iso: string): string {
+  if (!iso) return ''
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return iso
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+  const year = Number(m[1])
+  const month = Number(m[2]) - 1
+  const day = Number(m[3])
+  if (month < 0 || month > 11) return iso
+  return `${monthNames[month]} ${day}, ${year}`
+}
+
+/**
  * Parse various date formats into YYYY-MM-DD for the date input.
  * Handles: "Apr 29, 2026", "30-May-25", "May 03, 2026", "2026-04-29", "03/01", etc.
  */
@@ -355,8 +376,10 @@ function hasUnsavedChanges(): boolean {
       formData.value.groupName !== (props.guest.groupName || '') ||
       formData.value.housingType !== (props.guest.housingType || '') ||
       formData.value.lowerBunk !== (props.guest.lowerBunk || false) ||
-      formData.value.arrival !== (props.guest.arrival || '') ||
-      formData.value.departure !== (props.guest.departure || '') ||
+      // Form holds dates as YYYY-MM-DD; original is "Month DD, YYYY" —
+      // compare in display format to avoid spurious "unsaved changes".
+      isoToDisplayDate(formData.value.arrival) !== (props.guest.arrival || '') ||
+      isoToDisplayDate(formData.value.departure) !== (props.guest.departure || '') ||
       formData.value.indivGrp !== (props.guest.indivGrp || '') ||
       formData.value.notes !== (props.guest.notes || '') ||
       formData.value.retreat !== (props.guest.retreat || '') ||
@@ -436,8 +459,10 @@ function handleSubmit() {
     groupName: formData.value.groupName || undefined,
     housingType: formData.value.housingType || undefined,
     lowerBunk: formData.value.lowerBunk,
-    arrival: formData.value.arrival || undefined,
-    departure: formData.value.departure || undefined,
+    // Convert ISO back to human-readable form so stored dates stay in the
+    // "Month DD, YYYY" format used everywhere else in the app.
+    arrival: isoToDisplayDate(formData.value.arrival) || undefined,
+    departure: isoToDisplayDate(formData.value.departure) || undefined,
     indivGrp: formData.value.indivGrp || undefined,
     notes: formData.value.notes || undefined,
     retreat: formData.value.retreat || undefined,
