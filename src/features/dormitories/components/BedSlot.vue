@@ -21,7 +21,6 @@
             ref="notesButtonRef"
             class="icon-button notes-icon"
             :class="{ 'has-notes': hasNotes, 'no-notes-empty': !hasNotes, 'has-internal': hasInternalNotes }"
-            :title="hasInternalNotes ? 'Has internal notes' : (hasNotes ? 'Has notes' : 'No notes')"
             @click.stop
             @mouseenter="hasNotes && handleNotesMouseEnter()"
             @mouseleave="showNotesTooltip = false"
