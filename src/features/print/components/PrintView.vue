@@ -170,7 +170,7 @@
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="checkInSlipsColumns.internalNotes" />
-          <span>Internal Notes</span>
+          <span>Notes</span>
         </label>
         <button class="btn-reset-prefs" @click="resetCheckInSlipsPrefs" title="Restore default checkboxes">
           ↺ Reset
@@ -656,7 +656,7 @@
                   <th v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">Lower bunk requested?</th>
                   <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arr</th>
                   <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Dep</th>
-                  <th v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">Internal Notes</th>
+                  <th v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">Notes</th>
                 </tr>
               </thead>
               <tbody>
