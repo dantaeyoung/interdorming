@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260514-23:35</span>
+          <span class="version-tag">v260514-23:36</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -312,12 +312,27 @@ const settingsStore = useSettingsStore()
 const { hasSortLevels, sortDescription } = useSortConfig()
 const showSortModal = ref(false)
 const roomSearchQuery = ref('')
-// Default View Date to today (computed once at app load) so multi-assignment
-// beds show the operator's current cohort by default. Per spec: doesn't
-// live-update across midnight; operator can manually clear or change.
-const _today = new Date()
-_today.setHours(0, 0, 0, 0)
-const viewDate = ref<Date | null>(_today)
+// View Date persists across reloads in localStorage. On first ever
+// load (no key set), defaults to today. The sentinel string 'null' is
+// used when the operator explicitly clears the filter, so we don't
+// confuse it with "never set".
+const VIEW_DATE_KEY = 'dormAssignments-viewDate'
+
+function loadInitialViewDate(): Date | null {
+  const saved = localStorage.getItem(VIEW_DATE_KEY)
+  if (saved === null) {
+    // First-ever load — default to today
+    const t = new Date()
+    t.setHours(0, 0, 0, 0)
+    return t
+  }
+  if (saved === '' || saved === 'null') return null
+  const m = saved.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+}
+
+const viewDate = ref<Date | null>(loadInitialViewDate())
 
 const viewDateISO = computed(() => {
   if (!viewDate.value) return ''
@@ -326,6 +341,17 @@ const viewDateISO = computed(() => {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
+})
+
+// Persist on every change. Cleared state is stored as the literal
+// string 'null' so we can tell it apart from a missing key (which means
+// "never been set, default to today").
+watch(viewDate, value => {
+  if (value === null) {
+    localStorage.setItem(VIEW_DATE_KEY, 'null')
+  } else {
+    localStorage.setItem(VIEW_DATE_KEY, viewDateISO.value)
+  }
 })
 
 function handleViewDateChange(event: Event) {
