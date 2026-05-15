@@ -55,6 +55,7 @@ export interface ColumnConfig {
 
 export const DEFAULT_GUEST_DATA_COLUMNS: ColumnConfig[] = [
   { key: 'importOrder', label: '#', visible: true },
+  { key: 'planyoId', label: 'Planyo ID', visible: false },
   { key: 'housingType', label: 'Housing', visible: true },
   { key: 'firstName', label: 'Name', visible: true },
   { key: 'lastName', label: 'Last Name', visible: true },
