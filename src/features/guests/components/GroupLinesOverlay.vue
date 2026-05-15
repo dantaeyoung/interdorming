@@ -135,8 +135,8 @@ const groupOffsets = computed(() => {
 
   // Sort groups by their first appearance index
   groupNames.sort((a, b) => {
-    const aFirst = groups.value.get(a)!.indices[0]
-    const bFirst = groups.value.get(b)!.indices[0]
+    const aFirst = groups.value.get(a)?.indices[0] ?? 0
+    const bFirst = groups.value.get(b)?.indices[0] ?? 0
     return aFirst - bFirst
   })
 

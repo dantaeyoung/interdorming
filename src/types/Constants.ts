@@ -28,6 +28,35 @@ export const BED_TYPES: BedType[] = ['upper', 'lower', 'single']
 export const ROOM_GENDERS: RoomGender[] = ['M', 'F', 'Coed']
 
 /**
+ * Coerce a raw string from a CSV cell to a valid `RoomGender`.
+ *
+ * Case-insensitive and accepts the common aliases operators type by
+ * habit (`male` → `M`, `female` → `F`, `mixed` / `co-ed` → `Coed`).
+ * Falls back to `'M'` when missing or unrecognized so a typo can't
+ * smuggle an arbitrary string into the dorm config.
+ */
+export function parseRoomGender(val: string | undefined | null): RoomGender {
+  const lower = val?.trim().toLowerCase()
+  if (!lower) return 'M'
+  if (lower === 'm' || lower === 'male') return 'M'
+  if (lower === 'f' || lower === 'female') return 'F'
+  if (lower === 'coed' || lower === 'mixed' || lower === 'co-ed') return 'Coed'
+  return 'M'
+}
+
+/**
+ * Coerce a raw string from a CSV cell to a valid `BedType`.
+ * Case-insensitive; falls back to `'single'` for missing/unknown values.
+ */
+export function parseBedType(val: string | undefined | null): BedType {
+  const normalized = val?.trim().toLowerCase()
+  if (normalized && (BED_TYPES as readonly string[]).includes(normalized)) {
+    return normalized as BedType
+  }
+  return 'single'
+}
+
+/**
  * CSV field mappings for flexible column name support
  */
 export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
