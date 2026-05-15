@@ -31,10 +31,12 @@ export const useGuestStore = defineStore(
       guests.value.forEach(guest => {
         if (guest.groupName && guest.groupName.trim()) {
           const groupName = guest.groupName
-          if (!groups.has(groupName)) {
-            groups.set(groupName, [])
+          let bucket = groups.get(groupName)
+          if (!bucket) {
+            bucket = []
+            groups.set(groupName, bucket)
           }
-          groups.get(groupName)!.push(guest)
+          bucket.push(guest)
         }
       })
       return groups
@@ -157,10 +159,12 @@ export const useGuestStore = defineStore(
       guests.value.forEach(guest => {
         if (guest.email && guest.email.trim()) {
           const normalizedEmail = guest.email.trim().toLowerCase()
-          if (!emailMap.has(normalizedEmail)) {
-            emailMap.set(normalizedEmail, [])
+          let bucket = emailMap.get(normalizedEmail)
+          if (!bucket) {
+            bucket = []
+            emailMap.set(normalizedEmail, bucket)
           }
-          emailMap.get(normalizedEmail)!.push(guest)
+          bucket.push(guest)
         }
       })
 
@@ -176,10 +180,12 @@ export const useGuestStore = defineStore(
         emailGuests.forEach(guest => {
           if (guest.groupName && guest.groupName.trim()) {
             const gn = guest.groupName
-            if (!existingGroups.has(gn)) {
-              existingGroups.set(gn, [])
+            let bucket = existingGroups.get(gn)
+            if (!bucket) {
+              bucket = []
+              existingGroups.set(gn, bucket)
             }
-            existingGroups.get(gn)!.push(guest)
+            bucket.push(guest)
           } else {
             ungrouped.push(guest)
           }

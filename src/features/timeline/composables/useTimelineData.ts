@@ -251,15 +251,20 @@ export function useTimelineData() {
       }
     }
 
+    function pushBlob(bedId: string, blobData: GuestBlobData) {
+      let blobs = blobMap.get(bedId)
+      if (!blobs) {
+        blobs = []
+        blobMap.set(bedId, blobs)
+      }
+      blobs.push(blobData)
+    }
+
     // Iterate through all regular assignments
     assignmentStore.assignments.forEach((bedId, guestId) => {
       const blobData = createBlobData(guestId, bedId)
       if (!blobData) return
-
-      if (!blobMap.has(bedId)) {
-        blobMap.set(bedId, [])
-      }
-      blobMap.get(bedId)!.push(blobData)
+      pushBlob(bedId, blobData)
     })
 
     // Iterate through all suggested assignments (only if not already assigned)
@@ -269,11 +274,7 @@ export function useTimelineData() {
 
       const blobData = createBlobData(guestId, bedId)
       if (!blobData) return
-
-      if (!blobMap.has(bedId)) {
-        blobMap.set(bedId, [])
-      }
-      blobMap.get(bedId)!.push(blobData)
+      pushBlob(bedId, blobData)
     })
 
     return blobMap
