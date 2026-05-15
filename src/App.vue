@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260515-00:28</span>
+          <span class="version-tag">v260515-00:33</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -417,7 +417,7 @@ const { startTour, hasSeenTour } = useTour({
   switchTab: (tabId: string) => handleTabChange(tabId)
 })
 const tabs: Tab[] = [
-  { id: 'guest-data', label: 'Guest Data' },
+  { id: 'guest-data', label: 'All Reservations' },
   { id: 'assignment', label: 'Table View' },
   { id: 'timeline', label: 'Timeline View' },
   { id: 'configuration', label: 'Room Configuration' },
