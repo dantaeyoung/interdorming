@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260515-00:55</span>
+          <span class="version-tag">v260515-00:58</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -999,10 +999,12 @@ function stopResize() {
 }
 
 .view-date-input {
-  padding: 4px 8px;
+  height: 22px;
+  padding: 0 6px;
   border: 1px solid #d1d5db;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  line-height: 1;
 
   &:focus {
     outline: none;
@@ -1011,11 +1013,13 @@ function stopResize() {
 }
 
 .btn-clear-date {
-  padding: 4px 10px;
+  height: 22px;
+  padding: 0 8px;
   border: 1px solid #d1d5db;
   border-radius: 4px;
   background: white;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+  line-height: 1;
   cursor: pointer;
   white-space: nowrap;
   color: #6b7280;
@@ -1028,17 +1032,17 @@ function stopResize() {
 .view-date-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .btn-date-step {
-  width: 24px;
-  height: 28px;
+  width: 20px;
+  height: 22px;
   padding: 0;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border-radius: 3px;
   background: white;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   line-height: 1;
   color: #4b5563;
   cursor: pointer;
@@ -1177,9 +1181,11 @@ function stopResize() {
 }
 
 .btn-auto-place {
-  padding: 4px 10px;
+  height: 22px;
+  padding: 0 10px;
   font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1;
   color: white;
   background-color: #3b82f6;
   border: 1px solid #3b82f6;
