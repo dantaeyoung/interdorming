@@ -423,6 +423,12 @@ function handleUnlink() {
       filter: grayscale(1);
     }
 
+    /* The CANCELLED tag itself should NOT be struck through — it's
+       the label explaining the row's state. */
+    .cancelled-badge {
+      text-decoration: none;
+    }
+
     &:hover {
       background-color: inherit;
     }
