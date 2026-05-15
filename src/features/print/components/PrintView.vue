@@ -158,7 +158,7 @@
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="checkInSlipsColumns.lowerBunk" />
-          <span>Lower bunk requested?</span>
+          <span>Requested lower bunk?</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="checkInSlipsColumns.arrival" />
@@ -402,8 +402,12 @@
         </div>
       </template>
 
-      <!-- Unassigned Guests -->
-      <div v-if="assignmentStore.unassignedCount > 0" class="unassigned-section">
+      <!-- Unassigned Guests — hidden in the printable output. The
+           operator decided print views should only surface guests
+           who are actually arriving (assigned to a bed, or camping
+           / commuter). Cancelled and unplaced guests stay in the
+           on-screen tabs, just not on paper. -->
+      <div v-if="false && assignmentStore.unassignedCount > 0" class="unassigned-section">
         <h3>Unassigned Guests</h3>
         <table class="unassigned-table">
           <thead>
@@ -517,10 +521,13 @@
       <!-- === NAME TAGS MODE === -->
       <template v-if="printMode === 'guestmaster'">
         <div class="guestmaster-section">
-          <!-- Print-only mini-header (visible only on paper) -->
+          <!-- Mini-header (visible on screen + paper) -->
           <div class="guestmaster-print-header">
             <span class="title">Guestmaster</span>
-            <span class="timestamp">{{ guestmasterPrintTimestamp }}</span>
+            <span class="meta">
+              <span v-if="printDateRangeSubtitle" class="range">{{ printDateRangeSubtitle }}</span>
+              <span class="timestamp">Printed on {{ guestmasterPrintTimestamp }}</span>
+            </span>
           </div>
           <div class="guestmaster-grid">
             <table v-for="(col, colIdx) in guestmasterColumnsSplit" :key="colIdx" class="guestmaster-table">
@@ -601,14 +608,15 @@
         <div class="guestmaster-section work-coordinator-section">
           <div class="guestmaster-print-header">
             <span class="title">Work Coordinator</span>
-            <span class="timestamp">{{ guestmasterPrintTimestamp }}</span>
+            <span class="meta">
+              <span v-if="printDateRangeSubtitle" class="range">{{ printDateRangeSubtitle }}</span>
+              <span class="timestamp">Printed on {{ guestmasterPrintTimestamp }}</span>
+            </span>
           </div>
           <table class="guestmaster-table work-coordinator-table">
             <thead>
               <tr>
                 <th class="th-num">#</th>
-                <th class="th-housing">Housing</th>
-                <th class="th-rm">Room</th>
                 <th class="th-name">Guest Name</th>
                 <th v-if="workCoordinatorColumns.gender" class="th-narrow">G</th>
                 <th v-if="workCoordinatorColumns.age" class="th-narrow">Age</th>
@@ -616,16 +624,13 @@
                 <th class="th-date">ARR</th>
                 <th class="th-date">DEP</th>
                 <th v-if="workCoordinatorColumns.notes" class="th-notes">Internal Notes</th>
+                <th class="th-housing">Housing</th>
+                <th class="th-rm">Room</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(row, idx) in workCoordinatorRows" :key="row.guest.id">
                 <td class="td-num">{{ idx + 1 }}</td>
-                <td
-                  class="td-housing"
-                  :style="row.dormColor ? { background: row.dormColorTint } : undefined"
-                >{{ row.housing }}</td>
-                <td class="td-rm">{{ row.roomName }}</td>
                 <td class="td-name">{{ `${row.guest.firstName || ''} ${row.guest.lastName || ''}`.trim() }}</td>
                 <td v-if="workCoordinatorColumns.gender" class="td-narrow">{{ row.guest.gender || '' }}</td>
                 <td v-if="workCoordinatorColumns.age" class="td-narrow">{{ row.guest.age != null ? String(row.guest.age) : '' }}</td>
@@ -633,6 +638,8 @@
                 <td class="td-date">{{ formatGuestmasterDate(row.guest.arrival) }}</td>
                 <td class="td-date">{{ formatGuestmasterDate(row.guest.departure) }}</td>
                 <td v-if="workCoordinatorColumns.notes" class="td-notes">{{ row.guest.internalNotes || '' }}</td>
+                <td class="td-housing">{{ row.housing }}</td>
+                <td class="td-rm">{{ row.roomName }}</td>
               </tr>
             </tbody>
           </table>
@@ -653,9 +660,9 @@
                   <th v-if="checkInSlipsColumns.housing" class="slip-col-housing">Housing</th>
                   <th class="slip-col-first">First Name</th>
                   <th class="slip-col-last">Last Name</th>
-                  <th v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">Lower bunk requested?</th>
-                  <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arr</th>
-                  <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Dep</th>
+                  <th v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">Requested lower bunk?</th>
+                  <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arrival</th>
+                  <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Depart</th>
                   <th v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">Notes</th>
                 </tr>
               </thead>
@@ -664,7 +671,7 @@
                   <td v-if="checkInSlipsColumns.housing" class="slip-col-housing">{{ row.housingDisplay }}</td>
                   <td class="slip-col-first">{{ row.guest.firstName || '' }}</td>
                   <td class="slip-col-last">{{ row.guest.lastName || '' }}</td>
-                  <td v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">{{ row.guest.lowerBunk ? 'Yes' : '' }}</td>
+                  <td v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">{{ row.guest.lowerBunk ? 'Yes' : 'No' }}</td>
                   <td v-if="checkInSlipsColumns.arrival" class="slip-col-arr">{{ formatGuestmasterDate(row.guest.arrival) || '' }}</td>
                   <td v-if="checkInSlipsColumns.departure" class="slip-col-dep">{{ formatGuestmasterDate(row.guest.departure) || '' }}</td>
                   <td v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">{{ row.guest.internalNotes || '' }}</td>
@@ -880,7 +887,7 @@ const WORK_COORDINATOR_PREFS_KEY = 'dormAssignments-workCoordinatorPrefs'
 const WORK_COORDINATOR_DEFAULTS = {
   gender: true,
   age: true,
-  group: false,
+  group: true,
   notes: false,
 }
 
@@ -1015,6 +1022,9 @@ interface CheckInSlipRow {
 const checkInSlipsRows = computed<CheckInSlipRow[]>(() => {
   const rows: CheckInSlipRow[] = []
   for (const guest of guestStore.guests) {
+    // Skip cancelled + truly unassigned guests — slips are check-in
+    // artifacts and only exist for arrivals.
+    if (!isPrintableGuest(guest)) continue
     if (hasDateFilter.value && !isGuestInDateRange(guest.id)) continue
 
     let housingDisplay = guest.housingType || ''
@@ -1178,6 +1188,20 @@ const guestmasterPrintTimestamp = computed(() => {
   })
 })
 
+/**
+ * Pretty subtitle describing the active date filter, for the print
+ * header. Empty when no filter is active.
+ */
+const printDateRangeSubtitle = computed(() => {
+  const start = filterDateStart.value
+  const end = filterDateEnd.value
+  if (!start && !end) return ''
+  const fmt = (s: string) => formatGuestDate(s) || s
+  if (start && end) return `Guests staying between ${fmt(start)} and ${fmt(end)}`
+  if (start) return `Guests staying on or after ${fmt(start)}`
+  return `Guests staying on or before ${fmt(end)}`
+})
+
 function bedTypeSuffix(bedType: string): string {
   if (bedType === 'lower') return 'L'
   if (bedType === 'upper') return 'U'
@@ -1250,11 +1274,11 @@ const guestmasterColumnsSplit = computed((): GuestmasterRoomGroup[][] => {
 })
 
 const alphabeticalGuests = computed(() => {
-  let guests = [...guestStore.guests]
+  let guests = guestStore.guests.filter(isPrintableGuest)
   if (hasDateFilter.value) {
     guests = guests.filter(g => isGuestInDateRange(g.id))
   }
-  return guests.sort((a, b) => {
+  return guests.slice().sort((a, b) => {
     if (alphabeticalSortBy.value === 'first') {
       return a.firstName.localeCompare(b.firstName) || a.lastName.localeCompare(b.lastName)
     }
@@ -1283,23 +1307,51 @@ function isGuestInDateRange(guestId: string | null): boolean {
 const hasDateFilter = computed(() => !!(filterDateStart.value || filterDateEnd.value))
 
 /**
+ * Shared filter for every print sub-tab. Drops cancelled reservations
+ * (which the operator removed from rooms but kept in the data so they
+ * could review). Optionally restricts to "guests who are coming to
+ * the property" — anyone assigned to a bed OR with camping/commuter
+ * housing. Truly unassigned dorm guests are excluded since the print
+ * outputs are operational artifacts (room sheets, slips) for guests
+ * who are actually arriving.
+ */
+function isPrintableGuest(g: Guest | null | undefined): boolean {
+  if (!g) return false
+  if (g.isCancelled) return false
+  // Camping / commuter rows are always printable — they show up at the
+  // bottom of Guestmaster, in the Work Coordinator roster, and in
+  // Check-in Slips.
+  if (!guestStore.isGuestAssignable(g)) return true
+  // Otherwise the guest must be assigned to a bed.
+  return assignmentStore.assignments.has(g.id)
+}
+
+/**
  * For multi-assignment beds, picks the guest to print on this row. If a
  * date filter is active, prefers an assignment whose stay overlaps the
  * filter range. Otherwise returns the first assignment, or null.
+ * Skips cancelled reservations.
  */
 function getPrintGuestIdForBed(bed: { assignments: Array<{ guestId: string }> } | undefined): string | null {
   if (!bed || !bed.assignments || bed.assignments.length === 0) return null
+  const candidates = bed.assignments.filter(a => {
+    const g = guestStore.getGuestById(a.guestId)
+    return g && !g.isCancelled
+  })
+  if (candidates.length === 0) return null
   if (hasDateFilter.value) {
-    for (const a of bed.assignments) {
+    for (const a of candidates) {
       if (isGuestInDateRange(a.guestId)) return a.guestId
     }
   }
-  return bed.assignments[0].guestId
+  return candidates[0].guestId
 }
 
-// Non-assignable (camping/commuter) guests
+// Non-assignable (camping/commuter) guests — never includes cancelled.
 const campingCommuterGuests = computed(() => {
-  let guests = guestStore.guests.filter(g => !guestStore.isGuestAssignable(g))
+  let guests = guestStore.guests.filter(
+    g => !guestStore.isGuestAssignable(g) && !g.isCancelled
+  )
   if (hasDateFilter.value) {
     guests = guests.filter(g => isGuestInDateRange(g.id))
   }
@@ -1480,11 +1532,11 @@ const showNameTagExport = ref(false)
 const staffOverrides = ref<Map<string, boolean>>(new Map())
 
 const nameTagGuests = computed(() => {
-  let guests = [...guestStore.guests]
+  let guests = guestStore.guests.filter(isPrintableGuest)
   if (hasDateFilter.value) {
     guests = guests.filter(g => isGuestInDateRange(g.id))
   }
-  return guests.sort((a, b) =>
+  return guests.slice().sort((a, b) =>
     a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
   )
 })
@@ -1869,13 +1921,37 @@ function handlePrint() {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 6px;
   padding: 0 2px;
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  /* Glue the header to the next element on print. Without these, the
+     Guestmaster grid (display: grid) is treated as one atomic block
+     and the engine inserts a page break BEFORE it — leaving the
+     header alone on page 1 and the grid on page 2. Work Coordinator
+     doesn't hit this because its content is a plain table and tables
+     break across pages naturally. */
+  page-break-after: avoid;
+  break-after: avoid;
 
   .title {
     font-size: 0.85rem;
     font-weight: 700;
+    color: #1f2937;
+  }
+
+  .meta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .range {
+    font-size: 0.7rem;
+    font-weight: 600;
     color: #1f2937;
   }
 
@@ -1895,7 +1971,7 @@ function handlePrint() {
 .guestmaster-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.65rem;
+  font-size: 0.78rem;
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
   table-layout: fixed;
   /* Pure black text on screen + paper for maximum legibility (operator
@@ -1921,17 +1997,18 @@ function handlePrint() {
     white-space: nowrap;
     text-overflow: ellipsis;
     line-height: 1;
-    /* Uniform row height across the entire table */
-    height: 18px;
+    /* Uniform row height across the entire table — bumped slightly to
+       accommodate the larger 0.78rem font. */
+    height: 21px;
   }
 
   thead th {
     background: #f3f4f6;
     font-weight: 700;
-    font-size: 0.6rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     color: #000;
-    height: 22px;
+    height: 25px;
   }
 
   .th-rm, .td-rm       { width: 16%; font-weight: 600; }
@@ -1943,7 +2020,7 @@ function handlePrint() {
   .th-date, .td-date   {
     width: 9%;
     text-align: center;
-    font-size: 0.6rem;
+    font-size: 0.72rem;
     padding: 0 2px;
     /* Never truncate the date — operator needs to read it on paper. */
     white-space: nowrap;
@@ -2014,23 +2091,22 @@ function handlePrint() {
      signatures or notes in those columns. LB?, Arrival, Departure
      squeezed narrow. Internal Notes takes the right edge. */
   .slip-col-housing  { width: 14%; }
-  .slip-col-first    { width: 19%; }
-  .slip-col-last     { width: 19%; }
-  .slip-col-lb       { width: 9%; }
+  .slip-col-first    { width: 18%; }
+  .slip-col-last     { width: 18%; }
+  .slip-col-lb       { width: 12%; }
   .slip-col-arr      { width: 9%; }
   .slip-col-dep      { width: 9%; }
-  .slip-col-internal { width: 21%; }
+  .slip-col-internal { width: 20%; }
 
-  /* Header labels are smaller than the data and may wrap mid-word so
-     they fit a narrow column without overflowing into the next cell.
-     Without \`word-break: break-all\`, 'INTERNAL NOTES' would push past
-     its column boundary instead of breaking. */
+  /* Header labels are smaller than the data and wrap on word
+     boundaries (not mid-word) so 'INTERNAL NOTES' becomes 'INTERNAL'
+     / 'NOTES' rather than 'INTER' / 'NAL NOTES'. */
   thead th {
     font-size: 0.6rem !important;
     line-height: 1.1;
     white-space: normal !important;
-    word-break: break-all;
-    overflow-wrap: anywhere;
+    word-break: normal;
+    overflow-wrap: break-word;
   }
 
   /* Date cells get a slightly smaller font than the rest of the data
@@ -2092,44 +2168,61 @@ function handlePrint() {
 .work-coordinator-table {
   width: 100%;
   color: #000;
-
-  th, td {
-    color: #000;
-    font-size: 0.85rem;
-  }
-
-  thead th {
-    color: #000;
-    font-size: 0.78rem;
-  }
-  /* Override the parent's \`table-layout: fixed\`. The Guestmaster grid
-     has a known set of beds and a tight fixed layout works there, but
-     Work Coordinator has many optional columns that exceed 100% when
-     all are toggled on — fixed layout would push the rightmost column
-     (Internal Notes) off the page. Auto layout sizes each column by
-     its content and never overflows. */
+  /* Operator wants this print-out to be visually uniform: every cell's
+     text is the same size as the guest name, all pure black, and the
+     ONLY weight emphasis is on the guest name itself. No tinted
+     backgrounds — the dorm color stays out of this view. */
+  font-size: 0.85rem;
   table-layout: auto;
 
-  /* Allow long values (group name, internal notes) to wrap so nothing
-     ever gets clipped or pushed off the right edge. */
   th, td {
+    color: #000 !important;
+    font-size: 0.85rem !important;
+    font-weight: 400 !important;
+    background: none !important;
     white-space: normal !important;
     overflow: visible !important;
     text-overflow: clip !important;
     word-break: break-word;
   }
 
+  thead th {
+    color: #000 !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    /* Soft grey wash on the header row so it visually separates from
+       the body without competing with the all-black text. */
+    background: #f3f4f6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Guest name is the only bold field in the body. */
+  .td-name {
+    font-weight: 700 !important;
+  }
+
+  /* Housing + Room are plain weight even though .td-rm/.td-housing
+     elsewhere are 600 — explicitly normalize here. */
+  .td-housing,
+  .td-rm {
+    font-weight: 400 !important;
+  }
+
   .th-num, .td-num {
     width: auto;
     text-align: center;
-    color: #6b7280;
     font-variant-numeric: tabular-nums;
     white-space: nowrap !important;
   }
 
+  /* Date columns: keep on one line, full body size (no shrunken text). */
   .td-narrow,
   .td-date {
     white-space: nowrap !important;
+  }
+  .td-date {
+    font-size: 0.85rem !important;
   }
 
   /* Internal notes column is the largest text consumer — let it eat
@@ -2145,15 +2238,15 @@ function handlePrint() {
     gap: 12px;
   }
   .guestmaster-table {
-    font-size: 0.55rem;
+    font-size: 0.66rem;
     th, td { padding: 1px 3px; }
-    thead th { font-size: 0.5rem; padding: 2px 3px; }
+    thead th { font-size: 0.6rem; padding: 2px 3px; }
 
     /* Date columns get a tiny bit more breathing room on paper so
        'May 15' doesn't get clipped to 'May…'. Override clamps. */
     .th-date, .td-date {
       width: 10%;
-      font-size: 0.55rem;
+      font-size: 0.66rem;
       letter-spacing: -0.01em;
       overflow: visible !important;
       text-overflow: clip !important;
@@ -2179,10 +2272,9 @@ function handlePrint() {
     height: 0.75in !important;
   }
 
-  /* Work Coordinator print override: Guestmaster's print rule above
-     drops every \`.guestmaster-table\` to 0.55rem. The Work Coordinator
-     reuses that class but the operator wants pure black + ~130% of
-     the original size for arm's-length reading. */
+  /* Work Coordinator print override: keep all text the same size
+     (matching guest name), all pure black, no tinted backgrounds.
+     Mirrors the on-screen rules above. */
   .work-coordinator-table {
     color: #000 !important;
     font-size: 0.85rem !important;
@@ -2190,13 +2282,27 @@ function handlePrint() {
     th, td {
       color: #000 !important;
       font-size: 0.85rem !important;
+      font-weight: 400 !important;
+      background: none !important;
       padding: 3px 6px !important;
     }
 
     thead th {
       color: #000 !important;
-      font-size: 0.78rem !important;
+      font-size: 0.85rem !important;
+      font-weight: 700 !important;
+      background: #f3f4f6 !important;
       padding: 4px 6px !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .td-name {
+      font-weight: 700 !important;
+    }
+
+    .td-date {
+      font-size: 0.85rem !important;
     }
   }
 }
