@@ -1,7 +1,19 @@
 <template>
-  <Modal v-model="isOpen" @close="handleClose" title="Guest Details">
+  <Modal v-model="isOpen" title="Guest Details">
     <form @submit.prevent="handleSubmit" class="guest-form">
       <div class="form-grid">
+        <!-- Planyo ID (read-only, only shown when present) -->
+        <div v-if="props.guest?.planyoId" class="form-group full-width">
+          <label for="planyoId">Planyo ID <span class="field-hint">(read-only — used to match the same reservation across CSV re-uploads)</span></label>
+          <input
+            id="planyoId"
+            :value="props.guest.planyoId"
+            type="text"
+            readonly
+            class="readonly-field"
+          />
+        </div>
+
         <!-- Required Fields -->
         <div class="form-group">
           <label for="firstName">First Name <span class="required">*</span></label>
@@ -628,6 +640,19 @@ function findBedConflicts(
 
     &::placeholder {
       color: #9ca3af;
+    }
+
+    &.readonly-field {
+      background: #f3f4f6;
+      color: #6b7280;
+      cursor: default;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.8rem;
+
+      &:focus {
+        border-color: #d1d5db;
+        box-shadow: none;
+      }
     }
   }
 
