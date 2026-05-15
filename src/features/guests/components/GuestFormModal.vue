@@ -103,12 +103,22 @@
         </div>
 
         <div class="form-group full-width">
-          <label for="notes">Notes</label>
+          <label for="notes">Notes <span class="field-hint">(from CSV)</span></label>
           <textarea
             id="notes"
             v-model="formData.notes"
             rows="3"
             placeholder="Optional notes"
+          ></textarea>
+        </div>
+
+        <div class="form-group full-width">
+          <label for="internalNotes">Internal Notes <span class="field-hint">(operator-only, never overwritten by CSV)</span></label>
+          <textarea
+            id="internalNotes"
+            v-model="formData.internalNotes"
+            rows="3"
+            placeholder="Anything you want to remember about this guest"
           ></textarea>
         </div>
 
@@ -237,6 +247,7 @@ const initialFormData = {
   departure: '',
   indivGrp: '',
   notes: '',
+  internalNotes: '',
   retreat: '',
   ratePerNight: '',
   priceQuoted: '',
@@ -258,6 +269,7 @@ const formData = ref({
   departure: '',
   indivGrp: '',
   notes: '',
+  internalNotes: '',
   retreat: '',
   ratePerNight: '',
   priceQuoted: '',
@@ -338,6 +350,7 @@ watch(
         departure: parseDateToISO(newGuest.departure || ''),
         indivGrp: newGuest.indivGrp || '',
         notes: newGuest.notes || '',
+        internalNotes: newGuest.internalNotes || '',
         retreat: newGuest.retreat || '',
         ratePerNight: newGuest.ratePerNight || '',
         priceQuoted: newGuest.priceQuoted || '',
@@ -382,6 +395,7 @@ function hasUnsavedChanges(): boolean {
       isoToDisplayDate(formData.value.departure) !== (props.guest.departure || '') ||
       formData.value.indivGrp !== (props.guest.indivGrp || '') ||
       formData.value.notes !== (props.guest.notes || '') ||
+      formData.value.internalNotes !== (props.guest.internalNotes || '') ||
       formData.value.retreat !== (props.guest.retreat || '') ||
       formData.value.ratePerNight !== (props.guest.ratePerNight || '') ||
       formData.value.priceQuoted !== (props.guest.priceQuoted || '') ||
@@ -404,6 +418,7 @@ function hasUnsavedChanges(): boolean {
       formData.value.departure !== '' ||
       formData.value.indivGrp !== '' ||
       formData.value.notes !== '' ||
+      formData.value.internalNotes !== '' ||
       formData.value.retreat !== '' ||
       formData.value.ratePerNight !== '' ||
       formData.value.priceQuoted !== '' ||
@@ -465,6 +480,7 @@ function handleSubmit() {
     departure: isoToDisplayDate(formData.value.departure) || undefined,
     indivGrp: formData.value.indivGrp || undefined,
     notes: formData.value.notes || undefined,
+    internalNotes: formData.value.internalNotes || undefined,
     retreat: formData.value.retreat || undefined,
     ratePerNight: formData.value.ratePerNight || undefined,
     priceQuoted: formData.value.priceQuoted || undefined,
@@ -584,6 +600,13 @@ function findBedConflicts(
 
     .required {
       color: #ef4444;
+    }
+
+    .field-hint {
+      font-weight: 400;
+      font-size: 0.7rem;
+      color: #9ca3af;
+      margin-left: 4px;
     }
   }
 

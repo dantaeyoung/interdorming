@@ -67,6 +67,7 @@ export const DEFAULT_GUEST_DATA_COLUMNS: ColumnConfig[] = [
   { key: 'indivGrp', label: 'Indiv/Grp?', visible: true },
   { key: 'groupOrIndiv', label: 'Group/Indiv', visible: true },
   { key: 'notes', label: 'Notes', visible: true },
+  { key: 'internalNotes', label: 'Internal Notes', visible: true },
   { key: 'email', label: 'Email', visible: true },
   { key: 'firstVisit', label: 'First Visit', visible: true },
   { key: 'roomPreference', label: 'Rm Preference', visible: true },

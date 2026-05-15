@@ -38,7 +38,8 @@
           <button
             ref="notesButtonRef"
             class="icon-button notes-icon"
-            :class="{ 'has-notes': hasNotes, 'no-notes': !hasNotes }"
+            :class="{ 'has-notes': hasNotes, 'no-notes': !hasNotes, 'has-internal': hasInternalNotes }"
+            :title="hasInternalNotes ? 'Has internal notes' : (hasNotes ? 'Has notes' : 'No notes')"
             @click.stop
             @mouseenter="hasNotes && handleNotesMouseEnter()"
             @mouseleave="showNotesTooltip = false"
@@ -90,10 +91,18 @@
       >+{{ allAssignedGuests.length }}</span>
     </div>
 
-    <!-- Notes tooltip -->
+    <!-- Notes tooltip — shows CSV notes and operator-added internal notes
+         side-by-side when either is present -->
     <Teleport to="body">
       <div v-if="showNotesTooltip" class="notes-tooltip-overlay" :style="tooltipPosition">
-        {{ assignedGuest?.notes }}
+        <div v-if="assignedGuest?.notes?.trim()" class="notes-tooltip-section">
+          <div class="notes-tooltip-label">From CSV</div>
+          <div class="notes-tooltip-body">{{ assignedGuest.notes }}</div>
+        </div>
+        <div v-if="assignedGuest?.internalNotes?.trim()" class="notes-tooltip-section">
+          <div class="notes-tooltip-label">Internal</div>
+          <div class="notes-tooltip-body">{{ assignedGuest.internalNotes }}</div>
+        </div>
       </div>
     </Teleport>
 
@@ -232,7 +241,14 @@ const bedTypeClass = computed(() => `bed-${props.bed.bedType}`)
 const needsLowerBunk = computed(() => assignedGuest.value?.lowerBunk === true)
 
 // Notes
-const hasNotes = computed(() => !!assignedGuest.value?.notes?.trim())
+const hasNotes = computed(
+  () =>
+    !!assignedGuest.value?.notes?.trim() ||
+    !!assignedGuest.value?.internalNotes?.trim()
+)
+const hasInternalNotes = computed(
+  () => !!assignedGuest.value?.internalNotes?.trim()
+)
 const notesButtonRef = ref<HTMLButtonElement | null>(null)
 const showNotesTooltip = ref(false)
 const tooltipPosition = ref({ top: '0px', left: '0px' })
@@ -659,6 +675,25 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
     cursor: default;
     pointer-events: none;
   }
+
+  /* Internal-notes badge: small yellow dot in the upper-right of the icon
+     so the operator can tell at a glance whether the notes are CSV-only
+     or include their own annotations. */
+  &.has-internal {
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 6px;
+      height: 6px;
+      background: #f59e0b;
+      border-radius: 50%;
+      border: 1px solid white;
+    }
+  }
 }
 
 .lower-bunk-icon {
@@ -774,8 +809,29 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   font-size: 0.8rem;
   color: #374151;
-  max-width: 300px;
+  max-width: 320px;
   white-space: pre-wrap;
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .notes-tooltip-section + .notes-tooltip-section {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+  }
+
+  .notes-tooltip-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+
+  .notes-tooltip-body {
+    color: #374151;
+  }
 }
 </style>

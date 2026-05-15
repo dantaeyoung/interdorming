@@ -78,6 +78,18 @@
         <span v-else>-</span>
       </td>
 
+      <td v-else-if="col.key === 'internalNotes'" class="notes-cell">
+        <span
+          v-if="guest.internalNotes"
+          class="notes-text internal"
+          @mouseenter="handleLongTextMouseEnter($event, guest.internalNotes)"
+          @mouseleave="showLongTextModal = false"
+        >
+          {{ truncateNotes(guest.internalNotes) }}
+        </span>
+        <span v-else>-</span>
+      </td>
+
       <td v-else-if="col.key === 'mentalHealth'" class="notes-cell">
         <span
           v-if="guest.mentalHealth"
@@ -609,6 +621,13 @@ td {
     overflow: hidden;
     display: inline-block;
     max-width: 100%;
+
+    &.internal {
+      color: #92400e;
+      background: #fef3c7;
+      padding: 0 4px;
+      border-radius: 3px;
+    }
   }
 }
 

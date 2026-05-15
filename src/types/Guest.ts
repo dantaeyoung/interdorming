@@ -19,6 +19,11 @@ export interface Guest {
   indivGrp?: string
   email?: string
   notes?: string
+  /**
+   * Operator-created notes added inside the app, distinct from the
+   * CSV-imported `notes` field. Never overwritten by CSV re-imports.
+   */
+  internalNotes?: string
   retreat?: string
   ratePerNight?: string
   priceQuoted?: string
