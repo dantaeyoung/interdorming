@@ -2098,16 +2098,15 @@ function handlePrint() {
   .slip-col-dep      { width: 9%; }
   .slip-col-internal { width: 21%; }
 
-  /* Header labels are smaller than the data and may wrap mid-word so
-     they fit a narrow column without overflowing into the next cell.
-     Without \`word-break: break-all\`, 'INTERNAL NOTES' would push past
-     its column boundary instead of breaking. */
+  /* Header labels are smaller than the data and wrap on word
+     boundaries (not mid-word) so 'INTERNAL NOTES' becomes 'INTERNAL'
+     / 'NOTES' rather than 'INTER' / 'NAL NOTES'. */
   thead th {
     font-size: 0.6rem !important;
     line-height: 1.1;
     white-space: normal !important;
-    word-break: break-all;
-    overflow-wrap: anywhere;
+    word-break: normal;
+    overflow-wrap: break-word;
   }
 
   /* Date cells get a slightly smaller font than the rest of the data
