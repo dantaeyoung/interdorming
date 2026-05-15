@@ -2108,9 +2108,8 @@ function handlePrint() {
 .checkin-slip {
   /* Full-page width for cutting; tall enough to write notes by hand
      during check-in. Each slip stays as one piece across page breaks.
-     A small gap separates slips so the operator's paper cutter has
-     a clean strip to align against. */
-  margin-bottom: 0.08in;
+     No gap between slips — they stack flush. */
+  margin-bottom: 0;
   page-break-inside: avoid;
   break-inside: avoid;
 }
@@ -2334,25 +2333,26 @@ function handlePrint() {
     display: none !important;
   }
 
-  /* Check-in Slips on paper: each slip is exactly the same height
-     so the operator can stack the printed pages and slice with a
-     paper cutter. Small inter-slip gap (~0.08in) gives the cutter
-     a clean strip to align against. Heights are hard-locked per
-     logical row of the rowspan layout. */
+  /* Check-in Slips on paper: each slip is exactly the same height,
+     no inter-slip gap — slips stack flush so the operator slices
+     them apart with a paper cutter against the row borders.
+     Sized for 7 slips per portrait letter page (~10in usable / 7
+     ≈ 1.4in each). Each row height locks per logical row of the
+     rowspan layout. */
   .checkin-slip {
-    margin-bottom: 0.08in !important;
+    margin-bottom: 0 !important;
   }
   .checkin-slip-table tbody tr:nth-child(1) {
-    height: 0.24in !important;
+    height: 0.30in !important;
   }
   .checkin-slip-table tbody tr:nth-child(2) {
-    height: 0.30in !important;
+    height: 0.40in !important;
   }
   .checkin-slip-table tbody tr:nth-child(3) {
-    height: 0.20in !important;
+    height: 0.25in !important;
   }
   .checkin-slip-table tbody tr:nth-child(4) {
-    height: 0.30in !important;
+    height: 0.40in !important;
   }
   .checkin-slip-table .slip-cell-value {
     overflow: hidden !important;
