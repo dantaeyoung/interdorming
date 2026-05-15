@@ -49,15 +49,28 @@ import type { Room, Bed } from '@/types'
 interface Props {
   room: Room
   viewDate?: Date | null
+  /** Color of the parent dormitory — rendered as a thin left stripe so
+   *  the operator can still tell dorms apart in the flattened view. */
+  dormColor?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   viewDate: null,
+  dormColor: '#e5e7eb',
 })
 
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 const { autoPlaceGuestsInRoom } = useAutoPlacement()
+
+/**
+ * Faded version of the dorm color, used as a tinted background for the
+ * room header. CSS color-mix gives us a gentle wash without manual hex
+ * arithmetic; falls back gracefully on older browsers.
+ */
+const headerBackground = computed(() => {
+  return `color-mix(in srgb, ${props.dormColor} 22%, white)`
+})
 
 const activeBeds = computed(() => {
   return props.room.beds.filter(bed => bed.active !== false)
@@ -129,14 +142,15 @@ function handleAcceptRoomSuggestions() {
 <style scoped lang="scss">
 .room-card {
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-left: 4px solid v-bind('props.dormColor');
+  border-radius: 6px;
   background: white;
   overflow: hidden;
 }
 
 .room-header {
-  padding: 8px 10px;
-  background-color: #f9fafb;
+  padding: 6px 10px;
+  background-color: v-bind('headerBackground');
   border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
