@@ -797,7 +797,7 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
       right: 0;
       width: 6px;
       height: 6px;
-      background: #f59e0b;
+      background: #5b21b6;
       border-radius: 50%;
       border: 1px solid white;
     }
