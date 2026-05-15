@@ -44,7 +44,7 @@
         <span v-else>-</span>
       </td>
 
-      <td v-else-if="col.key === 'firstName'">
+      <td v-else-if="col.key === 'firstName'" :title="displayName">
         <div class="name-cell">
           <span class="name-text" :class="{ 'cancelled-name': guest.isCancelled }">{{ displayName }}</span>
           <span v-if="guest.isCancelled" class="cancelled-badge" title="Reservation cancelled in latest CSV — please review">CANCELLED</span>
@@ -67,7 +67,8 @@
 
       <td v-else-if="col.key === 'groupName'"
         class="group-cell"
-        :class="{ 'long-group-name': guest.groupName && guest.groupName.length > 15, 'has-group': !!guest.groupName && !readonly }"
+        :class="{ 'has-group': !!guest.groupName && !readonly }"
+        :title="guest.groupName || ''"
         @mouseenter="handleGroupCellMouseEnter"
         @mouseleave="handleGroupCellMouseLeave"
         @click.stop="handleGroupCellClick"
@@ -648,6 +649,16 @@ td {
   box-shadow: inset 0 -1px 0 #d1d5db;
   font-size: 0.8rem;
   line-height: 1.25;
+  /* Lock every cell to a single line + a uniform baseline. Long values
+     (group names, emails, etc.) get truncated with an ellipsis and the
+     native `title` attribute (or richer tooltip in special cells)
+     reveals the full text on hover. */
+  height: 24px;
+  max-height: 24px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  vertical-align: middle;
 
   &.order-cell {
     font-weight: 600;
@@ -655,6 +666,10 @@ td {
     text-align: center;
     width: 50px;
   }
+}
+
+tr.guest-row {
+  height: 24px;
 }
 
 .group-cell {
@@ -718,21 +733,35 @@ td {
 }
 
 .actions-cell {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-  justify-content: flex-start;
+  /* Important: NOT display:flex on the td itself — that detaches the
+     cell from the row's vertical-alignment system and the buttons
+     end up offset against the data cells. The buttons inside are
+     already inline-flex and they line up naturally with normal cell
+     layout + vertical-align: middle. */
+  white-space: nowrap;
   min-width: 100px;
   vertical-align: middle;
+  height: 24px;
+  max-height: 24px;
+  overflow: hidden;
+
+  > * + * {
+    margin-left: 2px;
+  }
 }
 
 .btn-link-guest {
-  padding: 1px 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 5px;
   background: transparent;
   color: #9ca3af;
   border: 1px solid #e5e7eb;
   border-radius: 3px;
   font-size: 0.75rem;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.2s;
 
@@ -757,12 +786,17 @@ td {
 }
 
 .btn-unlink-guest {
-  padding: 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 5px;
   background: transparent;
   color: #9ca3af;
   border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border-radius: 3px;
   font-size: 0.7rem;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.2s;
 
@@ -783,12 +817,17 @@ td {
 }
 
 .btn-edit {
-  padding: 1px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 6px;
   background: transparent;
   color: #6b7280;
   border: 1px solid #d1d5db;
   border-radius: 3px;
   font-size: 0.8rem;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.2s;
 
@@ -807,13 +846,18 @@ td {
    button so the hover experience is identical for assigned and
    unassigned guests. */
 .btn-notes-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 0.9rem;
-  padding: 2px 4px;
+  font-size: 0.8rem;
+  padding: 0 4px;
   border-radius: 3px;
   opacity: 1;
+  line-height: 1;
   transition: opacity 0.2s;
   position: relative;
 
