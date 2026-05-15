@@ -32,13 +32,6 @@
       @close="closeWarningModal"
     />
 
-    <CSVImportModeModal
-      :is-open="showImportModeModal"
-      :existing-guest-count="guestStore.guests.length"
-      @reset-and-replace="handleResetAndReplace"
-      @add-and-update="handleAddAndUpdate"
-      @cancel="handleImportModeCancel"
-    />
   </div>
 </template>
 
@@ -59,8 +52,6 @@ import { useUtils } from '@/shared/composables/useUtils'
 import { isActiveReservationStatus, isCancelledStatus } from '@/types'
 import type { Guest } from '@/types'
 import CSVWarningModal from './CSVWarningModal.vue'
-import CSVImportModeModal from './CSVImportModeModal.vue'
-
 interface Props {
   label?: string
   hint?: string
@@ -77,7 +68,6 @@ const emit = defineEmits<{
   'upload-success': [guests: Guest[]]
   'upload-error': [error: string]
   'load-test-data': []
-  'request-reset-confirmation': [callback: () => void]
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -102,8 +92,7 @@ const successCount = ref(0)
 const totalRows = ref(0)
 const warnings = ref<string[]>([])
 
-// Import mode modal state
-const showImportModeModal = ref(false)
+// Stash for the parsed CSV between parse and the merge handler.
 const pendingCSVData = ref<{ guests: Guest[]; warnings: string[]; totalRows: number } | null>(null)
 
 function closeWarningModal() {
@@ -123,11 +112,14 @@ async function handleFileChange(event: Event) {
     const csvText = await readFileAsText(file)
     const result = parseGuestCSV(csvText)
 
-    // Check if guests already exist
     if (guestStore.guests.length > 0) {
-      // Store the parsed data and show import mode modal
+      // Existing data is always merged (Add & Update). The "Reset and
+      // Replace" mode used to be offered here but was too dangerous —
+      // a single misclick could wipe all manual assignments — so it was
+      // removed. The Settings → Danger Zone still exposes a destructive
+      // "Delete All" for the rare case it's needed.
       pendingCSVData.value = result
-      showImportModeModal.value = true
+      handleAddAndUpdate()
     } else {
       // No existing guests, proceed with normal import
       performImport(result)
@@ -184,23 +176,7 @@ function performImport(result: { guests: Guest[]; warnings: string[]; totalRows:
   }
 }
 
-function handleResetAndReplace() {
-  showImportModeModal.value = false
-
-  if (!pendingCSVData.value) return
-
-  // Request confirmation from parent component
-  emit('request-reset-confirmation', () => {
-    if (pendingCSVData.value) {
-      performImport(pendingCSVData.value)
-      pendingCSVData.value = null
-    }
-  })
-}
-
 function handleAddAndUpdate() {
-  showImportModeModal.value = false
-
   if (!pendingCSVData.value) return
 
   const existingGuests = [...guestStore.guests]
@@ -330,11 +306,6 @@ function handleAddAndUpdate() {
     showWarningModal.value = true
   }
 
-  pendingCSVData.value = null
-}
-
-function handleImportModeCancel() {
-  showImportModeModal.value = false
   pendingCSVData.value = null
 }
 
