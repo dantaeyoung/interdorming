@@ -31,6 +31,9 @@
       <button :class="['sub-tab', { active: printMode === 'guestmaster' }]" @click="printMode = 'guestmaster'">
         <span class="sub-tab-label" data-label="Guestmaster">Guestmaster</span>
       </button>
+      <button :class="['sub-tab', { active: printMode === 'work-coordinator' }]" @click="printMode = 'work-coordinator'">
+        <span class="sub-tab-label" data-label="Work Coordinator">Work Coordinator</span>
+      </button>
     </div>
 
     <!-- Print button -->
@@ -104,8 +107,38 @@
       </div>
     </div>
 
+    <!-- Work Coordinator options -->
+    <div v-if="printMode === 'work-coordinator'" class="display-options no-print">
+      <p class="name-tag-help">
+        Sequential roster of every assigned guest, sorted by gender
+        (Non-binary → Female → Male) then by age (ascending). One
+        line per guest with their room.
+      </p>
+      <div class="checkbox-grid" style="margin-top: 8px">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="workCoordinatorColumns.gender" />
+          <span>Gender</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="workCoordinatorColumns.age" />
+          <span>Age</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="workCoordinatorColumns.group" />
+          <span>Group</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="workCoordinatorColumns.notes" />
+          <span>Notes</span>
+        </label>
+        <button class="btn-reset-prefs" @click="resetWorkCoordinatorPrefs" title="Restore default checkboxes">
+          ↺ Reset
+        </button>
+      </div>
+    </div>
+
     <!-- Column Selection (dorm and alpha modes) -->
-    <div v-if="printMode !== 'nametags' && printMode !== 'guestmaster'" class="column-selector no-print">
+    <div v-if="printMode !== 'nametags' && printMode !== 'guestmaster' && printMode !== 'work-coordinator'" class="column-selector no-print">
       <h3>Select Columns to Print</h3>
       <div class="checkbox-grid">
         <label class="checkbox-label">
@@ -519,6 +552,49 @@
         </div>
       </template>
 
+      <!-- === WORK COORDINATOR MODE === -->
+      <template v-if="printMode === 'work-coordinator'">
+        <div class="guestmaster-section work-coordinator-section">
+          <div class="guestmaster-print-header">
+            <span class="title">Work Coordinator</span>
+            <span class="timestamp">{{ guestmasterPrintTimestamp }}</span>
+          </div>
+          <table class="guestmaster-table work-coordinator-table">
+            <thead>
+              <tr>
+                <th class="th-num">#</th>
+                <th class="th-housing">Housing</th>
+                <th class="th-rm">Room</th>
+                <th class="th-name">Guest Name</th>
+                <th v-if="workCoordinatorColumns.gender" class="th-narrow">G</th>
+                <th v-if="workCoordinatorColumns.age" class="th-narrow">Age</th>
+                <th v-if="workCoordinatorColumns.group" class="th-group">Group</th>
+                <th class="th-date">ARR</th>
+                <th class="th-date">DEP</th>
+                <th v-if="workCoordinatorColumns.notes" class="th-notes">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in workCoordinatorRows" :key="row.guest.id">
+                <td class="td-num">{{ idx + 1 }}</td>
+                <td
+                  class="td-housing"
+                  :style="row.dormColor ? { background: row.dormColorTint } : undefined"
+                >{{ row.housing }}</td>
+                <td class="td-rm">{{ row.roomName }}</td>
+                <td class="td-name">{{ `${row.guest.firstName || ''} ${row.guest.lastName || ''}`.trim() }}</td>
+                <td v-if="workCoordinatorColumns.gender" class="td-narrow">{{ row.guest.gender || '' }}</td>
+                <td v-if="workCoordinatorColumns.age" class="td-narrow">{{ row.guest.age != null ? String(row.guest.age) : '' }}</td>
+                <td v-if="workCoordinatorColumns.group" class="td-group">{{ row.guest.groupName || '' }}</td>
+                <td class="td-date">{{ formatGuestmasterDate(row.guest.arrival) }}</td>
+                <td class="td-date">{{ formatGuestmasterDate(row.guest.departure) }}</td>
+                <td v-if="workCoordinatorColumns.notes" class="td-notes">{{ row.guest.notes || '' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
       <template v-if="printMode === 'nametags'">
       <div class="name-tag-print-section">
         <h3>Name Tags</h3>
@@ -588,8 +664,8 @@ const flatTableMode = ref(false)
 const showCampingCommuter = ref(false)
 // Persist the active print sub-tab across reloads.
 const PRINT_MODE_KEY = 'dormAssignments-printMode'
-type PrintMode = 'dorm' | 'alpha' | 'nametags' | 'guestmaster'
-const VALID_PRINT_MODES: PrintMode[] = ['dorm', 'alpha', 'nametags', 'guestmaster']
+type PrintMode = 'dorm' | 'alpha' | 'nametags' | 'guestmaster' | 'work-coordinator'
+const VALID_PRINT_MODES: PrintMode[] = ['dorm', 'alpha', 'nametags', 'guestmaster', 'work-coordinator']
 
 const _savedPrintMode = localStorage.getItem(PRINT_MODE_KEY) as PrintMode | null
 const printMode = ref<PrintMode>(
@@ -698,6 +774,138 @@ function resetGuestmasterPrefs() {
   guestmasterColumns.group = GUESTMASTER_DEFAULTS.group
   guestmasterShowEmpty.value = GUESTMASTER_DEFAULTS.showEmpty
 }
+
+// ---------- Work Coordinator (sequential roster) ----------
+const WORK_COORDINATOR_PREFS_KEY = 'dormAssignments-workCoordinatorPrefs'
+const WORK_COORDINATOR_DEFAULTS = {
+  gender: true,
+  age: true,
+  group: false,
+  notes: false,
+}
+
+function loadWorkCoordinatorPrefs() {
+  try {
+    const saved = localStorage.getItem(WORK_COORDINATOR_PREFS_KEY)
+    if (!saved) return { ...WORK_COORDINATOR_DEFAULTS }
+    return { ...WORK_COORDINATOR_DEFAULTS, ...JSON.parse(saved) }
+  } catch {
+    return { ...WORK_COORDINATOR_DEFAULTS }
+  }
+}
+
+const _initialWcPrefs = loadWorkCoordinatorPrefs()
+const workCoordinatorColumns = reactive({
+  gender: _initialWcPrefs.gender,
+  age: _initialWcPrefs.age,
+  group: _initialWcPrefs.group,
+  notes: _initialWcPrefs.notes,
+})
+
+watch(
+  () => [
+    workCoordinatorColumns.gender,
+    workCoordinatorColumns.age,
+    workCoordinatorColumns.group,
+    workCoordinatorColumns.notes,
+  ],
+  () => {
+    try {
+      localStorage.setItem(
+        WORK_COORDINATOR_PREFS_KEY,
+        JSON.stringify({
+          gender: workCoordinatorColumns.gender,
+          age: workCoordinatorColumns.age,
+          group: workCoordinatorColumns.group,
+          notes: workCoordinatorColumns.notes,
+        })
+      )
+    } catch {
+      /* localStorage unavailable */
+    }
+  }
+)
+
+function resetWorkCoordinatorPrefs() {
+  workCoordinatorColumns.gender = WORK_COORDINATOR_DEFAULTS.gender
+  workCoordinatorColumns.age = WORK_COORDINATOR_DEFAULTS.age
+  workCoordinatorColumns.group = WORK_COORDINATOR_DEFAULTS.group
+  workCoordinatorColumns.notes = WORK_COORDINATOR_DEFAULTS.notes
+}
+
+interface WorkCoordinatorRow {
+  guest: Guest
+  roomName: string
+  housing: string
+  dormColor?: string
+  dormColorTint?: string
+}
+
+/**
+ * Sort key for gender: Non-binary first, then Female, then Male, then
+ * unknown / blank. Matches the operator's preferred reading order for
+ * dorm assignments.
+ */
+function genderSortRank(g: string | undefined | null): number {
+  const lower = (g || '').toLowerCase().trim()
+  if (!lower) return 4
+  if (lower === 'non-binary' || lower === 'nb' || lower.startsWith('non')) return 0
+  if (lower === 'f' || lower === 'female') return 1
+  if (lower === 'm' || lower === 'male') return 2
+  return 3
+}
+
+const workCoordinatorRows = computed<WorkCoordinatorRow[]>(() => {
+  const rows: WorkCoordinatorRow[] = []
+
+  // Assigned guests (one row per occupied bed)
+  for (const dorm of dormitoryStore.dormitories) {
+    if (!dorm.active) continue
+    const dormColor = dorm.color || '#9ca3af'
+    const dormColorTint = `color-mix(in srgb, ${dormColor} 22%, white)`
+    for (const room of dorm.rooms) {
+      if (!room.active) continue
+      for (const bed of room.beds) {
+        if (bed.active === false) continue
+        const guestId = getPrintGuestIdForBed(bed)
+        if (!guestId) continue
+        if (hasDateFilter.value && !isGuestInDateRange(guestId)) continue
+        const guest = guestStore.getGuestById(guestId)
+        if (!guest) continue
+        rows.push({
+          guest,
+          roomName: room.roomName,
+          housing: guest.housingType || 'Dorm',
+          dormColor,
+          dormColorTint,
+        })
+      }
+    }
+  }
+
+  // Camping & commuter guests (no bed, no dorm color)
+  for (const guest of campingCommuterGuests.value) {
+    rows.push({
+      guest,
+      roomName: '',
+      housing: guest.housingType || '—',
+    })
+  }
+
+  // Sort: gender first, then age (ascending). NaN ages sort to the end.
+  rows.sort((a, b) => {
+    const ga = genderSortRank(a.guest.gender)
+    const gb = genderSortRank(b.guest.gender)
+    if (ga !== gb) return ga - gb
+    const aa = parseInt(String(a.guest.age ?? ''), 10)
+    const ab = parseInt(String(b.guest.age ?? ''), 10)
+    const aaNum = isNaN(aa) ? Infinity : aa
+    const abNum = isNaN(ab) ? Infinity : ab
+    return aaNum - abNum
+  })
+
+  return rows
+})
 
 interface GuestmasterRow {
   bedId: string
@@ -1556,6 +1764,22 @@ function handlePrint() {
   /* No room/bed grid — flat table that spans the full width below the
      two-column bed grid. */
   width: 100%;
+}
+
+/* Work Coordinator: a single full-width sequential roster. */
+.work-coordinator-section {
+  width: 100%;
+}
+
+.work-coordinator-table {
+  width: 100%;
+
+  .th-num, .td-num {
+    width: 4%;
+    text-align: center;
+    color: #6b7280;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @media print {
