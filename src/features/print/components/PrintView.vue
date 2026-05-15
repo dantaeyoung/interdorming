@@ -28,6 +28,9 @@
       <button :class="['sub-tab', { active: printMode === 'nametags' }]" @click="printMode = 'nametags'">
         <span class="sub-tab-label" data-label="Name Tags">Name Tags</span>
       </button>
+      <button :class="['sub-tab', { active: printMode === 'guestmaster' }]" @click="printMode = 'guestmaster'">
+        <span class="sub-tab-label" data-label="Guestmaster">Guestmaster</span>
+      </button>
     </div>
 
     <!-- Print button -->
@@ -68,8 +71,38 @@
       </p>
     </div>
 
+    <!-- Guestmaster options -->
+    <div v-if="printMode === 'guestmaster'" class="display-options no-print">
+      <p class="name-tag-help">
+        Compact two-column layout for hand-checking arrivals. Empty rows
+        are intentional — write in any guests not yet assigned.
+      </p>
+      <div class="checkbox-grid" style="margin-top: 8px">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="guestmasterColumns.beds" />
+          <span>Beds</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="guestmasterColumns.age" />
+          <span>Age</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="guestmasterColumns.gender" />
+          <span>Gender</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="guestmasterColumns.group" />
+          <span>Group</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="guestmasterShowEmpty" />
+          <span>Include empty beds</span>
+        </label>
+      </div>
+    </div>
+
     <!-- Column Selection (dorm and alpha modes) -->
-    <div v-if="printMode !== 'nametags'" class="column-selector no-print">
+    <div v-if="printMode !== 'nametags' && printMode !== 'guestmaster'" class="column-selector no-print">
       <h3>Select Columns to Print</h3>
       <div class="checkbox-grid">
         <label class="checkbox-label">
@@ -139,16 +172,16 @@
       </div>
     </div>
 
-    <div class="print-content">
-      <!-- Header for printed page -->
-      <div class="report-header">
+    <div class="print-content" :class="{ 'guestmaster-mode': printMode === 'guestmaster' }">
+      <!-- Header for printed page (hidden on print in Guestmaster mode) -->
+      <div class="report-header header-printable">
         <h1>Blue Cliff Monastery</h1>
         <h2>Room Assignment Report</h2>
         <p class="report-date">{{ currentDate }}</p>
       </div>
 
-      <!-- Summary Statistics -->
-      <div class="summary-section">
+      <!-- Summary Statistics (hidden on print in Guestmaster mode) -->
+      <div class="summary-section header-printable">
         <h3>Summary</h3>
         <div class="summary-grid">
           <div class="summary-item">
@@ -402,6 +435,55 @@
       </template>
 
       <!-- === NAME TAGS MODE === -->
+      <template v-if="printMode === 'guestmaster'">
+        <div class="guestmaster-section">
+          <!-- Print-only mini-header (visible only on paper) -->
+          <div class="guestmaster-print-header">
+            <span class="title">Guestmaster</span>
+            <span class="timestamp">{{ guestmasterPrintTimestamp }}</span>
+          </div>
+          <div class="guestmaster-grid">
+            <table v-for="(col, colIdx) in guestmasterColumnsSplit" :key="colIdx" class="guestmaster-table">
+              <thead>
+                <tr>
+                  <th class="th-rm">Rm</th>
+                  <th v-if="guestmasterColumns.beds" class="th-bed">Beds</th>
+                  <th class="th-lb">LB?</th>
+                  <th class="th-name">Guest Name</th>
+                  <th v-if="guestmasterColumns.gender" class="th-narrow">G</th>
+                  <th v-if="guestmasterColumns.age" class="th-narrow">Age</th>
+                  <th v-if="guestmasterColumns.group" class="th-group">Group</th>
+                  <th class="th-date">ARR</th>
+                  <th class="th-date">DEP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(group, gIdx) in col" :key="gIdx">
+                  <tr
+                    v-for="(row, rIdx) in group.rows"
+                    :key="row.bedId"
+                    :class="{ 'first-of-room': rIdx === 0, 'last-of-room': rIdx === group.rows.length - 1 }"
+                  >
+                    <td
+                      class="td-rm"
+                      :style="rIdx === 0 ? { background: group.dormColor } : undefined"
+                    >{{ rIdx === 0 ? group.roomName : '' }}</td>
+                    <td v-if="guestmasterColumns.beds" class="td-bed">{{ row.bedLabel }}</td>
+                    <td class="td-lb">{{ row.lowerBunk ? '✓' : '' }}</td>
+                    <td class="td-name">{{ row.guestName }}</td>
+                    <td v-if="guestmasterColumns.gender" class="td-narrow">{{ row.gender }}</td>
+                    <td v-if="guestmasterColumns.age" class="td-narrow">{{ row.age }}</td>
+                    <td v-if="guestmasterColumns.group" class="td-group">{{ row.groupName }}</td>
+                    <td class="td-date">{{ row.arrival }}</td>
+                    <td class="td-date">{{ row.departure }}</td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+
       <template v-if="printMode === 'nametags'">
       <div class="name-tag-print-section">
         <h3>Name Tags</h3>
@@ -432,7 +514,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch, onMounted } from 'vue'
+import { computed, reactive, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Dormitory } from '@/types'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 import { useUtils, parseLocalDate, formatGuestDate } from '@/shared/composables/useUtils'
@@ -469,8 +551,192 @@ const columns = reactive({
 const showOnlyAssignedBeds = ref(false)
 const flatTableMode = ref(false)
 const showCampingCommuter = ref(false)
-const printMode = ref<'dorm' | 'alpha' | 'nametags'>('dorm')
+// Persist the active print sub-tab across reloads.
+const PRINT_MODE_KEY = 'dormAssignments-printMode'
+type PrintMode = 'dorm' | 'alpha' | 'nametags' | 'guestmaster'
+const VALID_PRINT_MODES: PrintMode[] = ['dorm', 'alpha', 'nametags', 'guestmaster']
+
+const _savedPrintMode = localStorage.getItem(PRINT_MODE_KEY) as PrintMode | null
+const printMode = ref<PrintMode>(
+  _savedPrintMode && VALID_PRINT_MODES.includes(_savedPrintMode) ? _savedPrintMode : 'dorm'
+)
+watch(printMode, value => {
+  localStorage.setItem(PRINT_MODE_KEY, value)
+})
+
+/**
+ * Hint the print engine to default to landscape orientation when the
+ * Guestmaster compact view is active. `@page` can't live inside a scoped
+ * style block, so we inject/remove a global <style> element keyed off
+ * `printMode`. Browsers generally honor `@page { size: landscape }` by
+ * pre-selecting landscape in the print dialog.
+ */
+const PRINT_ORIENTATION_STYLE_ID = 'guestmaster-page-landscape'
+
+function applyGuestmasterPrintOrientation(mode: PrintMode) {
+  const existing = document.getElementById(PRINT_ORIENTATION_STYLE_ID)
+  if (mode === 'guestmaster') {
+    if (existing) return
+    const style = document.createElement('style')
+    style.id = PRINT_ORIENTATION_STYLE_ID
+    style.textContent = '@page { size: landscape; margin: 0.4in; }'
+    document.head.appendChild(style)
+  } else if (existing) {
+    existing.remove()
+  }
+}
+
+watch(printMode, applyGuestmasterPrintOrientation, { immediate: true })
+
+onBeforeUnmount(() => {
+  // Don't leak the global @page rule when the operator leaves the Print tab.
+  const existing = document.getElementById(PRINT_ORIENTATION_STYLE_ID)
+  if (existing) existing.remove()
+})
+
 const alphabeticalSortBy = ref<'first' | 'last'>('last')
+
+// Guestmaster compact view options
+const guestmasterColumns = reactive({
+  beds: true,
+  age: true,
+  gender: false,
+  group: false,
+})
+const guestmasterShowEmpty = ref(true)
+
+interface GuestmasterRow {
+  bedId: string
+  bedLabel: string
+  lowerBunk: boolean
+  guestName: string
+  gender: string
+  age: string
+  groupName: string
+  arrival: string
+  departure: string
+  notes: string
+}
+
+interface GuestmasterRoomGroup {
+  dormName: string
+  dormColor: string
+  roomName: string
+  rows: GuestmasterRow[]
+}
+
+const guestmasterColumnCount = computed(() => {
+  // Rm, LB?, Name, Arrive, Depart = 5 base
+  let n = 5
+  if (guestmasterColumns.beds) n++
+  if (guestmasterColumns.gender) n++
+  if (guestmasterColumns.age) n++
+  if (guestmasterColumns.group) n++
+  return n
+})
+
+/** Format a date as "Mon DD" (no year) for the compact guestmaster view. */
+function formatGuestmasterDate(value: string | null | undefined): string {
+  if (!value) return ''
+  const formatted = formatGuestDate(value)
+  // formatGuestDate returns "Month DD, YYYY" — strip "Month name" → "Mon" and drop year.
+  const m = formatted.match(/^([A-Za-z]+)\s+(\d{1,2}),\s*\d{4}$/)
+  if (m) {
+    const monthShort = m[1].slice(0, 3)
+    return `${monthShort} ${m[2]}`
+  }
+  return formatted
+}
+
+/**
+ * Live-updating timestamp for the print header. Resampled when the
+ * operator opens the print dialog (the browser captures it at that
+ * moment via window.onbeforeprint). For simplicity we just compute it
+ * fresh on every render of the Guestmaster view — by the time the
+ * print dialog opens, the value reflects the moment of preview.
+ */
+const guestmasterPrintTimestamp = computed(() => {
+  const now = new Date()
+  return now.toLocaleString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+})
+
+function bedTypeSuffix(bedType: string): string {
+  if (bedType === 'lower') return 'L'
+  if (bedType === 'upper') return 'U'
+  if (bedType === 'single') return ''
+  return ''
+}
+
+const guestmasterRoomGroups = computed((): GuestmasterRoomGroup[] => {
+  const groups: GuestmasterRoomGroup[] = []
+  for (const dorm of dormitoryStore.dormitories) {
+    if (!dorm.active) continue
+    const dormColor = (dorm.color || '#f3f4f6') + '80' // 50% alpha for softer fill
+    for (const room of dorm.rooms) {
+      if (!room.active) continue
+      const rows: GuestmasterRow[] = []
+      for (const bed of room.beds) {
+        if (bed.active === false) continue
+        const guestId = getPrintGuestIdForBed(bed)
+        const guest = guestId ? guestStore.getGuestById(guestId) : null
+        if (!guestmasterShowEmpty.value && !guest) continue
+        if (hasDateFilter.value && guestId && !isGuestInDateRange(guestId)) continue
+        const suffix = bedTypeSuffix(bed.bedType)
+        const bedLabel = `${bed.position}${suffix ? suffix : ''}`
+        rows.push({
+          bedId: bed.bedId,
+          bedLabel: bed.bedType === 'single' ? `${bed.position}/Single` : bedLabel,
+          lowerBunk: !!guest?.lowerBunk,
+          guestName: guest ? `${guest.firstName || ''} ${guest.lastName || ''}`.trim() : '',
+          gender: guest?.gender || '',
+          age: guest?.age != null ? String(guest.age) : '',
+          groupName: guest?.groupName || '',
+          arrival: guest ? formatGuestmasterDate(guest.arrival) : '',
+          departure: guest ? formatGuestmasterDate(guest.departure) : '',
+          notes: guest?.notes || '',
+        })
+      }
+      if (rows.length === 0) continue
+      groups.push({
+        dormName: dorm.dormitoryName,
+        dormColor,
+        roomName: room.roomName,
+        rows,
+      })
+    }
+  }
+  return groups
+})
+
+/**
+ * Split the room groups into two roughly equal columns by total row count.
+ * Greedy split keeps room blocks intact.
+ */
+const guestmasterColumnsSplit = computed((): GuestmasterRoomGroup[][] => {
+  const groups = guestmasterRoomGroups.value
+  if (groups.length === 0) return [[], []]
+  const totalRows = groups.reduce((sum, g) => sum + g.rows.length, 0)
+  const target = totalRows / 2
+  const left: GuestmasterRoomGroup[] = []
+  const right: GuestmasterRoomGroup[] = []
+  let leftCount = 0
+  for (const g of groups) {
+    if (leftCount < target) {
+      left.push(g)
+      leftCount += g.rows.length
+    } else {
+      right.push(g)
+    }
+  }
+  return [left, right]
+})
 
 const alphabeticalGuests = computed(() => {
   let guests = [...guestStore.guests]
@@ -1055,6 +1321,112 @@ function handlePrint() {
     color: #1f2937;
     padding-bottom: 8px;
     border-bottom: 2px solid #8b5cf6;
+  }
+}
+
+/* ----- Guestmaster compact view ----- */
+.guestmaster-section {
+  width: 100%;
+}
+
+/* Print-only mini-header above the table */
+.guestmaster-print-header {
+  display: none;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding: 0 2px;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  .title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .timestamp {
+    font-size: 0.65rem;
+    color: #4b5563;
+  }
+}
+
+.guestmaster-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.guestmaster-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.65rem;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  table-layout: fixed;
+  /* Force browsers to print background colors (the dorm-color tags on
+     room-name cells). Without this, Chrome/Safari strip backgrounds. */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+
+  th, td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  th, td {
+    border: 1px solid #1f2937;
+    padding: 0 4px;
+    text-align: left;
+    vertical-align: middle;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    line-height: 1;
+    /* Uniform row height across the entire table */
+    height: 18px;
+  }
+
+  thead th {
+    background: #f3f4f6;
+    font-weight: 700;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    color: #1f2937;
+    height: 22px;
+  }
+
+  .th-rm, .td-rm       { width: 16%; font-weight: 600; }
+  .th-bed, .td-bed     { width: 9%; text-align: center; }
+  .th-lb, .td-lb       { width: 5%; text-align: center; }
+  .th-name, .td-name   { width: 32%; }
+  .th-narrow, .td-narrow { width: 5%; text-align: center; }
+  .th-group, .td-group { width: 12%; }
+  .th-date, .td-date   { width: 6%; text-align: center; font-size: 0.6rem; padding: 0 2px; }
+
+  /* Thicker bottom border marks the end of each room block */
+  tr.last-of-room td {
+    border-bottom: 2px solid #1f2937;
+  }
+}
+
+@media print {
+  .guestmaster-grid {
+    gap: 12px;
+  }
+  .guestmaster-table {
+    font-size: 0.55rem;
+    th, td { padding: 1px 3px; }
+    thead th { font-size: 0.5rem; padding: 2px 3px; }
+  }
+  /* In Guestmaster mode, hide the report header + summary so only the
+     table prints. The headers stay visible on screen — operators still
+     see them when reviewing before printing. */
+  .print-content.guestmaster-mode .header-printable {
+    display: none !important;
+  }
+  /* Show the print-only mini-header on paper */
+  .guestmaster-print-header {
+    display: flex !important;
   }
 }
 

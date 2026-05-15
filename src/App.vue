@@ -1303,6 +1303,7 @@ function stopResize() {
   }
 
   .header,
+  .tabs,
   .tab-bar,
   .floating-action-bar,
   .combined-toolbar {
