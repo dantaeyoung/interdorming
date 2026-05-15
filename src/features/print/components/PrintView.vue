@@ -86,6 +86,10 @@
           <span>Beds</span>
         </label>
         <label class="checkbox-label">
+          <input type="checkbox" v-model="guestmasterColumns.lb" />
+          <span>LB?</span>
+        </label>
+        <label class="checkbox-label">
           <input type="checkbox" v-model="guestmasterColumns.age" />
           <span>Age</span>
         </label>
@@ -484,7 +488,7 @@
                 <tr>
                   <th class="th-rm">Rm</th>
                   <th v-if="guestmasterColumns.beds" class="th-bed">Beds</th>
-                  <th class="th-lb">LB?</th>
+                  <th v-if="guestmasterColumns.lb" class="th-lb">LB?</th>
                   <th class="th-name">Guest Name</th>
                   <th v-if="guestmasterColumns.gender" class="th-narrow">G</th>
                   <th v-if="guestmasterColumns.age" class="th-narrow">Age</th>
@@ -505,7 +509,7 @@
                       :style="rIdx === 0 ? { background: group.dormColor } : undefined"
                     >{{ rIdx === 0 ? group.roomName : '' }}</td>
                     <td v-if="guestmasterColumns.beds" class="td-bed">{{ row.bedLabel }}</td>
-                    <td class="td-lb">{{ row.lowerBunk ? '✓' : '' }}</td>
+                    <td v-if="guestmasterColumns.lb" class="td-lb">{{ row.lowerBunk ? '✓' : '' }}</td>
                     <td class="td-name">{{ row.guestName }}</td>
                     <td v-if="guestmasterColumns.gender" class="td-narrow">{{ row.gender }}</td>
                     <td v-if="guestmasterColumns.age" class="td-narrow">{{ row.age }}</td>
@@ -727,7 +731,8 @@ const alphabeticalSortBy = ref<'first' | 'last'>('last')
 // overrides in localStorage so the choice survives reloads.
 const GUESTMASTER_PREFS_KEY = 'dormAssignments-guestmasterPrefs'
 const GUESTMASTER_DEFAULTS = {
-  beds: true,
+  beds: false,
+  lb: true,
   age: false,
   gender: false,
   group: false,
@@ -748,6 +753,7 @@ function loadGuestmasterPrefs() {
 const _initialPrefs = loadGuestmasterPrefs()
 const guestmasterColumns = reactive({
   beds: _initialPrefs.beds,
+  lb: _initialPrefs.lb,
   age: _initialPrefs.age,
   gender: _initialPrefs.gender,
   group: _initialPrefs.group,
@@ -760,6 +766,7 @@ function saveGuestmasterPrefs() {
       GUESTMASTER_PREFS_KEY,
       JSON.stringify({
         beds: guestmasterColumns.beds,
+        lb: guestmasterColumns.lb,
         age: guestmasterColumns.age,
         gender: guestmasterColumns.gender,
         group: guestmasterColumns.group,
@@ -774,6 +781,7 @@ function saveGuestmasterPrefs() {
 watch(
   () => [
     guestmasterColumns.beds,
+    guestmasterColumns.lb,
     guestmasterColumns.age,
     guestmasterColumns.gender,
     guestmasterColumns.group,
@@ -784,6 +792,7 @@ watch(
 
 function resetGuestmasterPrefs() {
   guestmasterColumns.beds = GUESTMASTER_DEFAULTS.beds
+  guestmasterColumns.lb = GUESTMASTER_DEFAULTS.lb
   guestmasterColumns.age = GUESTMASTER_DEFAULTS.age
   guestmasterColumns.gender = GUESTMASTER_DEFAULTS.gender
   guestmasterColumns.group = GUESTMASTER_DEFAULTS.group
@@ -943,9 +952,10 @@ interface GuestmasterRoomGroup {
 }
 
 const guestmasterColumnCount = computed(() => {
-  // Rm, LB?, Name, Arrive, Depart = 5 base
-  let n = 5
+  // Rm, Name, Arrive, Depart = 4 base
+  let n = 4
   if (guestmasterColumns.beds) n++
+  if (guestmasterColumns.lb) n++
   if (guestmasterColumns.gender) n++
   if (guestmasterColumns.age) n++
   if (guestmasterColumns.group) n++
@@ -1788,12 +1798,41 @@ function handlePrint() {
 
 .work-coordinator-table {
   width: 100%;
+  /* Override the parent's \`table-layout: fixed\`. The Guestmaster grid
+     has a known set of beds and a tight fixed layout works there, but
+     Work Coordinator has many optional columns that exceed 100% when
+     all are toggled on — fixed layout would push the rightmost column
+     (Internal Notes) off the page. Auto layout sizes each column by
+     its content and never overflows. */
+  table-layout: auto;
+
+  /* Allow long values (group name, internal notes) to wrap so nothing
+     ever gets clipped or pushed off the right edge. */
+  th, td {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word;
+  }
 
   .th-num, .td-num {
-    width: 4%;
+    width: auto;
     text-align: center;
     color: #6b7280;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap !important;
+  }
+
+  .td-narrow,
+  .td-date {
+    white-space: nowrap !important;
+  }
+
+  /* Internal notes column is the largest text consumer — let it eat
+     leftover horizontal space. */
+  .th-notes, .td-notes {
+    width: auto;
+    min-width: 100px;
   }
 }
 
