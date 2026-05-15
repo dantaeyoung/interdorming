@@ -158,7 +158,7 @@
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="checkInSlipsColumns.lowerBunk" />
-          <span>Lower bunk requested?</span>
+          <span>Requested lower bunk?</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="checkInSlipsColumns.arrival" />
@@ -660,9 +660,9 @@
                   <th v-if="checkInSlipsColumns.housing" class="slip-col-housing">Housing</th>
                   <th class="slip-col-first">First Name</th>
                   <th class="slip-col-last">Last Name</th>
-                  <th v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">Lower bunk requested?</th>
-                  <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arr</th>
-                  <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Dep</th>
+                  <th v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">Requested lower bunk?</th>
+                  <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arrival</th>
+                  <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Depart</th>
                   <th v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">Notes</th>
                 </tr>
               </thead>
@@ -671,7 +671,7 @@
                   <td v-if="checkInSlipsColumns.housing" class="slip-col-housing">{{ row.housingDisplay }}</td>
                   <td class="slip-col-first">{{ row.guest.firstName || '' }}</td>
                   <td class="slip-col-last">{{ row.guest.lastName || '' }}</td>
-                  <td v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">{{ row.guest.lowerBunk ? 'Yes' : '' }}</td>
+                  <td v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">{{ row.guest.lowerBunk ? 'Yes' : 'No' }}</td>
                   <td v-if="checkInSlipsColumns.arrival" class="slip-col-arr">{{ formatGuestmasterDate(row.guest.arrival) || '' }}</td>
                   <td v-if="checkInSlipsColumns.departure" class="slip-col-dep">{{ formatGuestmasterDate(row.guest.departure) || '' }}</td>
                   <td v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">{{ row.guest.internalNotes || '' }}</td>
@@ -2091,12 +2091,12 @@ function handlePrint() {
      signatures or notes in those columns. LB?, Arrival, Departure
      squeezed narrow. Internal Notes takes the right edge. */
   .slip-col-housing  { width: 14%; }
-  .slip-col-first    { width: 19%; }
-  .slip-col-last     { width: 19%; }
-  .slip-col-lb       { width: 9%; }
+  .slip-col-first    { width: 18%; }
+  .slip-col-last     { width: 18%; }
+  .slip-col-lb       { width: 12%; }
   .slip-col-arr      { width: 9%; }
   .slip-col-dep      { width: 9%; }
-  .slip-col-internal { width: 21%; }
+  .slip-col-internal { width: 20%; }
 
   /* Header labels are smaller than the data and wrap on word
      boundaries (not mid-word) so 'INTERNAL NOTES' becomes 'INTERNAL'
