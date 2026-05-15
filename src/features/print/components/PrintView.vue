@@ -2071,9 +2071,9 @@ function handlePrint() {
 .checkin-slip {
   /* Full-page width for cutting; tall enough to write notes by hand
      during check-in. Each slip stays as one piece across page breaks.
-     No vertical margin between slips on screen OR on paper — so the
-     stack reads as one continuous sheet ready for the cutter. */
-  margin-bottom: 0;
+     A small gap separates slips so the operator's paper cutter has
+     a clean strip to align against. */
+  margin-bottom: 0.08in;
   page-break-inside: avoid;
   break-inside: avoid;
 }
@@ -2136,12 +2136,24 @@ function handlePrint() {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     color: #000;
+    /* Header row: hard-locked so every slip's header is exactly the
+       same height, even if a column label wraps to two lines. The
+       operator stacks pages and slices with a paper cutter — any
+       variance throws the alignment off. */
+    height: 0.32in;
+    max-height: 0.32in;
+    overflow: hidden;
   }
 
   tbody td {
-    /* The data row is the writable area. ~1.5in tall so there's space
-       for hand-written check-in notes on each slip. */
+    /* The data row is the writable area. ~1.5in tall on screen so
+       there's space for hand-written check-in notes on each slip.
+       Locked with max-height + overflow:hidden so wrapped values
+       (long internal notes, long names) can't push the row taller
+       and break the cutter alignment. */
     height: 1.5in;
+    max-height: 1.5in;
+    overflow: hidden;
     font-size: 1rem;
     font-weight: 500;
     color: #1f2937;
@@ -2261,15 +2273,23 @@ function handlePrint() {
     display: none !important;
   }
 
-  /* Check-in Slips on paper: shrink each writable row to ~0.75in
-     (50% of the on-screen 1.5in) and remove inter-slip margin so
-     the slips stack flush. Keeps page-break-inside avoided so
-     individual slips never split. */
+  /* Check-in Slips on paper: each slip is exactly the same height
+     so the operator can stack the printed pages and slice with a
+     paper cutter. Small inter-slip gap (~0.08in) gives the cutter
+     a clean strip to align against. Heights are hard-locked with
+     max-height so wrapped content can never push them taller. */
   .checkin-slip {
-    margin-bottom: 0 !important;
+    margin-bottom: 0.08in !important;
+  }
+  .checkin-slip-table thead th {
+    height: 0.28in !important;
+    max-height: 0.28in !important;
+    overflow: hidden !important;
   }
   .checkin-slip-table tbody td {
     height: 0.75in !important;
+    max-height: 0.75in !important;
+    overflow: hidden !important;
   }
 
   /* Work Coordinator print override: keep all text the same size
