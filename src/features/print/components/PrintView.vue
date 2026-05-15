@@ -2333,29 +2333,50 @@ function handlePrint() {
     display: none !important;
   }
 
-  /* Check-in Slips on paper: each slip is exactly the same height,
-     no inter-slip gap — slips stack flush so the operator slices
-     them apart with a paper cutter against the row borders.
-     Sized for 7 slips per portrait letter page (~10in usable / 7
-     ≈ 1.4in each). Each row height locks per logical row of the
-     rowspan layout. */
+  /* Check-in Slips on paper: 7 slips per portrait letter page.
+     US Letter portrait usable height (after the 0.4in @page margins)
+     is ~10.2in → ~1.45in per slip max. The previous row heights
+     summed to 1.35in but the actual rendered slips were ~2in due
+     to padding, line-height, and content auto-height ignoring the
+     \`height\` on <tr>. Lock the slip's TOTAL size via the table
+     itself (height + max-height) AND aggressively trim padding /
+     line-height inside cells so 7 fit. */
   .checkin-slip {
     margin-bottom: 0 !important;
+    height: 1.4in !important;
+    max-height: 1.4in !important;
+    overflow: hidden !important;
   }
-  .checkin-slip-table tbody tr:nth-child(1) {
-    height: 0.30in !important;
+  .checkin-slip-table {
+    height: 1.4in !important;
+    max-height: 1.4in !important;
   }
-  .checkin-slip-table tbody tr:nth-child(2) {
-    height: 0.40in !important;
+  .checkin-slip-table th,
+  .checkin-slip-table td {
+    padding: 1px 4px !important;
+    line-height: 1 !important;
   }
-  .checkin-slip-table tbody tr:nth-child(3) {
-    height: 0.25in !important;
-  }
-  .checkin-slip-table tbody tr:nth-child(4) {
-    height: 0.40in !important;
+  .checkin-slip-table thead th,
+  .checkin-slip-table th {
+    font-size: 0.55rem !important;
+    line-height: 1 !important;
   }
   .checkin-slip-table .slip-cell-value {
+    font-size: 0.9rem !important;
+    line-height: 1.1 !important;
     overflow: hidden !important;
+  }
+  .checkin-slip-table tbody tr:nth-child(1) {
+    height: 0.22in !important;
+  }
+  .checkin-slip-table tbody tr:nth-child(2) {
+    height: 0.42in !important;
+  }
+  .checkin-slip-table tbody tr:nth-child(3) {
+    height: 0.20in !important;
+  }
+  .checkin-slip-table tbody tr:nth-child(4) {
+    height: 0.42in !important;
   }
 
   /* Work Coordinator print override: keep all text the same size
