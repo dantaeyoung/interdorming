@@ -74,31 +74,33 @@ function handleDismiss() {
 .hint-toast {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 1px 8px;
+  height: 22px;
   background: #ecfdf5;
   border: 1px solid #6ee7b7;
-  border-radius: 8px;
-  margin-left: 12px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-size: 0.75rem;
 }
 
 .hint-content {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex: 1;
 }
 
 .hint-icon {
-  font-size: 1.1rem;
+  font-size: 0.85rem;
   flex-shrink: 0;
 }
 
 .hint-message {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #065f46;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1;
 
   &.has-tooltip {
     text-decoration: underline dotted;
@@ -111,9 +113,9 @@ function handleDismiss() {
   background: none;
   border: none;
   color: #9ca3af;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 0 4px;
   line-height: 1;
   border-radius: 4px;
   flex-shrink: 0;

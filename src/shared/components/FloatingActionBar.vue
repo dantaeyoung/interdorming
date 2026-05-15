@@ -1,64 +1,58 @@
 <template>
-  <Teleport to="body">
+  <div
+    class="floating-action-bar"
+    :class="{ highlighted: highlightedElement === 'floating-action-bar' }"
+    data-hint-target="floating-action-bar"
+  >
     <div
-      class="floating-action-bar"
-      :class="{ highlighted: highlightedElement === 'floating-action-bar' }"
-      data-hint-target="floating-action-bar"
+      class="action-group"
+      :class="{ highlighted: highlightedElement === 'undo-redo-btns' }"
+      data-hint-target="undo-redo-btns"
     >
-      <div
-        class="action-group"
-        :class="{ highlighted: highlightedElement === 'undo-redo-btns' }"
-        data-hint-target="undo-redo-btns"
+      <button
+        class="action-btn"
+        :disabled="!canUndo"
+        @click="$emit('undo')"
+        title="Undo last action"
       >
-        <button
-          class="action-btn"
-          :disabled="!canUndo"
-          @click="$emit('undo')"
-          title="Undo last action"
-        >
-          <span class="btn-icon">↩</span>
-          <span class="btn-label">Undo</span>
-        </button>
-        <button
-          class="action-btn"
-          :disabled="!canRedo"
-          @click="$emit('redo')"
-          title="Redo last undone action"
-        >
-          <span class="btn-icon">↪</span>
-          <span class="btn-label">Redo</span>
-        </button>
-      </div>
-
-      <div class="action-divider"></div>
-
-      <div class="action-group suggestions-group" v-if="hasSuggestions">
-        <button
-          class="action-btn btn-success"
-          @click="$emit('accept-all')"
-          title="Accept all suggested placements"
-        >
-          <span class="btn-icon">✓</span>
-          <span class="btn-label">Accept All Suggestions ({{ suggestionCount }})</span>
-        </button>
-        <button
-          class="action-btn btn-secondary"
-          @click="$emit('clear-suggestions')"
-          title="Clear all suggestions"
-        >
-          <span class="btn-icon">✕</span>
-          <span class="btn-label">Clear All Suggestions</span>
-        </button>
-        <span
-          v-if="unplaceableGroupCount > 0"
-          class="unplaceable-warning"
-          :title="unplaceableGroupDetails"
-        >
-          {{ unplaceableGroupCount }} group{{ unplaceableGroupCount > 1 ? 's' : '' }} couldn't be placed
-        </span>
-      </div>
+        <span class="btn-icon">↩</span>
+      </button>
+      <button
+        class="action-btn"
+        :disabled="!canRedo"
+        @click="$emit('redo')"
+        title="Redo last undone action"
+      >
+        <span class="btn-icon">↪</span>
+      </button>
     </div>
-  </Teleport>
+
+    <div class="action-group suggestions-group" v-if="hasSuggestions">
+      <div class="action-divider"></div>
+      <button
+        class="action-btn btn-success"
+        @click="$emit('accept-all')"
+        title="Accept all suggested placements"
+      >
+        <span class="btn-icon">✓</span>
+        <span class="btn-label">Accept All ({{ suggestionCount }})</span>
+      </button>
+      <button
+        class="action-btn btn-secondary"
+        @click="$emit('clear-suggestions')"
+        title="Clear all suggestions"
+      >
+        <span class="btn-icon">✕</span>
+      </button>
+      <span
+        v-if="unplaceableGroupCount > 0"
+        class="unplaceable-warning"
+        :title="unplaceableGroupDetails"
+      >
+        {{ unplaceableGroupCount }} unplaced
+      </span>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -92,22 +86,13 @@ const unplaceableGroupDetails = computed(() =>
 
 <style scoped lang="scss">
 .floating-action-bar {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.98);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  z-index: 1000;
-  backdrop-filter: blur(8px);
+  gap: 4px;
 
   &.highlighted {
     animation: hint-pulse 1.5s ease-in-out infinite;
+    border-radius: 6px;
   }
 }
 
@@ -158,33 +143,31 @@ const unplaceableGroupDetails = computed(() =>
 
 .action-divider {
   width: 1px;
-  height: 24px;
+  height: 16px;
   background-color: #e5e7eb;
-  margin: 0 4px;
+  margin: 0 2px;
 }
 
 .action-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 4px;
+  padding: 2px 7px;
+  height: 22px;
   border: 1px solid #d1d5db;
-  border-radius: 8px;
+  border-radius: 4px;
   background: white;
   color: #374151;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   white-space: nowrap;
+  line-height: 1;
 
   &:hover:not(:disabled) {
     background: #f9fafb;
     border-color: #9ca3af;
-  }
-
-  &:active:not(:disabled) {
-    transform: scale(0.98);
   }
 
   &:disabled {
@@ -193,13 +176,7 @@ const unplaceableGroupDetails = computed(() =>
   }
 
   .btn-icon {
-    font-size: 1rem;
-  }
-
-  .btn-label {
-    @media (max-width: 768px) {
-      display: none;
-    }
+    font-size: 0.85rem;
   }
 }
 
@@ -237,14 +214,15 @@ const unplaceableGroupDetails = computed(() =>
 .unplaceable-warning {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 2px 8px;
   background: #fef3c7;
   border: 1px solid #f59e0b;
-  border-radius: 6px;
+  border-radius: 4px;
   color: #92400e;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 500;
   white-space: nowrap;
   cursor: help;
+  line-height: 1.2;
 }
 </style>

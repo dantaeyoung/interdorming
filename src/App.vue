@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260515-00:11</span>
+          <span class="version-tag">v260515-00:14</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -25,6 +25,14 @@
             {{ statusMessage }}
           </div>
         </Transition>
+        <FloatingActionBar
+          v-if="activeTab === 'assignment' || activeTab === 'timeline'"
+          @undo="handleUndo"
+          @redo="handleRedo"
+          @reset-assignments="handleResetAssignments"
+          @accept-all="handleAcceptAll"
+          @clear-suggestions="handleClearSuggestions"
+        />
         <!-- <AssignmentStats class="header-stats" data-tour="header-stats" /> -->
       </div>
     </div>
@@ -248,16 +256,6 @@
     <SortConfigModal
       :show="showSortModal"
       @close="showSortModal = false"
-    />
-
-    <!-- Floating Action Bar - visible on Table View and Timeline View -->
-    <FloatingActionBar
-      v-if="activeTab === 'assignment' || activeTab === 'timeline'"
-      @undo="handleUndo"
-      @redo="handleRedo"
-      @reset-assignments="handleResetAssignments"
-      @accept-all="handleAcceptAll"
-      @clear-suggestions="handleClearSuggestions"
     />
 
     <!-- Global overlap-confirmation dialog: any drop site that detects an
