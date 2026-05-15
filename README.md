@@ -1,6 +1,6 @@
-# Interdorming: a Dorm Assignment Tool
+# Interdorming: a retreat management tool
 
-_Interdorming_ is a web-based retreat assignment tool for Blue Cliff Monastery, a Zen Buddhist monastery in the Plum Village tradition, founded by Thích Nhất Hạnh in 2013.
+_Interdorming_ is a web-based retreat management tool for Blue Cliff Monastery, a Zen Buddhist monastery in the Plum Village tradition, founded by Thích Nhất Hạnh in 2013.
 
 During retreats, guests will stay at the monastery in dorms, with a variety of constraints: groups, requirements, requests. The intentional of the tool is to streamline the process of assigning guests to dorms in order to facilitate a more meaningful and mindful retreat for the guest, and to make the role of the monastery and the registrar’s role easier.
 
