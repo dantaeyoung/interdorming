@@ -1323,9 +1323,35 @@ const alphabeticalGuests = computed(() => {
   })
 })
 
-// Date range filter
-const filterDateStart = ref('')
-const filterDateEnd = ref('')
+// Date range filter — persisted across reloads so the operator doesn't
+// re-pick "May 22 to May 29" every time they reopen the Print tab.
+const PRINT_DATE_RANGE_KEY = 'dormAssignments-printDateRange'
+const _savedPrintDateRange = (() => {
+  try {
+    const raw = localStorage.getItem(PRINT_DATE_RANGE_KEY)
+    if (!raw) return { start: '', end: '' }
+    const parsed = JSON.parse(raw)
+    return {
+      start: typeof parsed?.start === 'string' ? parsed.start : '',
+      end: typeof parsed?.end === 'string' ? parsed.end : '',
+    }
+  } catch {
+    return { start: '', end: '' }
+  }
+})()
+const filterDateStart = ref(_savedPrintDateRange.start)
+const filterDateEnd = ref(_savedPrintDateRange.end)
+
+watch([filterDateStart, filterDateEnd], ([start, end]) => {
+  try {
+    localStorage.setItem(
+      PRINT_DATE_RANGE_KEY,
+      JSON.stringify({ start, end })
+    )
+  } catch {
+    /* localStorage unavailable — ignore */
+  }
+})
 
 function isGuestInDateRange(guestId: string | null): boolean {
   if (!guestId) return false
