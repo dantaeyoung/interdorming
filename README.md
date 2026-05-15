@@ -8,12 +8,18 @@ A web application for streamlining the assignment of 60-80 retreat guests to dor
 
 ### Guest Assignment
 - **CSV Import/Export**: Upload guest data from CSV files with flexible column mapping (auto-skips preamble/metadata lines)
+- **Status-aware import**: Only `Reserved` and `Reserved + Email address verified + confirmed` reservations are imported. Cancellations (any status containing `cancel`) and incomplete bookings are filtered out automatically.
+- **Planyo ID matching**: On re-upload, guests are matched by Planyo `ID` (not name), so the same person across multiple retreats doesn't collide. Cancellations and date changes are detected and surfaced in a single import-summary dialog.
 - **Drag & Drop Interface**: Intuitive drag-and-drop to assign guests to beds
 - **Click-to-Pick Assignment**: Alternative click-based pickup/drop/swap for touch devices or accessibility
+- **Date-Aware Bed Sharing**: A bed can hold multiple guests across different cohorts as long as their stays don't overlap. Conflicting drops trigger a confirmation dialog instead of silently kicking the original guest out.
 - **Search & Filter**: Quickly find guests in the unassigned list
-- **Auto-Place**: Automatically assign unassigned guests to compatible beds
+- **View Date Filter**: In Table View, scope the bed slots to a specific date so multi-assignment beds resolve to one current guest. ‹/›/«/» step the filter ±1 day or ±7 days; persisted across reloads.
+- **Auto-Place**: Automatically assign unassigned guests to compatible beds (date-aware — places March guests onto beds April guests already hold)
 - **Undo Functionality**: Revert the last 10 assignment actions
+- **Internal Notes**: Operator-only notes per guest, separate from the CSV `notes` field. Never overwritten by CSV re-imports. Hover the 📝 icon on a row or bed slot to view (dark-purple dot = internal notes exist).
 - **Visual Warnings**: Automatic validation alerts for:
+  - **Date overlap** (two assignments on the same bed whose stays collide)
   - Gender mismatches (wrong gender for room)
   - Bunk accessibility issues (upper bunk for guests requiring lower)
   - Family separation (same group in different rooms)
@@ -22,13 +28,27 @@ A web application for streamlining the assignment of 60-80 retreat guests to dor
 ### Timeline View
 - **Visual Timeline**: See guest arrivals and departures on a scrollable timeline
 - **Overlap Detection**: Identify scheduling conflicts at a glance
+- **Date-aware drag-drop**: same overlap-confirmation flow as Table View
 
 ### Room Configuration
 - **Multi-Dormitory Support**: Organize rooms across multiple dormitory buildings
 - **Visual Room Management**: Configure room names, genders (M/F/Coed), and bed layouts
 - **Bed Configuration**: Set bed types (upper/lower/single) for each room
 - **Color Coding**: Assign colors to dormitories for visual organization
+- **Reorder Dormitories**: ▲/▼ buttons with smooth slide animation
+- **Multiple Layouts**: Save / switch between named room layout presets
 - **Import/Export**: Save and load room configurations via CSV
+
+### Print Views
+The Print tab has six sub-tabs, each remembering its own column toggles in localStorage:
+- **List by Dorm** — full guest list grouped by dorm/room
+- **List by A-Z** — alphabetical roster
+- **Name Tags** — exportable name-tag CSV
+- **Guestmaster** — compact two-column bed grid for hand-checking arrivals (landscape)
+- **Work Coordinator** — sequential roster sorted by gender (Non-binary → Female → Male) then age (portrait)
+- **Check-in Slips** — one slip per guest, sized for paper-cutter slicing (7 slips per portrait page, uniform row heights, last-name highlighted yellow)
+
+All print views skip cancelled and unassigned-without-housing guests so the printed sheets only carry actual arrivals.
 
 ### Display & Settings
 - **Age Histograms**: Visual age distribution charts for each room (optional)
@@ -36,13 +56,14 @@ A web application for streamlining the assignment of 60-80 retreat guests to dor
 - **Configurable Gender Colors**: Customize color-coding for gender display
 - **Customizable Warnings**: Toggle specific validation warnings on/off
 - **Contextual Hints & Guided Tour**: Built-in onboarding hints and interactive tour
-- **Print View**: Print-friendly layout for physical reference
+- **Cancelled-guest treatment**: Cancelled reservations stay in the data, faded with line-through, and sort to the bottom of the unassigned list. The operator decides when to unassign their bed.
 - **Responsive Design**: Works on desktop and tablet devices
 
 ### Data Persistence
-- **Browser Storage**: All data automatically saved to localStorage via Pinia persisted state
+- **Browser Storage**: All data automatically saved to localStorage via Pinia persisted state. View Date filter, print sub-tab choice, and per-sub-tab column toggles all survive reloads.
 - **No Server Required**: Fully client-side application
-- **Data Migration**: Automatic version detection and data structure migration
+- **Data Migration**: Automatic version detection and data structure migration. The bed-shape migration (legacy single `assignedGuestId` → multi `assignments[]`) runs on first load.
+- **Backup & Restore**: Full JSON backup including dormitories, layouts, guests, assignments, settings, and timeline state.
 
 ## Quick Start
 
@@ -68,10 +89,10 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for hosting configuration (Netlify, Vercel, A
 ### First Time Setup
 
 1. Open the application in your browser
-2. Go to the **Guest Data** tab and click **Upload Guest List CSV**
+2. Go to the **All Reservations** tab and click **Upload Guest List CSV**
 3. Select your guest CSV file
 4. (Optional) Configure rooms in the **Room Configuration** tab
-5. Go to the **Assignment** tab and start assigning guests by dragging them to beds!
+5. Go to the **Table View** tab and start assigning guests by dragging them to beds (or use **Auto-place**)
 
 ## CSV File Formats
 
@@ -91,6 +112,8 @@ Optional columns:
 - `lowerBunk` (true/false - guest requires lower bunk)
 - `arrival`, `departure` (dates)
 - `email`, `notes`, etc.
+- `ID` (Planyo reservation ID — used to match the same person across CSV re-uploads, even when their name appears in multiple retreats; also matches `Reservation ID`, `Reservation #`, `Booking ID`)
+- `Status` (Planyo reservation status — only `Reserved` and `Reserved + Email address verified + confirmed` are imported as active; statuses containing `cancel` flag the guest as cancelled on re-upload)
 
 **Example**:
 ```csv
@@ -176,19 +199,31 @@ dormitories[]              // Top-level organizational units
           ├── bedId (unique identifier)
           ├── bedType (upper/lower/single)
           ├── position (number)
-          └── active (boolean)
+          ├── active (boolean)
+          └── assignments[]              // multi-assignment, date-aware
+              └── { guestId }            // dates derived from guest record
 
 guests[]                   // All imported guests
   ├── id (auto-generated UUID)
+  ├── planyoId             // canonical match key for CSV re-uploads
+  ├── status               // raw CSV status; isCancelled derived from it
+  ├── isCancelled          // true → row faded + struck through; not auto-unassigned
   ├── firstName, lastName, preferredName
   ├── gender, age
   ├── groupName (for families)
   ├── lowerBunk (boolean)
-  ├── arrival, departure
+  ├── arrival, departure   // single source of truth for bed-stay dates
+  ├── notes                // from CSV; overwritten on re-upload
+  ├── internalNotes        // operator-only; preserved across re-uploads
   └── ...other CSV fields
 
-assignments (Map)          // guestId → bedId mapping
+assignments (Map)          // guestId → bedId — denormalized index, kept in
+                           // sync with bed.assignments arrays.
 ```
+
+Two assignments on the same bed are allowed iff their stays don't overlap
+(half-open intervals; departure-day is bed-available; missing dates are
+treated as "always present" and conflict with everything).
 
 ## Browser Compatibility
 
