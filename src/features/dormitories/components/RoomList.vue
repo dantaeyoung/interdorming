@@ -5,13 +5,14 @@
       <p>{{ emptyMessage }}</p>
     </div>
 
-    <div v-else ref="containerRef" class="dormitories-container">
+    <div v-else ref="containerRef" class="rooms-container">
       <RoomGroupLinesOverlay v-if="isMounted && containerRef" :containerRef="containerRef" />
-      <DormitorySection
-        v-for="dormitory in activeDormitories"
-        :key="dormitory.dormitoryName"
-        :dormitory="dormitory"
+      <RoomCard
+        v-for="entry in flatRooms"
+        :key="`${entry.dormName}::${entry.room.roomName}`"
+        :room="entry.room"
         :view-date="viewDate"
+        :dorm-color="entry.dormColor"
       />
     </div>
   </div>
@@ -22,8 +23,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
-import DormitorySection from './DormitorySection.vue'
+import RoomCard from './RoomCard.vue'
 import RoomGroupLinesOverlay from './RoomGroupLinesOverlay.vue'
+import type { Room } from '@/types'
 
 interface Props {
   emptyTitle?: string
@@ -48,38 +50,56 @@ const assignmentStore = useAssignmentStore()
 const dormitories = computed(() => dormitoryStore.dormitories)
 
 function normalizeText(text: string): string {
-  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
-const activeDormitories = computed(() => {
-  const active = dormitories.value.filter(d => d.active)
-  if (!props.searchQuery.trim()) return active
+interface FlatRoomEntry {
+  room: Room
+  dormName: string
+  dormColor: string
+}
 
-  const query = normalizeText(props.searchQuery)
+/**
+ * Flatten dorms → rooms into a single list. Room names already include
+ * the dorm name (e.g. "Crystal Sunshine 1"), so the dorm-level header
+ * was redundant and burned vertical real estate. The dorm color is
+ * still passed down as a left-edge stripe on each RoomCard so the
+ * operator can tell dorms apart at a glance.
+ */
+const flatRooms = computed<FlatRoomEntry[]>(() => {
+  const query = props.searchQuery.trim() ? normalizeText(props.searchQuery) : ''
+  const out: FlatRoomEntry[] = []
 
-  // Filter dormitories to only include rooms with matching guests or room names
-  return active.map(dorm => {
-    const matchingRooms = dorm.rooms.filter(room => {
-      if (!room.active) return false
-      // Match room name
-      if (normalizeText(room.roomName).includes(query)) return true
-      if (normalizeText(dorm.dormitoryName).includes(query)) return true
-      // Match any assigned guest in this room
-      return room.beds.some(bed => {
-        if (bed.active === false) return false
-        const guestId = assignmentStore.getGuestsAssignedToBed(bed.bedId)[0]
-        if (!guestId) return false
-        const guest = guestStore.getGuestById(guestId)
-        if (!guest) return false
-        return normalizeText(guest.firstName).includes(query) ||
-          normalizeText(guest.lastName).includes(query) ||
-          (guest.preferredName && normalizeText(guest.preferredName).includes(query)) ||
-          (guest.groupName && normalizeText(guest.groupName).includes(query))
-      })
-    })
-    if (matchingRooms.length === 0) return null
-    return { ...dorm, rooms: matchingRooms }
-  }).filter(Boolean) as typeof active
+  for (const dorm of dormitories.value) {
+    if (!dorm.active) continue
+    const dormColor = dorm.color || '#9ca3af'
+    for (const room of dorm.rooms) {
+      if (!room.active) continue
+
+      if (query) {
+        const matchesName =
+          normalizeText(room.roomName).includes(query) ||
+          normalizeText(dorm.dormitoryName).includes(query)
+        const matchesGuest = room.beds.some(bed => {
+          if (bed.active === false) return false
+          const guestId = assignmentStore.getGuestsAssignedToBed(bed.bedId)[0]
+          if (!guestId) return false
+          const guest = guestStore.getGuestById(guestId)
+          if (!guest) return false
+          return (
+            normalizeText(guest.firstName).includes(query) ||
+            normalizeText(guest.lastName).includes(query) ||
+            (guest.preferredName && normalizeText(guest.preferredName).includes(query)) ||
+            (guest.groupName && normalizeText(guest.groupName).includes(query))
+          )
+        })
+        if (!matchesName && !matchesGuest) continue
+      }
+
+      out.push({ room, dormName: dorm.dormitoryName, dormColor })
+    }
+  }
+  return out
 })
 
 onMounted(() => {
@@ -113,10 +133,10 @@ onMounted(() => {
   }
 }
 
-.dormitories-container {
+.rooms-container {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 6px;
 }
 </style>
