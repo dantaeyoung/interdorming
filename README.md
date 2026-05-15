@@ -1,8 +1,38 @@
-# NOTE: Vibecoded
+# Interdorming: a retreat management tool
 
-# Interdorming: a Dorm Assignment Tool
+_Interdorming_ is a web-based retreat management tool for Blue Cliff Monastery, a Zen Buddhist monastery in the Plum Village tradition, founded by Thích Nhất Hạnh in 2013.
 
-A web application for streamlining the assignment of 60-80 retreat guests to dormitory beds at Blue Cliff Monastery. This tool replaces a manual spreadsheet-based workflow used by monastery staff 1-2 times per month.
+During retreats, guests will stay at the monastery in dorms, with a variety of constraints: groups, requirements, requests. The intentional of the tool is to streamline the process of assigning guests to dorms in order to facilitate a more meaningful and mindful retreat for the guest, and to make the role of the monastery and the registrar’s role easier.
+
+Some values shaping the tool:
+
+**Manual work = care:** The role of assigning guests is not automatic, and intentionally manual. While an ‘auto-suggest’ tool is present, manually placing guests is prioritized, because often times guests will have particular needs or situations that create edge cases. The registrar’s role in placing guests in dorms is a thoughtful, deliberate one that often needs to encompass these edge cases, so the software doesn’t often prevent you from doing things, but alerts you to conflicts or constraints. Individual consideration, not automation, is mindful.
+
+**Reluctantly using gendered colors:** The tool currently color-codes gendered dorms (including non-binary dorms) as defaulting to a typical blue/pink/purple color scheme for ease of use and immediate clarity. However, these colors are configurable in settings.
+
+**Long-term software is local software:** The web-based tool defaults to all client-side, does not download any external libraries, does not use any external database; everything is stored in localStorage. This ensures that the tool can be used long-term (5-10 years) on free hosting services that are likely to exist in 5-10 years (Github Pages, Netlify, etc), or even locally on the computer. 
+
+5 years is an eon in software, but a short time for a monastery! So making sure that the tool will be used easily in 5-10 years is important.
+
+In addition, this has the benefit of keeping guest data (which can include sensitive information) completely private and off of any servers.
+
+--
+
+Ultimately, I see creating this tool tself as a form of dāna.
+
+
+---
+
+Below: Claude-written documentation:
+
+
+
+
+
+
+
+
+
 
 ## Features
 
