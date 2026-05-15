@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260515-00:14</span>
+          <span class="version-tag">v260515-00:17</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -52,7 +52,11 @@
 
     <!-- Guest Assignment Tab -->
     <div v-show="activeTab === 'assignment'" class="tab-content">
-      <!-- Toolbar Section -->
+      <!-- Vestigial AssignmentToolbar (Export CSV / Export Excel) hidden
+           per operator request — exports are no longer used from this
+           location but the component is kept for now. See GitHub issue
+           for the cleanup decision before deletion. -->
+      <!--
       <div class="combined-toolbar">
         <div class="toolbar-right-section">
           <AssignmentToolbar
@@ -61,6 +65,7 @@
           />
         </div>
       </div>
+      -->
 
       <!-- Two-Panel Layout -->
       <div class="layout-grid">
@@ -72,15 +77,21 @@
               <span class="card-subtitle">({{ unassignedCount }})</span>
             </div>
             <div class="card-body">
-              <!-- Search and Add Guest - Fixed at top -->
+              <!-- Controls row: actions on the left, search on the right -->
               <div class="search-section">
-                <GuestSearch />
+                <button class="btn-add-guest-sm" @click="handleAddGuestClick">+ Add</button>
                 <button class="btn-sort" @click="showSortModal = true" :title="sortDescription">
                   <span class="sort-icon">↕</span>
                   Sort
                   <span v-if="hasSortLevels" class="sort-indicator">*</span>
                 </button>
-                <button class="btn-add-guest-sm" @click="handleAddGuestClick">+ Add</button>
+                <ColumnsDropdown
+                  :columns="settingsStore.tableViewColumns"
+                  @toggle="(k) => settingsStore.toggleColumnVisibility('tableView', k)"
+                  @reset="() => settingsStore.resetColumns('tableView')"
+                />
+                <div class="search-section-divider"></div>
+                <GuestSearch class="search-section-search" />
               </div>
 
               <!-- Guest List - Scrollable -->
@@ -90,6 +101,7 @@
                   :show-assigned="false"
                   :columns="settingsStore.tableViewColumns"
                   :view-date="viewDate"
+                  hide-column-controls
                   empty-title="No guests loaded"
                   empty-message="Upload a CSV file to begin assigning guests to dormitory beds."
                 />
@@ -284,7 +296,7 @@ import { useSortConfig } from '@/shared/composables/useSortConfig'
 import { HintBanner } from '@/features/hints/components'
 import { useHints } from '@/features/hints/composables/useHints'
 import { useTour } from '@/features/hints/composables/useTour'
-import { GuestList, GuestSearch } from '@/features/guests/components'
+import { GuestList, GuestSearch, ColumnsDropdown } from '@/features/guests/components'
 import { RoomList, ConfigRoomList, LayoutSelector } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
@@ -1215,6 +1227,18 @@ function stopResize() {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.search-section-divider {
+  width: 1px;
+  height: 18px;
+  background-color: #e5e7eb;
+  margin: 0 2px;
+}
+
+.search-section-search {
+  flex: 1;
+  min-width: 0;
 }
 
 .btn-add-guest-sm {
