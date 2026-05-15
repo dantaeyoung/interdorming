@@ -228,7 +228,19 @@ const guests = computed(() => {
     })
   }
 
-  return filtered
+  /*
+   * Push camping/commuter guests to the bottom of the list. Within
+   * each tier we preserve the upstream order from `filteredGuests`
+   * (which already honors the operator's sort config).
+   *
+   * `Array.prototype.sort` is stable in modern engines so this is
+   * effectively `[...assignable, ...nonAssignable]` while letting any
+   * future tier-3 (e.g. cancelled) be added by extending `tier()`.
+   */
+  function tier(g: typeof filtered[0]): number {
+    return guestStore.isGuestAssignable(g) ? 0 : 1
+  }
+  return filtered.slice().sort((a, b) => tier(a) - tier(b))
 })
 
 const visibleColumns = computed(() => props.columns.filter(c => c.visible))

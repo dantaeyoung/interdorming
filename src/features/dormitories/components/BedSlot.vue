@@ -30,11 +30,6 @@
           <strong class="guest-name" :class="{ 'cancelled-name': assignedGuest.isCancelled }">
             {{ displayName }}
             <span
-              v-if="assignedGuest.isCancelled"
-              class="cancelled-badge"
-              title="Reservation cancelled in latest CSV — please review"
-            >CANCELLED</span>
-            <span
               v-if="futureAssignments.length > 0"
               ref="futureBadgeRef"
               class="other-assignments-badge"
@@ -601,19 +596,6 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
 .cancelled-name {
   text-decoration: line-through;
   color: #9ca3af;
-}
-
-.cancelled-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 5px;
-  border-radius: 8px;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  vertical-align: middle;
 }
 
 .other-assignments-badge {

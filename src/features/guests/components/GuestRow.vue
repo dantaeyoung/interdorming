@@ -46,7 +46,6 @@
       <td v-else-if="col.key === 'firstName'" :title="displayName">
         <div class="name-cell">
           <span class="name-text" :class="{ 'cancelled-name': guest.isCancelled }">{{ displayName }}</span>
-          <span v-if="guest.isCancelled" class="cancelled-badge" title="Reservation cancelled in latest CSV — please review">CANCELLED</span>
           <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
             ✨
           </span>
@@ -406,14 +405,25 @@ function handleUnlink() {
     background-color: #f9fafb;
   }
 
-  /* Cancelled-reservation row: red-tinted background to draw the
-     operator's eye for manual cleanup. The cells inside still render
-     their normal content. */
+  /* Cancelled-reservation row: faded out (matches the camping/commuter
+     visual treatment) so unassigned active guests visually pop, AND
+     every cell's text is struck through. Coloured badges go monochrome
+     via grayscale so they don't draw the eye. */
   &.is-cancelled {
-    background-color: #fef2f2;
+    opacity: 0.4;
+    cursor: default;
+
+    td {
+      text-decoration: line-through;
+      text-decoration-color: #6b7280;
+    }
+
+    .badge {
+      filter: grayscale(1);
+    }
 
     &:hover {
-      background-color: #fee2e2;
+      background-color: inherit;
     }
   }
 
@@ -518,20 +528,10 @@ function handleUnlink() {
 
   &.cancelled-name {
     text-decoration: line-through;
-    color: #9ca3af;
+    /* No color override — the row-level opacity handles the dimming so
+       the strikethrough doesn't double-fade against an already-greyed
+       text colour. */
   }
-}
-
-.cancelled-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
 }
 
 .group-lines-cell {
