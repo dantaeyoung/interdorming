@@ -424,9 +424,11 @@ function handleUnlink() {
     }
 
     /* The CANCELLED tag itself should NOT be struck through — it's
-       the label explaining the row's state. */
+       the label explaining the row's state. !important wins over the
+       td-level rule above + some browsers' inheritance quirks for
+       text-decoration cascading into inline-block children. */
     .cancelled-badge {
-      text-decoration: none;
+      text-decoration: none !important;
     }
 
     &:hover {
