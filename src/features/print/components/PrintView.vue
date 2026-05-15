@@ -1989,8 +1989,10 @@ function handlePrint() {
 
 .checkin-slip {
   /* Full-page width for cutting; tall enough to write notes by hand
-     during check-in. Each slip stays as one piece across page breaks. */
-  margin-bottom: 0.1in;
+     during check-in. Each slip stays as one piece across page breaks.
+     No vertical margin between slips on screen OR on paper — so the
+     stack reads as one continuous sheet ready for the cutter. */
+  margin-bottom: 0;
   page-break-inside: avoid;
   break-inside: avoid;
 }
@@ -2007,19 +2009,24 @@ function handlePrint() {
   /* First/Last get the lion's share since the operator writes
      signatures or notes in those columns. LB?, Arrival, Departure
      squeezed narrow. Internal Notes takes the right edge. */
-  .slip-col-housing  { width: 8%; }
-  .slip-col-first    { width: 22%; }
-  .slip-col-last     { width: 22%; }
+  .slip-col-housing  { width: 14%; }
+  .slip-col-first    { width: 19%; }
+  .slip-col-last     { width: 19%; }
   .slip-col-lb       { width: 9%; }
   .slip-col-arr      { width: 9%; }
   .slip-col-dep      { width: 9%; }
   .slip-col-internal { width: 21%; }
 
-  /* The narrow LB column has a long header label — allow it to wrap so
-     the column doesn't have to widen for it. */
-  .slip-col-lb {
-    white-space: normal;
+  /* Header labels are smaller than the data and may wrap mid-word so
+     they fit a narrow column without overflowing into the next cell.
+     Without \`word-break: break-all\`, 'INTERNAL NOTES' would push past
+     its column boundary instead of breaking. */
+  thead th {
+    font-size: 0.6rem !important;
     line-height: 1.1;
+    white-space: normal !important;
+    word-break: break-all;
+    overflow-wrap: anywhere;
   }
 
   th, td {
@@ -2060,8 +2067,27 @@ function handlePrint() {
   }
 }
 
+/* Work Coordinator: bigger font and pure black so the printed roster
+   is easy to read at arm's length on the table. ~130% of the
+   inherited 0.65rem Guestmaster body size. */
+.work-coordinator-section {
+  font-size: 0.85rem;
+  color: #000;
+}
+
 .work-coordinator-table {
   width: 100%;
+  color: #000;
+
+  th, td {
+    color: #000;
+    font-size: 0.85rem;
+  }
+
+  thead th {
+    color: #000;
+    font-size: 0.78rem;
+  }
   /* Override the parent's \`table-layout: fixed\`. The Guestmaster grid
      has a known set of beds and a tight fixed layout works there, but
      Work Coordinator has many optional columns that exceed 100% when
@@ -2137,6 +2163,27 @@ function handlePrint() {
   }
   .checkin-slip-table tbody td {
     height: 0.75in !important;
+  }
+
+  /* Work Coordinator print override: Guestmaster's print rule above
+     drops every \`.guestmaster-table\` to 0.55rem. The Work Coordinator
+     reuses that class but the operator wants pure black + ~130% of
+     the original size for arm's-length reading. */
+  .work-coordinator-table {
+    color: #000 !important;
+    font-size: 0.85rem !important;
+
+    th, td {
+      color: #000 !important;
+      font-size: 0.85rem !important;
+      padding: 3px 6px !important;
+    }
+
+    thead th {
+      color: #000 !important;
+      font-size: 0.78rem !important;
+      padding: 4px 6px !important;
+    }
   }
 }
 
