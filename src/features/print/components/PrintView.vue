@@ -34,6 +34,9 @@
       <button :class="['sub-tab', { active: printMode === 'work-coordinator' }]" @click="printMode = 'work-coordinator'">
         <span class="sub-tab-label" data-label="Work Coordinator">Work Coordinator</span>
       </button>
+      <button :class="['sub-tab', { active: printMode === 'checkin-slips' }]" @click="printMode = 'checkin-slips'">
+        <span class="sub-tab-label" data-label="Check-in Slips">Check-in Slips</span>
+      </button>
     </div>
 
     <!-- Print button -->
@@ -141,8 +144,38 @@
       </div>
     </div>
 
+    <!-- Check-in Slips options -->
+    <div v-if="printMode === 'checkin-slips'" class="display-options no-print">
+      <p class="name-tag-help">
+        One slip per guest, sorted by last name. The column header is
+        repeated above each row so you can slice the printed sheet
+        into individual strips with a paper cutter.
+      </p>
+      <div class="checkbox-grid" style="margin-top: 8px">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="checkInSlipsColumns.housing" />
+          <span>Housing</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="checkInSlipsColumns.lowerBunk" />
+          <span>Lower bunk requested?</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="checkInSlipsColumns.arrival" />
+          <span>Arrival</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="checkInSlipsColumns.departure" />
+          <span>Departure</span>
+        </label>
+        <button class="btn-reset-prefs" @click="resetCheckInSlipsPrefs" title="Restore default checkboxes">
+          ↺ Reset
+        </button>
+      </div>
+    </div>
+
     <!-- Column Selection (dorm and alpha modes) -->
-    <div v-if="printMode !== 'nametags' && printMode !== 'guestmaster' && printMode !== 'work-coordinator'" class="column-selector no-print">
+    <div v-if="printMode !== 'nametags' && printMode !== 'guestmaster' && printMode !== 'work-coordinator' && printMode !== 'checkin-slips'" class="column-selector no-print">
       <h3>Select Columns to Print</h3>
       <div class="checkbox-grid">
         <label class="checkbox-label">
@@ -212,7 +245,10 @@
       </div>
     </div>
 
-    <div class="print-content" :class="{ 'guestmaster-mode': printMode === 'guestmaster' }">
+    <div class="print-content" :class="{
+      'guestmaster-mode': printMode === 'guestmaster',
+      'hide-header-on-print': ['guestmaster', 'work-coordinator', 'checkin-slips'].includes(printMode),
+    }">
       <!-- Header for printed page (hidden on print in Guestmaster mode) -->
       <div class="report-header header-printable">
         <h1>Blue Cliff Monastery</h1>
@@ -599,6 +635,40 @@
         </div>
       </template>
 
+      <!-- === CHECK-IN SLIPS MODE === -->
+      <template v-if="printMode === 'checkin-slips'">
+        <div class="checkin-slips-section">
+          <div
+            v-for="row in checkInSlipsRows"
+            :key="row.guest.id"
+            class="checkin-slip"
+          >
+            <table class="checkin-slip-table">
+              <thead>
+                <tr>
+                  <th v-if="checkInSlipsColumns.housing">Housing</th>
+                  <th>First Name</th>
+                  <th>Last Name</th>
+                  <th v-if="checkInSlipsColumns.lowerBunk">Lower bunk requested?</th>
+                  <th v-if="checkInSlipsColumns.arrival">Arrival</th>
+                  <th v-if="checkInSlipsColumns.departure">Departure</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td v-if="checkInSlipsColumns.housing">{{ row.guest.housingType || '' }}</td>
+                  <td>{{ row.guest.firstName || '' }}</td>
+                  <td>{{ row.guest.lastName || '' }}</td>
+                  <td v-if="checkInSlipsColumns.lowerBunk">{{ row.guest.lowerBunk ? 'Yes' : '' }}</td>
+                  <td v-if="checkInSlipsColumns.arrival">{{ formatGuestDate(row.guest.arrival) || '' }}</td>
+                  <td v-if="checkInSlipsColumns.departure">{{ formatGuestDate(row.guest.departure) || '' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+
       <template v-if="printMode === 'nametags'">
       <div class="name-tag-print-section">
         <h3>Name Tags</h3>
@@ -668,8 +738,8 @@ const flatTableMode = ref(false)
 const showCampingCommuter = ref(false)
 // Persist the active print sub-tab across reloads.
 const PRINT_MODE_KEY = 'dormAssignments-printMode'
-type PrintMode = 'dorm' | 'alpha' | 'nametags' | 'guestmaster' | 'work-coordinator'
-const VALID_PRINT_MODES: PrintMode[] = ['dorm', 'alpha', 'nametags', 'guestmaster', 'work-coordinator']
+type PrintMode = 'dorm' | 'alpha' | 'nametags' | 'guestmaster' | 'work-coordinator' | 'checkin-slips'
+const VALID_PRINT_MODES: PrintMode[] = ['dorm', 'alpha', 'nametags', 'guestmaster', 'work-coordinator', 'checkin-slips']
 
 const _savedPrintMode = localStorage.getItem(PRINT_MODE_KEY) as PrintMode | null
 const printMode = ref<PrintMode>(
@@ -698,7 +768,7 @@ function applyPrintOrientation(mode: PrintMode) {
   let css: string | null = null
   if (mode === 'guestmaster') {
     css = '@page { size: landscape; margin: 0.4in; }'
-  } else if (mode === 'work-coordinator') {
+  } else if (mode === 'work-coordinator' || mode === 'checkin-slips') {
     css = '@page { size: portrait; margin: 0.4in; }'
   }
 
@@ -856,6 +926,89 @@ function resetWorkCoordinatorPrefs() {
   workCoordinatorColumns.group = WORK_COORDINATOR_DEFAULTS.group
   workCoordinatorColumns.notes = WORK_COORDINATOR_DEFAULTS.notes
 }
+
+// ---------- Check-in Slips ----------
+const CHECKIN_SLIPS_PREFS_KEY = 'dormAssignments-checkInSlipsPrefs'
+const CHECKIN_SLIPS_DEFAULTS = {
+  housing: true,
+  lowerBunk: true,
+  arrival: true,
+  departure: true,
+}
+
+function loadCheckInSlipsPrefs() {
+  try {
+    const saved = localStorage.getItem(CHECKIN_SLIPS_PREFS_KEY)
+    if (!saved) return { ...CHECKIN_SLIPS_DEFAULTS }
+    return { ...CHECKIN_SLIPS_DEFAULTS, ...JSON.parse(saved) }
+  } catch {
+    return { ...CHECKIN_SLIPS_DEFAULTS }
+  }
+}
+
+const _initialSlipsPrefs = loadCheckInSlipsPrefs()
+const checkInSlipsColumns = reactive({
+  housing: _initialSlipsPrefs.housing,
+  lowerBunk: _initialSlipsPrefs.lowerBunk,
+  arrival: _initialSlipsPrefs.arrival,
+  departure: _initialSlipsPrefs.departure,
+})
+
+watch(
+  () => [
+    checkInSlipsColumns.housing,
+    checkInSlipsColumns.lowerBunk,
+    checkInSlipsColumns.arrival,
+    checkInSlipsColumns.departure,
+  ],
+  () => {
+    try {
+      localStorage.setItem(
+        CHECKIN_SLIPS_PREFS_KEY,
+        JSON.stringify({
+          housing: checkInSlipsColumns.housing,
+          lowerBunk: checkInSlipsColumns.lowerBunk,
+          arrival: checkInSlipsColumns.arrival,
+          departure: checkInSlipsColumns.departure,
+        })
+      )
+    } catch {
+      /* localStorage unavailable */
+    }
+  }
+)
+
+function resetCheckInSlipsPrefs() {
+  checkInSlipsColumns.housing = CHECKIN_SLIPS_DEFAULTS.housing
+  checkInSlipsColumns.lowerBunk = CHECKIN_SLIPS_DEFAULTS.lowerBunk
+  checkInSlipsColumns.arrival = CHECKIN_SLIPS_DEFAULTS.arrival
+  checkInSlipsColumns.departure = CHECKIN_SLIPS_DEFAULTS.departure
+}
+
+interface CheckInSlipRow {
+  guest: Guest
+}
+
+/**
+ * Every guest gets a slip — assigned, unassigned, camping, commuter,
+ * cancelled. Sorted by last name (case-insensitive). Date filter
+ * applies as for other modes.
+ */
+const checkInSlipsRows = computed<CheckInSlipRow[]>(() => {
+  const rows: CheckInSlipRow[] = []
+  for (const guest of guestStore.guests) {
+    if (hasDateFilter.value && !isGuestInDateRange(guest.id)) continue
+    rows.push({ guest })
+  }
+  rows.sort((a, b) => {
+    const al = (a.guest.lastName || '').toLowerCase()
+    const bl = (b.guest.lastName || '').toLowerCase()
+    if (al < bl) return -1
+    if (al > bl) return 1
+    return (a.guest.firstName || '').localeCompare(b.guest.firstName || '')
+  })
+  return rows
+})
 
 interface WorkCoordinatorRow {
   guest: Guest
@@ -1796,6 +1949,55 @@ function handlePrint() {
   width: 100%;
 }
 
+/* Check-in Slips: each guest gets a tall, full-width slip with a
+   header row repeated above its values. The operator runs a paper
+   cutter horizontally between slips. */
+.checkin-slips-section {
+  width: 100%;
+}
+
+.checkin-slip {
+  /* Full-page width for cutting; tall enough to write notes by hand
+     during check-in. Each slip stays as one piece across page breaks. */
+  margin-bottom: 0.1in;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.checkin-slip-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+
+  th, td {
+    border: 1px solid #1f2937;
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: middle;
+    font-size: 0.85rem;
+  }
+
+  thead th {
+    background: #f3f4f6;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  tbody td {
+    /* The data row is the writable area. ~1.5in tall so there's space
+       for hand-written check-in notes on each slip. */
+    height: 1.5in;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1f2937;
+  }
+}
+
 .work-coordinator-table {
   width: 100%;
   /* Override the parent's \`table-layout: fixed\`. The Guestmaster grid
@@ -1856,10 +2058,11 @@ function handlePrint() {
       white-space: nowrap !important;
     }
   }
-  /* In Guestmaster mode, hide the report header + summary so only the
-     table prints. The headers stay visible on screen — operators still
-     see them when reviewing before printing. */
-  .print-content.guestmaster-mode .header-printable {
+  /* In Guestmaster / Work Coordinator / Check-in Slips modes, hide the
+     report header + summary so only the table/slips print. The headers
+     stay visible on screen — operators still see them when reviewing
+     before printing. */
+  .print-content.hide-header-on-print .header-printable {
     display: none !important;
   }
 }
