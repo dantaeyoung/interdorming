@@ -29,14 +29,18 @@ export const ROOM_GENDERS: RoomGender[] = ['M', 'F', 'Coed']
 
 /**
  * Coerce a raw string from a CSV cell to a valid `RoomGender`.
- * Falls back to `'M'` when the value is missing or unrecognized so room
- * config imports don't silently get smuggled an arbitrary string.
+ *
+ * Case-insensitive and accepts the common aliases operators type by
+ * habit (`male` → `M`, `female` → `F`, `mixed` / `co-ed` → `Coed`).
+ * Falls back to `'M'` when missing or unrecognized so a typo can't
+ * smuggle an arbitrary string into the dorm config.
  */
 export function parseRoomGender(val: string | undefined | null): RoomGender {
-  const trimmed = val?.trim()
-  if (trimmed && (ROOM_GENDERS as readonly string[]).includes(trimmed)) {
-    return trimmed as RoomGender
-  }
+  const lower = val?.trim().toLowerCase()
+  if (!lower) return 'M'
+  if (lower === 'm' || lower === 'male') return 'M'
+  if (lower === 'f' || lower === 'female') return 'F'
+  if (lower === 'coed' || lower === 'mixed' || lower === 'co-ed') return 'Coed'
   return 'M'
 }
 
