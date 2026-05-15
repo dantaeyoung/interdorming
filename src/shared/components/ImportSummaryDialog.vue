@@ -1,5 +1,5 @@
 <template>
-  <Modal :is-open="isOpen" @close="dismissImportSummary">
+  <Modal :model-value="isOpen" @update:model-value="(v) => !v && dismissImportSummary()">
     <div class="import-summary-dialog">
       <h3 class="title">CSV import summary</h3>
       <p class="lead">
