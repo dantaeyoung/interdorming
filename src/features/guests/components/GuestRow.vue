@@ -410,7 +410,7 @@ function handleUnlink() {
      every cell's text is struck through. Coloured badges go monochrome
      via grayscale so they don't draw the eye. */
   &.is-cancelled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: default;
 
     td {
@@ -528,7 +528,9 @@ function handleUnlink() {
 
   &.cancelled-name {
     text-decoration: line-through;
-    color: #9ca3af;
+    /* No color override — the row-level opacity handles the dimming so
+       the strikethrough doesn't double-fade against an already-greyed
+       text colour. */
   }
 }
 
