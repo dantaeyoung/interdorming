@@ -115,7 +115,7 @@
         </div>
 
         <div class="form-group full-width">
-          <label for="notes">Notes <span class="field-hint">(from CSV)</span></label>
+          <label for="notes">Notes from Guest <span class="field-hint">(from CSV)</span></label>
           <textarea
             id="notes"
             v-model="formData.notes"
