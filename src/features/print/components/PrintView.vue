@@ -654,8 +654,8 @@
                   <th class="slip-col-first">First Name</th>
                   <th class="slip-col-last">Last Name</th>
                   <th v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">Lower bunk requested?</th>
-                  <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arrival</th>
-                  <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Departure</th>
+                  <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arr</th>
+                  <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Dep</th>
                   <th v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">Internal Notes</th>
                 </tr>
               </thead>
@@ -2031,6 +2031,13 @@ function handlePrint() {
     white-space: normal !important;
     word-break: break-all;
     overflow-wrap: anywhere;
+  }
+
+  /* Date cells get a slightly smaller font than the rest of the data
+     so 'May 15' doesn't dominate the row visually. */
+  .slip-col-arr,
+  .slip-col-dep {
+    font-size: 0.78rem;
   }
 
   th, td {
