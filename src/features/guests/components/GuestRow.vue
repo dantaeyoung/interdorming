@@ -406,14 +406,25 @@ function handleUnlink() {
     background-color: #f9fafb;
   }
 
-  /* Cancelled-reservation row: red-tinted background to draw the
-     operator's eye for manual cleanup. The cells inside still render
-     their normal content. */
+  /* Cancelled-reservation row: faded out (matches the camping/commuter
+     visual treatment) so unassigned active guests visually pop, AND
+     every cell's text is struck through. Coloured badges go monochrome
+     via grayscale so they don't draw the eye. */
   &.is-cancelled {
-    background-color: #fef2f2;
+    opacity: 0.45;
+    cursor: default;
+
+    td {
+      text-decoration: line-through;
+      text-decoration-color: #6b7280;
+    }
+
+    .badge {
+      filter: grayscale(1);
+    }
 
     &:hover {
-      background-color: #fee2e2;
+      background-color: inherit;
     }
   }
 
