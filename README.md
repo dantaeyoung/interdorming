@@ -10,9 +10,9 @@ Some values shaping the tool:
 
 **Reluctantly using gendered colors:** The tool currently color-codes gendered dorms (including non-binary dorms) as defaulting to a typical blue/pink/purple color scheme for ease of use and immediate clarity. However, these colors are configurable in settings.
 
-**Long-term software is local software:** The web-based tool defaults to all client-side, does not download any external libraries, does not use any external database; everything is stored in localStorage. This ensures that the tool can be used long-term (5~10 years) on free hosting services that are likely to exist in 5~10 years (Github Pages, Netlify, etc), or even locally on the computer. 
+**Long-term software is local software:** The web-based tool defaults to all client-side, does not download any external libraries, does not use any external database; everything is stored in localStorage. This ensures that the tool can be used long-term (5-10 years) on free hosting services that are likely to exist in 5-10 years (Github Pages, Netlify, etc), or even locally on the computer. 
 
-5 years is an eon in software, but a short time for a monastery! So making sure that the tool will be used easily in 5~10 years is important.
+5 years is an eon in software, but a short time for a monastery! So making sure that the tool will be used easily in 5-10 years is important.
 
 In addition, this has the benefit of keeping guest data (which can include sensitive information) completely private and off of any servers.
 
