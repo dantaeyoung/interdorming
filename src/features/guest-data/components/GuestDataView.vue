@@ -3,7 +3,7 @@
     <!-- Header with Upload Controls -->
     <div class="guest-data-header">
       <div class="header-left">
-        <h2>Guest Data</h2>
+        <h2>All Reservations</h2>
         <span class="guest-count">{{ guestStore.guests.length }} guests</span>
       </div>
       <div class="header-right">
