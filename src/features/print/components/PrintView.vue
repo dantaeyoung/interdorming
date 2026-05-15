@@ -571,7 +571,7 @@
                 <th v-if="workCoordinatorColumns.group" class="th-group">Group</th>
                 <th class="th-date">ARR</th>
                 <th class="th-date">DEP</th>
-                <th v-if="workCoordinatorColumns.notes" class="th-notes">Notes</th>
+                <th v-if="workCoordinatorColumns.notes" class="th-notes">Internal Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -588,7 +588,7 @@
                 <td v-if="workCoordinatorColumns.group" class="td-group">{{ row.guest.groupName || '' }}</td>
                 <td class="td-date">{{ formatGuestmasterDate(row.guest.arrival) }}</td>
                 <td class="td-date">{{ formatGuestmasterDate(row.guest.departure) }}</td>
-                <td v-if="workCoordinatorColumns.notes" class="td-notes">{{ row.guest.notes || '' }}</td>
+                <td v-if="workCoordinatorColumns.notes" class="td-notes">{{ row.guest.internalNotes || '' }}</td>
               </tr>
             </tbody>
           </table>
@@ -682,22 +682,37 @@ watch(printMode, value => {
  * `printMode`. Browsers generally honor `@page { size: landscape }` by
  * pre-selecting landscape in the print dialog.
  */
-const PRINT_ORIENTATION_STYLE_ID = 'guestmaster-page-landscape'
+const PRINT_ORIENTATION_STYLE_ID = 'print-page-orientation'
 
-function applyGuestmasterPrintOrientation(mode: PrintMode) {
+/**
+ * Inject a global \`@page\` rule based on the active print sub-tab so the
+ * print dialog opens with the right orientation pre-selected. Removed
+ * on leaving the Print tab so the rule doesn't leak into other views.
+ */
+function applyPrintOrientation(mode: PrintMode) {
   const existing = document.getElementById(PRINT_ORIENTATION_STYLE_ID)
+  let css: string | null = null
   if (mode === 'guestmaster') {
-    if (existing) return
-    const style = document.createElement('style')
-    style.id = PRINT_ORIENTATION_STYLE_ID
-    style.textContent = '@page { size: landscape; margin: 0.4in; }'
-    document.head.appendChild(style)
+    css = '@page { size: landscape; margin: 0.4in; }'
+  } else if (mode === 'work-coordinator') {
+    css = '@page { size: portrait; margin: 0.4in; }'
+  }
+
+  if (css) {
+    if (existing) {
+      existing.textContent = css
+    } else {
+      const style = document.createElement('style')
+      style.id = PRINT_ORIENTATION_STYLE_ID
+      style.textContent = css
+      document.head.appendChild(style)
+    }
   } else if (existing) {
     existing.remove()
   }
 }
 
-watch(printMode, applyGuestmasterPrintOrientation, { immediate: true })
+watch(printMode, applyPrintOrientation, { immediate: true })
 
 onBeforeUnmount(() => {
   // Don't leak the global @page rule when the operator leaves the Print tab.
