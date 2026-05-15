@@ -39,6 +39,20 @@ export interface Guest {
   mentalHealth?: string
   physicalHealth?: string
   importOrder?: number
+  /**
+   * Canonical Planyo reservation ID. Used to match the same reservation
+   * across CSV re-uploads (the same person can have multiple reservations
+   * across retreats, so name is not unique).
+   */
+  planyoId?: string
+  /** Raw status string from the most recent CSV import. */
+  status?: string
+  /**
+   * Derived from `status` — true when the reservation is non-active
+   * (cancelled, not completed, etc.). The guest record stays in the
+   * data so the operator can manually decide what to do.
+   */
+  isCancelled?: boolean
 }
 
 /**

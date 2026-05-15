@@ -1,6 +1,6 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': isUnassigned, 'non-assignable': !isAssignable }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': isUnassigned, 'non-assignable': !isAssignable, 'is-cancelled': guest.isCancelled }]"
     v-bind="draggableProps"
     @click="handleRowClick"
   >
@@ -37,7 +37,8 @@
 
       <td v-else-if="col.key === 'firstName'">
         <div class="name-cell">
-          <span class="name-text">{{ displayName }}</span>
+          <span class="name-text" :class="{ 'cancelled-name': guest.isCancelled }">{{ displayName }}</span>
+          <span v-if="guest.isCancelled" class="cancelled-badge" title="Reservation cancelled in latest CSV — please review">CANCELLED</span>
           <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
             ✨
           </span>
@@ -354,6 +355,17 @@ function handleUnlink() {
     background-color: #f9fafb;
   }
 
+  /* Cancelled-reservation row: red-tinted background to draw the
+     operator's eye for manual cleanup. The cells inside still render
+     their normal content. */
+  &.is-cancelled {
+    background-color: #fef2f2;
+
+    &:hover {
+      background-color: #fee2e2;
+    }
+  }
+
   &.picked-up {
     opacity: 0.5;
     background-color: #fef3c7;
@@ -452,6 +464,23 @@ function handleUnlink() {
 
 .name-text {
   flex: 1;
+
+  &.cancelled-name {
+    text-decoration: line-through;
+    color: #9ca3af;
+  }
+}
+
+.cancelled-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .group-lines-cell {

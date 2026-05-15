@@ -64,6 +64,24 @@ export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
   departureMeals: ['departureMeals', 'Departure Meals', 'DEPARTURE MEALS', 'departure_meals'],
   mentalHealth: ['mentalHealth', 'Mental Health', 'MENTAL HEALTH', 'mental_health'],
   physicalHealth: ['physicalHealth', 'Physical Health', 'PHYSICAL HEALTH', 'physical_health'],
+  planyoId: ['planyoId', 'ID', 'Reservation ID', 'Reservation #', 'Planyo ID', 'Booking ID', 'Reservation Number', 'reservation_id'],
+  status: ['status', 'Status', 'STATUS', 'Reservation Status', 'reservation_status'],
+}
+
+/**
+ * Statuses (lowercased, trimmed) that count as an active reservation.
+ * Anything outside this set — including missing — is treated as cancelled
+ * IF a `status` column was present in the CSV. If no status column at all,
+ * everyone is treated as active (legacy / non-Planyo source).
+ */
+export const ACTIVE_RESERVATION_STATUSES = new Set([
+  'reserved',
+  'reserved + email address verified + confirmed',
+])
+
+export function isActiveReservationStatus(status: string | undefined | null): boolean {
+  if (!status) return true // Legacy / non-status sources stay active
+  return ACTIVE_RESERVATION_STATUSES.has(status.trim().toLowerCase())
 }
 
 /**

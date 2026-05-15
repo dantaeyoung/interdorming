@@ -1,5 +1,5 @@
 <template>
-  <div :class="['bed-slot', bedTypeClass, { occupied: isOccupied, warning: hasWarning, 'has-suggestion': isSuggestion, 'valid-drop-target': isValidDropTarget, 'invalid-drop-target': isInvalidDropTarget, 'is-pick-target': isPickingMode }]" v-bind="dropzoneProps" @click="handleBedClick">
+  <div :class="['bed-slot', bedTypeClass, { occupied: isOccupied, warning: hasWarning, 'has-suggestion': isSuggestion, 'valid-drop-target': isValidDropTarget, 'invalid-drop-target': isInvalidDropTarget, 'is-pick-target': isPickingMode, 'is-cancelled': assignedGuest?.isCancelled }]" v-bind="dropzoneProps" @click="handleBedClick">
     <div class="bed-label">
       {{ bed.position }} {{ bed.bedType }}
     </div>
@@ -12,8 +12,13 @@
         @mouseleave="handleGuestLeave"
       >
         <div class="guest-info">
-          <strong class="guest-name">
+          <strong class="guest-name" :class="{ 'cancelled-name': assignedGuest.isCancelled }">
             {{ displayName }}
+            <span
+              v-if="assignedGuest.isCancelled"
+              class="cancelled-badge"
+              title="Reservation cancelled in latest CSV — please review"
+            >CANCELLED</span>
             <span
               v-if="otherAssignments.length > 0"
               class="other-assignments-badge"
@@ -422,6 +427,19 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
       background-color: #ecfdf5;
     }
   }
+
+  /* Cancelled-reservation indicator: dashed red top/bottom border so the
+     operator notices and decides what to do. The bed is still considered
+     assigned for conflict-detection purposes. */
+  &.is-cancelled {
+    background: repeating-linear-gradient(
+      135deg,
+      #fef2f2 0,
+      #fef2f2 6px,
+      #fee2e2 6px,
+      #fee2e2 12px
+    );
+  }
 }
 
 .bed-label {
@@ -518,6 +536,24 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   min-width: 150px;
   max-width: 150px;
   flex-shrink: 0;
+}
+
+.cancelled-name {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.cancelled-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
 }
 
 .other-assignments-badge {

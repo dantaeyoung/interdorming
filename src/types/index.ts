@@ -58,4 +58,6 @@ export {
   CSV_FIELD_MAPPINGS,
   NON_ASSIGNABLE_HOUSING_TYPES,
   MESSAGES,
+  ACTIVE_RESERVATION_STATUSES,
+  isActiveReservationStatus,
 } from './Constants'

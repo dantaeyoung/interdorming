@@ -50,8 +50,13 @@ import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { useHints } from '@/features/hints/composables/useHints'
-import { useImportConflictDialog } from '@/shared/composables/useImportConflictDialog'
+import { useImportSummary } from '@/shared/composables/useImportSummary'
+import type {
+  ImportSummaryCancellation,
+  ImportSummaryDateChange,
+} from '@/shared/composables/useImportSummary'
 import { useUtils } from '@/shared/composables/useUtils'
+import { isActiveReservationStatus } from '@/types'
 import type { Guest } from '@/types'
 import CSVWarningModal from './CSVWarningModal.vue'
 import CSVImportModeModal from './CSVImportModeModal.vue'
@@ -82,7 +87,7 @@ const settingsStore = useSettingsStore()
 const timelineStore = useTimelineStore()
 const { highlightedElement } = useHints()
 const { parseGuestCSV } = useCSV()
-const { showImportConflicts } = useImportConflictDialog()
+const { showImportSummary } = useImportSummary()
 const { createFullName } = useUtils()
 
 // Check if an element should be highlighted (supports comma-separated targets)
@@ -143,20 +148,38 @@ async function handleFileChange(event: Event) {
   }
 }
 
+/**
+ * For Reset & Replace mode: drop non-active reservations entirely (no
+ * existing data to compare against). Active = `Reserved` or
+ * `Reserved + Email address verified + confirmed`. Sources without a
+ * `status` column are treated as all-active (legacy / non-Planyo).
+ */
 function performImport(result: { guests: Guest[]; warnings: string[]; totalRows: number }) {
-  // Import guests into store
-  guestStore.importGuests(result.guests)
+  const activeGuests: Guest[] = []
+  let skipped = 0
+  for (const g of result.guests) {
+    if (isActiveReservationStatus(g.status)) {
+      activeGuests.push(g)
+    } else {
+      skipped++
+    }
+  }
 
-  // Auto-detect timeline date range from imported guest arrival/departure dates
+  guestStore.importGuests(activeGuests)
   timelineStore.autoDetectDateRange()
 
-  emit('upload-success', result.guests)
+  emit('upload-success', activeGuests)
 
-  // Show modal with results (only if there are warnings)
-  if (result.warnings.length > 0) {
-    successCount.value = result.guests.length
+  const allWarnings = [...result.warnings]
+  if (skipped > 0) {
+    allWarnings.unshift(
+      `Skipped ${skipped} non-active reservation${skipped === 1 ? '' : 's'} (cancelled or incomplete).`
+    )
+  }
+  if (allWarnings.length > 0) {
+    successCount.value = activeGuests.length
     totalRows.value = result.totalRows
-    warnings.value = result.warnings
+    warnings.value = allWarnings
     showWarningModal.value = true
   }
 }
@@ -180,69 +203,122 @@ function handleAddAndUpdate() {
 
   if (!pendingCSVData.value) return
 
-  // Merge guests: update existing, add new
   const existingGuests = [...guestStore.guests]
-  const newGuests = pendingCSVData.value.guests
+  const newRows = pendingCSVData.value.guests
 
-  newGuests.forEach(newGuest => {
-    // Find existing guest by matching first name and last name
-    const existingIndex = existingGuests.findIndex(
-      g => g.firstName.toLowerCase() === newGuest.firstName.toLowerCase() &&
-           g.lastName.toLowerCase() === newGuest.lastName.toLowerCase()
-    )
+  // Build lookup maps for matching. Planyo ID is canonical (handles same
+  // person across multiple retreats). Name is the fallback when an
+  // existing guest pre-dates this feature and has no `planyoId`.
+  const existingByPlanyoId = new Map<string, Guest>()
+  const existingByName = new Map<string, Guest>()
+  for (const g of existingGuests) {
+    if (g.planyoId) existingByPlanyoId.set(g.planyoId, g)
+    const nameKey = `${(g.firstName || '').toLowerCase()}|${(g.lastName || '').toLowerCase()}`
+    existingByName.set(nameKey, g)
+  }
 
-    if (existingIndex !== -1) {
-      // Update existing guest: preserve ID, importOrder, and any existing
-      // fields that the CSV didn't supply (e.g. manually-set groupName, notes)
-      const existing = existingGuests[existingIndex]
-      const merged: Record<string, any> = { ...existing }
+  function findMatch(row: Guest): Guest | undefined {
+    if (row.planyoId && existingByPlanyoId.has(row.planyoId)) {
+      return existingByPlanyoId.get(row.planyoId)
+    }
+    const nameKey = `${(row.firstName || '').toLowerCase()}|${(row.lastName || '').toLowerCase()}`
+    return existingByName.get(nameKey)
+  }
+
+  const cancellations: ImportSummaryCancellation[] = []
+  const dateChanges: ImportSummaryDateChange[] = []
+
+  newRows.forEach(newGuest => {
+    const isActive = isActiveReservationStatus(newGuest.status)
+    const existing = findMatch(newGuest)
+
+    if (existing) {
+      const wasActive = !existing.isCancelled
+      const existingIndex = existingGuests.indexOf(existing)
+
+      if (!isActive) {
+        // Status moved to non-active. Mark as cancelled, surface in
+        // modal — but don't auto-unassign. Operator decides.
+        if (wasActive) {
+          cancellations.push({
+            guestName: createFullName(existing),
+            bedId: assignmentStore.assignments.get(existing.id) || undefined,
+            arrival: existing.arrival,
+            departure: existing.departure,
+            status: newGuest.status,
+          })
+        }
+        // Update the record to mark cancelled + capture latest status,
+        // backfill planyoId if missing. Don't overwrite other fields.
+        existingGuests[existingIndex] = {
+          ...existing,
+          status: newGuest.status,
+          isCancelled: true,
+          planyoId: existing.planyoId || newGuest.planyoId,
+        }
+        return
+      }
+
+      // Active update: detect date changes, then merge fields.
+      const arrivalChanged =
+        newGuest.arrival && newGuest.arrival !== (existing.arrival || '')
+      const departureChanged =
+        newGuest.departure && newGuest.departure !== (existing.departure || '')
+      if (arrivalChanged || departureChanged) {
+        dateChanges.push({
+          guestName: createFullName(existing),
+          oldArrival: existing.arrival,
+          oldDeparture: existing.departure,
+          newArrival: newGuest.arrival || existing.arrival,
+          newDeparture: newGuest.departure || existing.departure,
+        })
+      }
+
+      const merged: Record<string, any> = {
+        ...existing,
+        // Reactivation: clear cancelled flag if it was set.
+        isCancelled: false,
+      }
       for (const [key, value] of Object.entries(newGuest)) {
         if (key === 'id' || key === 'importOrder') continue
-        // Only overwrite if the CSV actually supplied a value
         if (value !== undefined && value !== '' && value !== null) {
           merged[key] = value
         }
       }
-      existingGuests[existingIndex] = merged as typeof existing
+      existingGuests[existingIndex] = merged as Guest
     } else {
-      // Add new guest
-      existingGuests.push(newGuest)
+      // No matching existing guest. Only add if active — non-active
+      // first-time rows are silently dropped (nothing to compare to).
+      if (isActive) {
+        existingGuests.push(newGuest)
+      }
     }
   })
 
-  // Import the merged list
   guestStore.importGuests(existingGuests)
-
-  // Auto-detect timeline date range from imported guest arrival/departure dates
   timelineStore.autoDetectDateRange()
 
-  emit('upload-success', newGuests)
+  emit('upload-success', newRows)
 
-  // Date-aware: after the import settles, scan for new bed-overlap
-  // conflicts caused by changed dates. Surface them in a modal so the
-  // operator knows what to resolve.
+  // After the import settles, also detect bed-overlap conflicts caused
+  // by date changes, then surface everything in one combined modal.
   nextTick(() => {
-    const conflicts = assignmentStore.getAllOverlapConflicts()
-    if (conflicts.length > 0) {
-      showImportConflicts(
-        conflicts.map(c => ({
-          bedId: c.bedId,
-          guests: c.guests.map(g => {
-            const guest = guestStore.getGuestById(g.guestId)
-            return {
-              guestName: guest ? createFullName(guest) : '(unknown)',
-              arrival: g.arrival,
-              departure: g.departure,
-            }
-          }),
-        }))
-      )
-    }
+    const bedConflicts = assignmentStore.getAllOverlapConflicts().map(c => ({
+      bedId: c.bedId,
+      guests: c.guests.map(g => {
+        const guest = guestStore.getGuestById(g.guestId)
+        return {
+          guestName: guest ? createFullName(guest) : '(unknown)',
+          arrival: g.arrival,
+          departure: g.departure,
+        }
+      }),
+    }))
+    showImportSummary({ cancellations, dateChanges, bedConflicts })
   })
 
-  // Show warnings if any
   if (pendingCSVData.value.warnings.length > 0) {
-    successCount.value = newGuests.length
+    successCount.value = newRows.length
     totalRows.value = pendingCSVData.value.totalRows
     warnings.value = pendingCSVData.value.warnings
     showWarningModal.value = true

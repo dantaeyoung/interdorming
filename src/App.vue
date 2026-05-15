@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260409-02:00</span>
+          <span class="version-tag">v260514-23:14</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -267,8 +267,9 @@
     <!-- Global group-conflict dialog (group drop blocked by date overlap). -->
     <GroupConflictDialog />
 
-    <!-- Post-CSV-import conflict dialog (date changes created bed conflicts). -->
-    <ImportConflictDialog />
+    <!-- Combined post-CSV-import summary: cancellations + date changes
+         + new bed conflicts in one dialog. -->
+    <ImportSummaryDialog />
   </div>
 </template>
 
@@ -277,7 +278,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 
 // Shared components
-import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal, OverlapConfirmDialog, GroupConflictDialog, ImportConflictDialog } from '@/shared/components'
+import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal, OverlapConfirmDialog, GroupConflictDialog, ImportSummaryDialog } from '@/shared/components'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 
