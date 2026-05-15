@@ -481,6 +481,38 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Camping & commuter guests live outside the bed grid since
+               they aren't assigned to physical beds. Rendered as a flat
+               table with no Rm/Beds/LB? columns at the very bottom of
+               the Guestmaster sheet. -->
+          <div v-if="campingCommuterGuests.length > 0" class="guestmaster-camping">
+            <h4 class="guestmaster-camping-title">Camping & Commuter</h4>
+            <table class="guestmaster-table guestmaster-camping-table">
+              <thead>
+                <tr>
+                  <th class="th-housing">Housing</th>
+                  <th class="th-name">Guest Name</th>
+                  <th v-if="guestmasterColumns.gender" class="th-narrow">G</th>
+                  <th v-if="guestmasterColumns.age" class="th-narrow">Age</th>
+                  <th v-if="guestmasterColumns.group" class="th-group">Group</th>
+                  <th class="th-date">ARR</th>
+                  <th class="th-date">DEP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="g in campingCommuterGuests" :key="g.id">
+                  <td class="td-housing">{{ g.housingType || '' }}</td>
+                  <td class="td-name">{{ `${g.firstName || ''} ${g.lastName || ''}`.trim() }}</td>
+                  <td v-if="guestmasterColumns.gender" class="td-narrow">{{ g.gender || '' }}</td>
+                  <td v-if="guestmasterColumns.age" class="td-narrow">{{ g.age != null ? String(g.age) : '' }}</td>
+                  <td v-if="guestmasterColumns.group" class="td-group">{{ g.groupName || '' }}</td>
+                  <td class="td-date">{{ formatGuestmasterDate(g.arrival) }}</td>
+                  <td class="td-date">{{ formatGuestmasterDate(g.departure) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </template>
 
@@ -1329,9 +1361,13 @@ function handlePrint() {
   width: 100%;
 }
 
-/* Print-only mini-header above the table */
+/* Always-visible mini-header above the table — visible on screen AND
+   on paper, so the natural document flow keeps the title with the
+   table on the same page. (Earlier we toggled this via `display: none`
+   on screen / `display: flex` on print, but page-break logic shoved
+   the header onto its own page.) */
 .guestmaster-print-header {
-  display: none;
+  display: flex;
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: 6px;
@@ -1398,15 +1434,46 @@ function handlePrint() {
   .th-rm, .td-rm       { width: 16%; font-weight: 600; }
   .th-bed, .td-bed     { width: 9%; text-align: center; }
   .th-lb, .td-lb       { width: 5%; text-align: center; }
-  .th-name, .td-name   { width: 32%; }
+  .th-name, .td-name   { width: 28%; }
   .th-narrow, .td-narrow { width: 5%; text-align: center; }
   .th-group, .td-group { width: 12%; }
-  .th-date, .td-date   { width: 6%; text-align: center; font-size: 0.6rem; padding: 0 2px; }
+  .th-date, .td-date   {
+    width: 9%;
+    text-align: center;
+    font-size: 0.6rem;
+    padding: 0 2px;
+    /* Never truncate the date — operator needs to read it on paper. */
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* Camping/commuter housing column */
+  .th-housing, .td-housing { width: 14%; font-weight: 600; }
 
   /* Thicker bottom border marks the end of each room block */
   tr.last-of-room td {
     border-bottom: 2px solid #1f2937;
   }
+}
+
+.guestmaster-camping {
+  margin-top: 16px;
+
+  .guestmaster-camping-title {
+    margin: 0 0 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #4b5563;
+  }
+}
+
+.guestmaster-camping-table {
+  /* No room/bed grid — flat table that spans the full width below the
+     two-column bed grid. */
+  width: 100%;
 }
 
 @media print {
@@ -1417,16 +1484,23 @@ function handlePrint() {
     font-size: 0.55rem;
     th, td { padding: 1px 3px; }
     thead th { font-size: 0.5rem; padding: 2px 3px; }
+
+    /* Date columns get a tiny bit more breathing room on paper so
+       'May 15' doesn't get clipped to 'May…'. Override clamps. */
+    .th-date, .td-date {
+      width: 10%;
+      font-size: 0.55rem;
+      letter-spacing: -0.01em;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      white-space: nowrap !important;
+    }
   }
   /* In Guestmaster mode, hide the report header + summary so only the
      table prints. The headers stay visible on screen — operators still
      see them when reviewing before printing. */
   .print-content.guestmaster-mode .header-printable {
     display: none !important;
-  }
-  /* Show the print-only mini-header on paper */
-  .guestmaster-print-header {
-    display: flex !important;
   }
 }
 
@@ -1512,19 +1586,29 @@ function handlePrint() {
   background: white;
 }
 
+/* Compressed on-screen header — used to be ~200px tall with huge h1
+   + h2 + Summary card. Operator wants this collapsed to roughly 20%
+   so the actual room table is visible without scrolling. */
 .report-header {
-  text-align: center;
-  margin-bottom: 32px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  text-align: left;
 
   h1 {
-    margin: 0 0 8px 0;
-    font-size: 2rem;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
     color: #1f2937;
   }
 
   h2 {
-    margin: 0 0 8px 0;
-    font-size: 1.5rem;
+    margin: 0;
+    font-size: 0.85rem;
     color: #4b5563;
     font-weight: 500;
   }
@@ -1532,42 +1616,48 @@ function handlePrint() {
   .report-date {
     margin: 0;
     color: #6b7280;
-    font-size: 0.95rem;
+    font-size: 0.75rem;
   }
 }
 
 .summary-section {
-  margin-bottom: 32px;
-  padding: 20px;
+  margin-bottom: 10px;
+  padding: 4px 10px;
   background: #f9fafb;
-  border-radius: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 
   h3 {
-    margin: 0 0 16px 0;
-    font-size: 1.25rem;
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
     color: #1f2937;
+    flex-shrink: 0;
   }
 }
 
 .summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex: 1;
 }
 
 .summary-item {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  align-items: baseline;
   gap: 4px;
 
   .summary-label {
-    font-size: 0.875rem;
+    font-size: 0.7rem;
     color: #6b7280;
   }
 
   .summary-value {
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 0.95rem;
+    font-weight: 700;
     color: #1f2937;
   }
 }
