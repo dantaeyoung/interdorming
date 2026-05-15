@@ -16,6 +16,7 @@
         title="Undo last action"
       >
         <span class="btn-icon">↩</span>
+        <span class="btn-label">Undo</span>
       </button>
       <button
         class="action-btn"
@@ -24,6 +25,7 @@
         title="Redo last undone action"
       >
         <span class="btn-icon">↪</span>
+        <span class="btn-label">Redo</span>
       </button>
     </div>
 
@@ -177,6 +179,10 @@ const unplaceableGroupDetails = computed(() =>
 
   .btn-icon {
     font-size: 0.85rem;
+  }
+
+  .btn-label {
+    font-size: 0.75rem;
   }
 }
 

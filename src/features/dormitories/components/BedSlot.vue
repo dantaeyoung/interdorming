@@ -11,6 +11,22 @@
         @mouseenter="handleGuestHover"
         @mouseleave="handleGuestLeave"
       >
+        <div class="guest-actions guest-actions-leading">
+          <button
+            class="icon-button edit-icon"
+            title="View/Edit guest details"
+            @click.stop="showEditModal = true"
+          >✏️</button>
+          <button
+            ref="notesButtonRef"
+            class="icon-button notes-icon"
+            :class="{ 'has-notes': hasNotes, 'no-notes-empty': !hasNotes, 'has-internal': hasInternalNotes }"
+            :title="hasInternalNotes ? 'Has internal notes' : (hasNotes ? 'Has notes' : 'No notes')"
+            @click.stop
+            @mouseenter="hasNotes && handleNotesMouseEnter()"
+            @mouseleave="showNotesTooltip = false"
+          >📝</button>
+        </div>
         <div class="guest-info">
           <strong class="guest-name" :class="{ 'cancelled-name': assignedGuest.isCancelled }">
             {{ displayName }}
@@ -40,22 +56,6 @@
             <span v-if="assignedGuest.arrival && assignedGuest.departure">→</span>
             <span v-if="assignedGuest.departure">{{ formatGuestDate(assignedGuest.departure) }}</span>
           </span>
-        </div>
-        <div class="guest-actions">
-          <button
-            ref="notesButtonRef"
-            class="icon-button notes-icon"
-            :class="{ 'has-notes': hasNotes, 'no-notes': !hasNotes, 'has-internal': hasInternalNotes }"
-            :title="hasInternalNotes ? 'Has internal notes' : (hasNotes ? 'Has notes' : 'No notes')"
-            @click.stop
-            @mouseenter="hasNotes && handleNotesMouseEnter()"
-            @mouseleave="showNotesTooltip = false"
-          >📝</button>
-          <button
-            class="icon-button edit-icon"
-            title="View/Edit guest details"
-            @click.stop="showEditModal = true"
-          >✏️</button>
         </div>
         <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
       </div>
@@ -105,7 +105,7 @@
     <Teleport to="body">
       <div v-if="showNotesTooltip" class="notes-tooltip-overlay" :style="tooltipPosition">
         <div v-if="assignedGuest?.notes?.trim()" class="notes-tooltip-section">
-          <div class="notes-tooltip-label">From CSV</div>
+          <div class="notes-tooltip-label">Notes from guest</div>
           <div class="notes-tooltip-body">{{ assignedGuest.notes }}</div>
         </div>
         <div v-if="assignedGuest?.internalNotes?.trim()" class="notes-tooltip-section">
@@ -748,6 +748,14 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   gap: 2px;
   flex-shrink: 0;
   margin-left: auto;
+
+  /* When the actions are placed BEFORE the name (per operator request,
+     so they're always reachable on a long row), don't push them to the
+     right edge. */
+  &.guest-actions-leading {
+    margin-left: 0;
+    margin-right: 4px;
+  }
 }
 
 .icon-button {
@@ -767,8 +775,11 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
     background: #f3f4f6;
   }
 
-  &.no-notes {
-    opacity: 0;
+  /* When the notes icon is leading the row but the guest has no notes,
+     keep it visible (per operator request — always-visible icons) but
+     very faded and non-interactive. */
+  &.no-notes-empty {
+    opacity: 0.18;
     cursor: default;
     pointer-events: none;
   }
