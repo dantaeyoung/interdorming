@@ -764,9 +764,9 @@ export { SortIndicator }
     z-index: 10;
 
     th {
-      padding: 6px 10px;
+      padding: 2px 6px;
       text-align: left;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       color: #374151;
       cursor: pointer;

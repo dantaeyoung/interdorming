@@ -24,6 +24,15 @@
       <button @click="handleEdit" class="btn-edit" title="Edit guest">
         ✎
       </button>
+      <button
+        ref="actionNotesButtonRef"
+        class="btn-notes-action"
+        :class="{ 'has-notes': hasAnyNotes, 'no-notes-empty': !hasAnyNotes, 'has-internal': hasInternalNote }"
+        :title="hasInternalNote ? 'Has internal notes' : (hasAnyNotes ? 'Has notes' : 'No notes')"
+        @click.stop
+        @mouseenter="hasAnyNotes && handleActionNotesMouseEnter()"
+        @mouseleave="showActionNotesTooltip = false"
+      >📝</button>
     </td>
     <template v-for="col in visibleColumns" :key="col.key">
       <td v-if="col.key === 'importOrder'" class="order-cell">{{ guest.importOrder || '-' }}</td>
@@ -138,6 +147,23 @@
       </div>
       <div v-if="showLongTextModal && longTextModalContent" class="notes-modal-overlay" :style="longTextModalPosition" v-html="longTextModalContent">
       </div>
+      <!-- Action-column notes hover popover: matches BedSlot styling so
+           the operator gets a consistent experience whether the guest is
+           assigned or unassigned. Two sections when both are present. -->
+      <div
+        v-if="showActionNotesTooltip"
+        class="action-notes-tooltip-overlay"
+        :style="actionNotesTooltipPosition"
+      >
+        <div v-if="guest.notes && guest.notes.trim()" class="notes-tooltip-section">
+          <div class="notes-tooltip-label">Notes from guest</div>
+          <div class="notes-tooltip-body">{{ guest.notes }}</div>
+        </div>
+        <div v-if="guest.internalNotes && guest.internalNotes.trim()" class="notes-tooltip-section">
+          <div class="notes-tooltip-label">Internal</div>
+          <div class="notes-tooltip-body">{{ guest.internalNotes }}</div>
+        </div>
+      </div>
     </Teleport>
   </tr>
 </template>
@@ -239,6 +265,31 @@ const draggableProps = (props.readonly || !isAssignable.value) ? {} : useDraggab
 const showNotesModal = ref(false)
 const modalPosition = ref({ top: '0px', left: '0px' })
 const notesCellRef = ref<HTMLSpanElement | null>(null)
+
+// Action-column notes button + hover popover (mirrors BedSlot)
+const hasInternalNote = computed(() => !!props.guest.internalNotes?.trim())
+const hasAnyNotes = computed(
+  () => !!props.guest.notes?.trim() || hasInternalNote.value
+)
+const actionNotesButtonRef = ref<HTMLButtonElement | null>(null)
+const showActionNotesTooltip = ref(false)
+const actionNotesTooltipPosition = ref({ top: '0px', left: '0px' })
+
+function handleActionNotesMouseEnter() {
+  if (!actionNotesButtonRef.value) return
+  const rect = actionNotesButtonRef.value.getBoundingClientRect()
+  // Anchor below the icon, clamped to viewport
+  const tooltipWidth = 320
+  const left = Math.max(
+    8,
+    Math.min(window.innerWidth - tooltipWidth - 8, rect.left)
+  )
+  actionNotesTooltipPosition.value = {
+    top: `${rect.bottom + 6}px`,
+    left: `${left}px`,
+  }
+  showActionNotesTooltip.value = true
+}
 
 // Generic long text modal (for mental health, physical health, etc.)
 const showLongTextModal = ref(false)
@@ -588,9 +639,15 @@ function handleUnlink() {
 }
 
 td {
-  padding: 6px 10px;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 0.85rem;
+  padding: 1px 6px;
+  /* Visible row separator. Earlier this was \`border-bottom\` on td, but
+     at the new compact density the e5e7eb hairline disappears against
+     the white background. Use a slightly darker grey, applied with the
+     `box-shadow` trick so it isn't swallowed by `border-collapse`
+     edge-stacking when sibling cells render. */
+  box-shadow: inset 0 -1px 0 #d1d5db;
+  font-size: 0.8rem;
+  line-height: 1.25;
 
   &.order-cell {
     font-weight: 600;
@@ -662,19 +719,19 @@ td {
 
 .actions-cell {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-width: 100px;
   vertical-align: middle;
 }
 
 .btn-link-guest {
-  padding: 4px 6px;
+  padding: 1px 5px;
   background: transparent;
   color: #9ca3af;
   border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border-radius: 3px;
   font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
@@ -726,12 +783,12 @@ td {
 }
 
 .btn-edit {
-  padding: 4px 8px;
+  padding: 1px 6px;
   background: transparent;
   color: #6b7280;
   border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 0.875rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
 
@@ -743,6 +800,47 @@ td {
 
   &:active {
     transform: scale(0.95);
+  }
+}
+
+/* Notes icon in the actions column — mirrors BedSlot's leading notes
+   button so the hover experience is identical for assigned and
+   unassigned guests. */
+.btn-notes-action {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  opacity: 1;
+  transition: opacity 0.2s;
+  position: relative;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  /* Very faded, non-interactive when the guest has no notes — present
+     in the row so the column width stays consistent, but visually
+     distinct from rows that do have notes. */
+  &.no-notes-empty {
+    opacity: 0.18;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* Amber dot in the upper-right when internal notes exist. */
+  &.has-internal::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 6px;
+    background: #f59e0b;
+    border-radius: 50%;
+    border: 1px solid white;
   }
 }
 
@@ -763,4 +861,44 @@ td {
   transform: translate(-50%, calc(-100% - 8px));
 }
 
+</style>
+
+<style lang="scss">
+/* Action-column notes popover. Lives at body level so the table's
+   overflow can't clip it. Mirrors the BedSlot notes tooltip styling. */
+.action-notes-tooltip-overlay {
+  position: fixed;
+  z-index: 99999;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 0.8rem;
+  color: #374151;
+  max-width: 320px;
+  white-space: pre-wrap;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .notes-tooltip-section + .notes-tooltip-section {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+  }
+
+  .notes-tooltip-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+
+  .notes-tooltip-body {
+    color: #374151;
+  }
+}
 </style>
