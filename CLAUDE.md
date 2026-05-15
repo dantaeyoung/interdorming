@@ -56,24 +56,38 @@ The Blue Cliff Monastery Dorm Assignment Tool is a Vue 3 + TypeScript web applic
 - **Vitest** for unit testing
 
 ### Tab-Based Interface
-The application operates across multiple tabs:
-- **Guest Data**: CSV import, guest table, data management
-- **Assignment**: Drag-and-drop / click-to-pick interface for assigning guests to beds
-- **Timeline**: Visual timeline of guest arrivals/departures
-- **Configuration**: Dormitory and room layout management
-- **Print**: Print-friendly view of assignments
+The application operates across multiple top-level tabs:
+- **All Reservations** (id `guest-data`): CSV import, guest table, data management. The id stays `guest-data` for localStorage compat — only the user-facing label changed.
+- **Table View** (id `assignment`): Drag-and-drop / click-to-pick interface for assigning guests to beds. Includes a "View Date" filter (persisted in localStorage as `dormAssignments-viewDate`) that scopes the bed slots to one date so multi-assignment beds resolve to a single guest.
+- **Timeline View** (id `timeline`): Visual timeline of guest arrivals/departures
+- **Room Configuration** (id `configuration`): Dormitory and room layout management
+- **Print** (id `print`): Print-friendly views (see Print sub-tabs below)
+- **Settings** (id `settings`)
+
+#### Print Sub-tabs
+Persisted under `dormAssignments-printMode`:
+- **List by Dorm** — full guest list grouped by dorm/room
+- **List by A-Z** — alphabetical roster
+- **Name Tags** — exportable name-tag CSV
+- **Guestmaster** — compact two-column bed grid for hand-checking arrivals (landscape print)
+- **Work Coordinator** — sequential roster sorted by gender (NB → F → M) then age, includes camping/commuter (portrait)
+- **Check-in Slips** — one slip per guest, sized for paper-cutter slicing (7 slips per portrait page, uniform row heights, last-name highlighted yellow)
+
+Each sub-tab has its own column-toggle preferences persisted under separate localStorage keys (`dormAssignments-guestmasterPrefs`, `…-workCoordinatorPrefs`, `…-checkInSlipsPrefs`). Print orientation is per-mode via an injected `@page` rule (see `applyPrintOrientation` in `PrintView.vue`).
 
 ### Data Model Hierarchy
 ```
-Dormitories (top level) → Rooms → Beds → Guest Assignments
+Dormitories (top level) → Rooms → Beds → Bed Assignments → Guest
 ```
 
+A bed can hold multiple `BedAssignment`s as long as their derived stays don't overlap (date-aware bed sharing).
+
 ### State Management (Pinia Stores)
-- **`guestStore`**: Guest data from CSV import
-- **`dormitoryStore`**: Dormitory/room/bed configuration
-- **`assignmentStore`**: Guest-to-bed assignments, undo/redo history, swaps
-- **`settingsStore`**: User preferences (warnings, display, gender colors, auto-placement, group placement order, couple splitting)
-- **`validationStore`**: Computed validation warnings for assignments
+- **`guestStore`**: Guest data from CSV import. Includes derived `assignableGuests` (excludes camping/commuter housing types).
+- **`dormitoryStore`**: Dormitory/room/bed configuration. Beds use the new `assignments: BedAssignment[]` shape; legacy `assignedGuestId` is migrated on first load via the eager `migrateBedAssignments` watcher.
+- **`assignmentStore`**: Guest-to-bed assignments map (`Map<guestId, bedId>`, kept in sync with `bed.assignments`), undo/redo history, suggestion accept/clear, swap helpers, and `getOverlappingAssignments` / `getAllOverlapConflicts` for the date-aware drop dialogs.
+- **`settingsStore`**: User preferences (warnings, display, gender colors, auto-placement, group placement order, couple splitting, table column visibility per view)
+- **`validationStore`**: Computed validation warnings (`dateOverlap`, gender, bunk, age, etc.). Date-scoped — only roommates whose stays overlap the candidate's stay count.
 - **`timelineStore`**: Timeline view state
 
 All stores use `pinia-plugin-persistedstate` for automatic localStorage sync.
@@ -114,19 +128,44 @@ src/
 - **Header detection**: Auto-skips preamble/metadata lines (e.g., "Reservations From: ...") by scanning for recognized column names
 - **Flexible column mapping**: `CSV_FIELD_MAPPINGS` in `Constants.ts` maps field names to multiple variations (e.g., `firstName` matches `FIRST NAME`, `First Name`)
 - **Two CSV types**: Guest data import and room configuration import/export
+- **Status-based filtering** (`isActiveReservationStatus` / `isCancelledStatus` in `Constants.ts`): Only `Reserved` and `Reserved + Email address verified + confirmed` count as active reservations and get imported. Anything containing `cancel` (case-insensitive) is treated as a cancellation. Other statuses (e.g., `Not completed`) are silently skipped.
+- **Add & Update is the only merge mode** — the old "Reset & Replace" choice was removed because operators have continuous data; a single misclick was wiping manual assignments. Full-wipe still exists in Settings → Danger Zone.
+- **Match by Planyo `ID`** (or common variants in `CSV_FIELD_MAPPINGS.planyoId`), name as fallback. Same person across multiple retreats no longer collides.
+- **Diff & surface**: re-uploads detect cancellations (was active, now cancelled), date changes, and bed-overlap conflicts caused by date shifts. All three are reported in the combined `ImportSummaryDialog`.
 
 ### Drag-and-Drop + Click-to-Pick (`src/features/assignments/composables/useDragDrop.ts`)
 - Singleton shared state for drag tracking across components
 - Native HTML5 drag-and-drop API with custom drag image
 - Click-to-pick alternative: pick a guest, then click a bed to place (Escape to cancel)
-- Supports swap when dropping on occupied bed
+- **Date-aware drop**: dropping on an empty bed (or one with non-overlapping cohorts) silently adds the assignment. Dropping where the new guest's stay overlaps an existing assignment opens `OverlapConfirmDialog` (Replace / Cancel). Group drops with any conflicting member open `GroupConflictDialog` (lists every conflict, no assignments made, Cancel-only).
+- Mirror logic in Timeline view via `useTimelineDragDrop`.
+
+### Date-Aware Bed Sharing
+- `bed.assignments: BedAssignment[]` (one entry per cohort) replaces the legacy single `assignedGuestId`. Dates are derived at read time from the guest's `arrival` / `departure` (single source of truth — editing guest dates updates the assignment automatically).
+- Two stays overlap iff `staysOverlap(a, b)` in `useUtils.ts` — half-open intervals, departure-day is bed-available, missing dates = "always present".
+- Auto-placement helpers (`getAvailableBeds`, `isBedAvailableForGuest`, `isBedAvailableForGroup`, `scoreAgeCompatibility`, etc.) all respect the candidate's stay so a March guest can be placed on the same bed an April guest already holds.
+- Migration runs on first load (eager watcher in `dormitoryStore`) — converts legacy `bed.assignedGuestId` shape to the new array shape and clears persisted undo history.
 
 ### Validation (`src/stores/validationStore.ts`)
 Non-blocking visual warnings for:
+- **Date overlap** — two assignments on the same bed whose stays collide
 - Gender mismatches (male in female room)
 - Bunk accessibility violations (upper bunk for lower-bunk-required guests)
 - Family separation (same GroupName in different rooms)
 - Age compatibility issues (large age gaps, minors with adults)
+
+Gender / bunk / age warnings are date-scoped — only roommates whose stays overlap the candidate's stay are considered.
+
+### Internal Notes
+- Separate `internalNotes` field on `Guest`, distinct from CSV-imported `notes`. Operator-only, never overwritten by CSV re-imports.
+- Editable in `GuestFormModal`. Surfaced in `BedSlot` and `GuestRow` via the 📝 icon (a small dark-purple dot indicates internal notes exist). Hover triggers a Teleported popover that lists "Notes from guest" + "Internal" sections.
+- Optional column in the All Reservations table.
+
+### Cancelled Reservations
+- Cancelled guests are kept in the data so the operator can review and unassign manually — the import flow does NOT auto-unassign them.
+- Visual treatment: All Reservations table row gets opacity 0.4 + line-through on every cell + grayscale on badges; sorted to the bottom of the unassigned list (after camping/commuter, which also tier-sort to the bottom).
+- BedSlot guest name gets line-through.
+- All print views skip cancelled guests entirely.
 
 ### Auto-Placement (`src/features/assignments/composables/useAutoPlacement.ts`)
 - **Two-stage algorithm**: Stage 1 places groups as whole units (largest/hardest first), Stage 2 fills remaining beds with individuals
@@ -202,6 +241,7 @@ This applies even when the user just says "merge to main" without mentioning the
 ### Guest CSV Fields (Flexible)
 Required: `firstName`, `lastName`, `gender`, `age`
 Optional: `preferredName`, `groupName`, `lowerBunk`, `arrival`, `departure`, `indivGrp`, etc.
+Planyo-specific: `planyoId` (matches `ID`, `Reservation ID`, `Reservation #`, `Booking ID`, etc.) and `status` (matches `Status`, `Reservation Status`).
 
 Key fields for auto-placement: `groupName` (shared group ID), `indivGrp` ("individual"/"group"/"family/friends"), `gender`, `age`, `lowerBunk`.
 
@@ -214,16 +254,26 @@ Optional: `Room Name`, `Room Gender`, `Bed ID`, `Bed Type`, `Bed Position`, `Act
 ## Validation Checklist
 After making changes, verify:
 - [ ] Can upload guest CSV files with various column names (including with preamble lines)
+- [ ] CSV import filters by status — only `Reserved` / `Reserved + Email address verified + confirmed` create guests
+- [ ] Re-uploading a CSV detects cancellations (status containing `cancel`) and date changes; surfaces them in `ImportSummaryDialog`
+- [ ] Same Planyo `ID` matches across re-uploads (not by name)
 - [ ] Drag-and-drop assignment works between guests and beds
 - [ ] Click-to-pick assignment works as alternative to drag-and-drop
+- [ ] Dropping on a bed with overlapping cohort opens `OverlapConfirmDialog`; non-overlapping cohorts can share a bed silently
+- [ ] Group drop with any conflicting member opens `GroupConflictDialog` (no assignments made)
 - [ ] Room configuration changes update assignment interface
 - [ ] Can export/import room configurations
 - [ ] Undo functionality works for recent assignments
-- [ ] Data persists across browser sessions
-- [ ] Assignment warnings appear for violations (gender, age, bunk type)
-- [ ] Tab switching works between all modes
+- [ ] Data persists across browser sessions (including View Date in Table View, print sub-tab choice, and per-sub-tab column toggles)
+- [ ] Assignment warnings appear for violations (gender, age, bunk type, **date overlap**)
+- [ ] Tab switching works between all modes (Table View / Timeline View / Room Configuration / Print / Settings / All Reservations)
 - [ ] Timeline view displays guest arrival/departure data
 - [ ] Auto-place keeps groups/families together in one room
 - [ ] Auto-place respects group placement order from settings
+- [ ] Auto-place is date-aware: a March guest can be placed on a bed an April guest already holds
 - [ ] Mixed-gender couple splitting works per age threshold setting
 - [ ] Same-gender groups prefer gendered rooms over coed
+- [ ] Cancelled guests are visually faded with line-through and sort to the bottom of the unassigned list
+- [ ] All print sub-tabs (List by Dorm / A-Z / Name Tags / Guestmaster / Work Coordinator / Check-in Slips) skip cancelled guests
+- [ ] Check-in Slips: 7 slips per portrait letter page, all uniform height, no inter-slip gap
+- [ ] Internal Notes survive CSV re-imports (not overwritten); 📝 icon shows dark-purple dot when present
