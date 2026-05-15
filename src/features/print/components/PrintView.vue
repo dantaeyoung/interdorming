@@ -1898,6 +1898,9 @@ function handlePrint() {
   font-size: 0.65rem;
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
   table-layout: fixed;
+  /* Pure black text on screen + paper for maximum legibility (operator
+     reads this from across the room and over a clipboard). */
+  color: #000;
   /* Force browsers to print background colors (the dorm-color tags on
      room-name cells). Without this, Chrome/Safari strip backgrounds. */
   -webkit-print-color-adjust: exact;
@@ -1906,6 +1909,7 @@ function handlePrint() {
   th, td {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    color: #000;
   }
 
   th, td {
@@ -1926,7 +1930,7 @@ function handlePrint() {
     font-weight: 700;
     font-size: 0.6rem;
     text-transform: uppercase;
-    color: #1f2937;
+    color: #000;
     height: 22px;
   }
 
@@ -2039,13 +2043,16 @@ function handlePrint() {
 
   thead th {
     background: #f3f4f6;
-    font-size: 0.7rem;
+    font-size: 0.6rem !important;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 4px 10px;
+    /* Tighten the headers — very narrow columns can't afford the
+       loose 0.04em spacing or generous 10px side padding. */
+    letter-spacing: 0;
+    padding: 2px 4px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    color: #000;
   }
 
   tbody td {
