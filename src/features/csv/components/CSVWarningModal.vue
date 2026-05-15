@@ -15,7 +15,12 @@
         <div v-if="warnings.length > 0" class="warnings-section">
           <div class="warnings-header">
             <span class="warning-icon">⚠</span>
-            {{ warnings.length }} row{{ warnings.length !== 1 ? 's were' : ' was' }} skipped:
+            <template v-if="skippedCount > 0">
+              {{ skippedCount }} row{{ skippedCount !== 1 ? 's' : '' }} skipped:
+            </template>
+            <template v-else>
+              {{ warnings.length }} note{{ warnings.length !== 1 ? 's' : '' }}:
+            </template>
           </div>
           <ul class="warnings-list">
             <li v-for="(warning, index) in warnings" :key="index" class="warning-item">
@@ -38,6 +43,12 @@ interface Props {
   successCount: number
   totalRows: number
   warnings: string[]
+  // Total rows dropped during import (non-active reservations + parse
+  // errors). Headline uses this so a single summary entry like "Skipped
+  // 4 non-active reservations" doesn't get reported as "1 row was
+  // skipped" (warnings.length counts entries, not rows). Defaults to 0
+  // → headline falls back to "X notes" when only entry-level info exists.
+  skippedCount?: number
 }
 
 withDefaults(defineProps<Props>(), {
@@ -45,6 +56,7 @@ withDefaults(defineProps<Props>(), {
   successCount: 0,
   totalRows: 0,
   warnings: () => [],
+  skippedCount: 0,
 })
 
 const emit = defineEmits<{

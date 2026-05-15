@@ -29,6 +29,7 @@
       :success-count="successCount"
       :total-rows="totalRows"
       :warnings="warnings"
+      :skipped-count="skippedCount"
       @close="closeWarningModal"
     />
 
@@ -91,6 +92,10 @@ const showWarningModal = ref(false)
 const successCount = ref(0)
 const totalRows = ref(0)
 const warnings = ref<string[]>([])
+// Actual row count dropped (non-active + parse errors) — distinct from
+// warnings.length, which counts entries (one summary entry can cover
+// many rows). Used by the modal headline.
+const skippedCount = ref(0)
 
 // Stash for the parsed CSV between parse and the merge handler.
 const pendingCSVData = ref<{ guests: Guest[]; warnings: string[]; totalRows: number } | null>(null)
@@ -100,6 +105,7 @@ function closeWarningModal() {
   successCount.value = 0
   totalRows.value = 0
   warnings.value = []
+  skippedCount.value = 0
 }
 
 async function handleFileChange(event: Event) {
@@ -172,6 +178,8 @@ function performImport(result: { guests: Guest[]; warnings: string[]; totalRows:
     successCount.value = activeGuests.length
     totalRows.value = result.totalRows
     warnings.value = allWarnings
+    // Actual rows dropped: non-active reservations + per-row parse errors.
+    skippedCount.value = skipped + result.warnings.length
     showWarningModal.value = true
   }
 }
@@ -303,6 +311,10 @@ function handleAddAndUpdate() {
     successCount.value = newRows.length
     totalRows.value = pendingCSVData.value.totalRows
     warnings.value = pendingCSVData.value.warnings
+    // Re-import path only surfaces parse errors here (non-active rows
+    // are reflected in the diff modal instead), so each warning entry
+    // == one row.
+    skippedCount.value = pendingCSVData.value.warnings.length
     showWarningModal.value = true
   }
 

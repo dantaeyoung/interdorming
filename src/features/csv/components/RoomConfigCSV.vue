@@ -54,6 +54,7 @@ import { useCSV } from '../composables/useCSV'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { ConfirmDialog } from '@/shared/components'
 import type { Dormitory, RoomLayout } from '@/types'
+import { parseRoomGender, parseBedType } from '@/types/Constants'
 
 interface Props {
   showLoadDefault?: boolean
@@ -348,7 +349,7 @@ function parseRoomConfigCSV(csvText: string): Dormitory[] {
     if (!room) {
       room = {
         roomName,
-        roomGender: (values[headers.indexOf('Room Gender')] || 'M') as any,
+        roomGender: parseRoomGender(values[headers.indexOf('Room Gender')]),
         active: values[headers.indexOf('Room Active')]?.toLowerCase() !== 'no',
         beds: [],
       }
@@ -358,7 +359,7 @@ function parseRoomConfigCSV(csvText: string): Dormitory[] {
     // Add bed
     room.beds.push({
       bedId,
-      bedType: (values[headers.indexOf('Bed Type')] || 'single') as any,
+      bedType: parseBedType(values[headers.indexOf('Bed Type')]),
       position: parseInt(values[headers.indexOf('Bed Position')] || '1'),
       assignments: [],
       active: values[headers.indexOf('Bed Active')]?.toLowerCase() !== 'no',
