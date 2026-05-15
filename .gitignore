@@ -112,9 +112,7 @@ build/
 .vite/
 *.local
 
-# Package manager lock files (optional - remove if you want to commit them)
-package-lock.json
-yarn.lock
+# Package manager lock files: commit package-lock.json so `npm ci` works in CI
 
 # Local development files
 local/
