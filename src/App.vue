@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260515-00:05</span>
+          <span class="version-tag">v260515-00:11</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -841,11 +841,11 @@ function stopResize() {
 
 .header {
   background: white;
-  padding: 8px 16px;
+  padding: 3px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
   border-bottom: 1px solid #e5e7eb;
@@ -854,11 +854,11 @@ function stopResize() {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 
   h1 {
     margin: 0;
-    font-size: 1.125rem;
+    font-size: 0.95rem;
     font-weight: 700;
     background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
     -webkit-background-clip: text;
@@ -867,29 +867,29 @@ function stopResize() {
 
     .branch-indicator {
       -webkit-text-fill-color: #ff6b6b;
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       font-weight: 500;
-      margin-left: 8px;
+      margin-left: 6px;
     }
 
     .version-tag {
       -webkit-text-fill-color: #999;
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       font-weight: 400;
-      margin-left: 8px;
+      margin-left: 6px;
       letter-spacing: 0.02em;
     }
   }
 }
 
 .tour-btn {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
   border: none;
   color: white;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -915,9 +915,9 @@ function stopResize() {
 }
 
 .header-status {
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
   font-weight: 500;
   white-space: nowrap;
 
@@ -965,11 +965,11 @@ function stopResize() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
+  padding: 3px 10px;
   background-color: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
-  gap: 12px;
+  gap: 8px;
 }
 
 .toolbar-left-section {
@@ -1134,7 +1134,7 @@ function stopResize() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  padding: 4px 10px;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f9fafb;
   border-radius: 8px 8px 0 0;
@@ -1210,12 +1210,12 @@ function stopResize() {
 }
 
 .search-section {
-  padding: 8px 12px;
+  padding: 3px 8px;
   background: white;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
 }
 

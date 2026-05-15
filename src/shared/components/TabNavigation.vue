@@ -64,24 +64,24 @@ function selectTab(tabId: string) {
 
 .tab-list {
   display: flex;
-  gap: 4px;
-  padding: 0 12px;
+  gap: 2px;
+  padding: 0 10px;
   position: relative;
 }
 
 .tab {
   background: transparent;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-bottom: none;
-  padding: 7px 17px;
-  font-size: 0.875rem;
+  padding: 3px 12px;
+  font-size: 0.8rem;
   font-weight: 500;
   color: #6b7280;
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
-  border-radius: 8px 8px 0 0;
-  height: 42px;
+  border-radius: 6px 6px 0 0;
+  height: 26px;
   box-sizing: border-box;
   text-align: center;
 
@@ -95,7 +95,7 @@ function selectTab(tabId: string) {
     background-color: white;
     font-weight: 600;
     // Border on top, left, right
-    border: 3px solid #9ca3af;
+    border: 2px solid #9ca3af;
     border-bottom: none;
     z-index: 2;
 
@@ -106,7 +106,7 @@ function selectTab(tabId: string) {
       bottom: 0;
       right: 100%;
       width: 100vw;
-      height: 3px;
+      height: 2px;
       background: #9ca3af;
     }
 
@@ -117,7 +117,7 @@ function selectTab(tabId: string) {
       bottom: 0;
       left: 100%;
       width: 100vw;
-      height: 3px;
+      height: 2px;
       background: #9ca3af;
     }
   }
