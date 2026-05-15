@@ -168,6 +168,10 @@
           <input type="checkbox" v-model="checkInSlipsColumns.departure" />
           <span>Departure</span>
         </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="checkInSlipsColumns.internalNotes" />
+          <span>Internal Notes</span>
+        </label>
         <button class="btn-reset-prefs" @click="resetCheckInSlipsPrefs" title="Restore default checkboxes">
           ↺ Reset
         </button>
@@ -646,22 +650,24 @@
             <table class="checkin-slip-table">
               <thead>
                 <tr>
-                  <th v-if="checkInSlipsColumns.housing">Housing</th>
-                  <th>First Name</th>
-                  <th>Last Name</th>
-                  <th v-if="checkInSlipsColumns.lowerBunk">Lower bunk requested?</th>
-                  <th v-if="checkInSlipsColumns.arrival">Arrival</th>
-                  <th v-if="checkInSlipsColumns.departure">Departure</th>
+                  <th v-if="checkInSlipsColumns.housing" class="slip-col-housing">Housing</th>
+                  <th class="slip-col-first">First Name</th>
+                  <th class="slip-col-last">Last Name</th>
+                  <th v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">Lower bunk requested?</th>
+                  <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arrival</th>
+                  <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Departure</th>
+                  <th v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">Internal Notes</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td v-if="checkInSlipsColumns.housing">{{ row.guest.housingType || '' }}</td>
-                  <td>{{ row.guest.firstName || '' }}</td>
-                  <td>{{ row.guest.lastName || '' }}</td>
-                  <td v-if="checkInSlipsColumns.lowerBunk">{{ row.guest.lowerBunk ? 'Yes' : '' }}</td>
-                  <td v-if="checkInSlipsColumns.arrival">{{ formatGuestDate(row.guest.arrival) || '' }}</td>
-                  <td v-if="checkInSlipsColumns.departure">{{ formatGuestDate(row.guest.departure) || '' }}</td>
+                  <td v-if="checkInSlipsColumns.housing" class="slip-col-housing">{{ row.housingDisplay }}</td>
+                  <td class="slip-col-first">{{ row.guest.firstName || '' }}</td>
+                  <td class="slip-col-last">{{ row.guest.lastName || '' }}</td>
+                  <td v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">{{ row.guest.lowerBunk ? 'Yes' : '' }}</td>
+                  <td v-if="checkInSlipsColumns.arrival" class="slip-col-arr">{{ formatGuestmasterDate(row.guest.arrival) || '' }}</td>
+                  <td v-if="checkInSlipsColumns.departure" class="slip-col-dep">{{ formatGuestmasterDate(row.guest.departure) || '' }}</td>
+                  <td v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">{{ row.guest.internalNotes || '' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -934,6 +940,7 @@ const CHECKIN_SLIPS_DEFAULTS = {
   lowerBunk: true,
   arrival: true,
   departure: true,
+  internalNotes: true,
 }
 
 function loadCheckInSlipsPrefs() {
@@ -952,6 +959,7 @@ const checkInSlipsColumns = reactive({
   lowerBunk: _initialSlipsPrefs.lowerBunk,
   arrival: _initialSlipsPrefs.arrival,
   departure: _initialSlipsPrefs.departure,
+  internalNotes: _initialSlipsPrefs.internalNotes,
 })
 
 watch(
@@ -960,6 +968,7 @@ watch(
     checkInSlipsColumns.lowerBunk,
     checkInSlipsColumns.arrival,
     checkInSlipsColumns.departure,
+    checkInSlipsColumns.internalNotes,
   ],
   () => {
     try {
@@ -970,6 +979,7 @@ watch(
           lowerBunk: checkInSlipsColumns.lowerBunk,
           arrival: checkInSlipsColumns.arrival,
           departure: checkInSlipsColumns.departure,
+          internalNotes: checkInSlipsColumns.internalNotes,
         })
       )
     } catch {
@@ -983,10 +993,18 @@ function resetCheckInSlipsPrefs() {
   checkInSlipsColumns.lowerBunk = CHECKIN_SLIPS_DEFAULTS.lowerBunk
   checkInSlipsColumns.arrival = CHECKIN_SLIPS_DEFAULTS.arrival
   checkInSlipsColumns.departure = CHECKIN_SLIPS_DEFAULTS.departure
+  checkInSlipsColumns.internalNotes = CHECKIN_SLIPS_DEFAULTS.internalNotes
 }
 
 interface CheckInSlipRow {
   guest: Guest
+  /**
+   * What to show in the Housing column. For dorm-assigned guests, the
+   * room name (e.g. 'Crystal Sunshine 1') — much more useful than the
+   * generic 'Dorm' label. For camping / commuter / unassigned guests,
+   * the housing type as-is.
+   */
+  housingDisplay: string
 }
 
 /**
@@ -998,7 +1016,20 @@ const checkInSlipsRows = computed<CheckInSlipRow[]>(() => {
   const rows: CheckInSlipRow[] = []
   for (const guest of guestStore.guests) {
     if (hasDateFilter.value && !isGuestInDateRange(guest.id)) continue
-    rows.push({ guest })
+
+    let housingDisplay = guest.housingType || ''
+    // Dorm guests get their room name instead of the generic label.
+    const housingLower = housingDisplay.toLowerCase()
+    const isCampingOrCommuter = housingLower === 'camping' || housingLower === 'commuter'
+    if (!isCampingOrCommuter) {
+      const bedId = assignmentStore.assignments.get(guest.id)
+      if (bedId) {
+        const room = dormitoryStore.getRoomByBedId(bedId)
+        if (room?.roomName) housingDisplay = room.roomName
+      }
+    }
+
+    rows.push({ guest, housingDisplay })
   }
   rows.sort((a, b) => {
     const al = (a.guest.lastName || '').toLowerCase()
@@ -1967,7 +1998,29 @@ function handlePrint() {
 .checkin-slip-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
+  /* Fixed layout so every slip's column widths match — without this,
+     each slip auto-sizes its columns to its own content (Camping vs
+     Dorm makes Housing wider on some slips). Operator wants
+     consistent widths so the slips stack visually. */
+  table-layout: fixed;
+
+  /* First/Last get the lion's share since the operator writes
+     signatures or notes in those columns. LB?, Arrival, Departure
+     squeezed narrow. Internal Notes takes the right edge. */
+  .slip-col-housing  { width: 8%; }
+  .slip-col-first    { width: 22%; }
+  .slip-col-last     { width: 22%; }
+  .slip-col-lb       { width: 9%; }
+  .slip-col-arr      { width: 9%; }
+  .slip-col-dep      { width: 9%; }
+  .slip-col-internal { width: 21%; }
+
+  /* The narrow LB column has a long header label — allow it to wrap so
+     the column doesn't have to widen for it. */
+  .slip-col-lb {
+    white-space: normal;
+    line-height: 1.1;
+  }
 
   th, td {
     border: 1px solid #1f2937;
@@ -1995,6 +2048,15 @@ function handlePrint() {
     font-size: 1rem;
     font-weight: 500;
     color: #1f2937;
+  }
+
+  /* Highlight the Last Name column so it pops on the printed slip
+     (operator scans by surname). Header label and data cell both
+     get the wash. */
+  .slip-col-last {
+    background: #FFBD00;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 
@@ -2064,6 +2126,17 @@ function handlePrint() {
      before printing. */
   .print-content.hide-header-on-print .header-printable {
     display: none !important;
+  }
+
+  /* Check-in Slips on paper: shrink each writable row to ~0.75in
+     (50% of the on-screen 1.5in) and remove inter-slip margin so
+     the slips stack flush. Keeps page-break-inside avoided so
+     individual slips never split. */
+  .checkin-slip {
+    margin-bottom: 0 !important;
+  }
+  .checkin-slip-table tbody td {
+    height: 0.75in !important;
   }
 }
 
