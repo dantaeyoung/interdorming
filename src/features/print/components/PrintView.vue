@@ -517,10 +517,10 @@
       <!-- === NAME TAGS MODE === -->
       <template v-if="printMode === 'guestmaster'">
         <div class="guestmaster-section">
-          <!-- Print-only mini-header (visible only on paper) -->
+          <!-- Mini-header (visible on screen + paper) -->
           <div class="guestmaster-print-header">
             <span class="title">Guestmaster</span>
-            <span class="timestamp">{{ guestmasterPrintTimestamp }}</span>
+            <span class="timestamp">Printed on {{ guestmasterPrintTimestamp }}</span>
           </div>
           <div class="guestmaster-grid">
             <table v-for="(col, colIdx) in guestmasterColumnsSplit" :key="colIdx" class="guestmaster-table">
@@ -1872,6 +1872,14 @@ function handlePrint() {
   margin-bottom: 6px;
   padding: 0 2px;
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  /* Glue the header to the next element on print. Without these, the
+     Guestmaster grid (display: grid) is treated as one atomic block
+     and the engine inserts a page break BEFORE it — leaving the
+     header alone on page 1 and the grid on page 2. Work Coordinator
+     doesn't hit this because its content is a plain table and tables
+     break across pages naturally. */
+  page-break-after: avoid;
+  break-after: avoid;
 
   .title {
     font-size: 0.85rem;
@@ -1895,7 +1903,7 @@ function handlePrint() {
 .guestmaster-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.65rem;
+  font-size: 0.78rem;
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
   table-layout: fixed;
   /* Pure black text on screen + paper for maximum legibility (operator
@@ -1921,17 +1929,18 @@ function handlePrint() {
     white-space: nowrap;
     text-overflow: ellipsis;
     line-height: 1;
-    /* Uniform row height across the entire table */
-    height: 18px;
+    /* Uniform row height across the entire table — bumped slightly to
+       accommodate the larger 0.78rem font. */
+    height: 21px;
   }
 
   thead th {
     background: #f3f4f6;
     font-weight: 700;
-    font-size: 0.6rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     color: #000;
-    height: 22px;
+    height: 25px;
   }
 
   .th-rm, .td-rm       { width: 16%; font-weight: 600; }
@@ -1943,7 +1952,7 @@ function handlePrint() {
   .th-date, .td-date   {
     width: 9%;
     text-align: center;
-    font-size: 0.6rem;
+    font-size: 0.72rem;
     padding: 0 2px;
     /* Never truncate the date — operator needs to read it on paper. */
     white-space: nowrap;
@@ -2145,15 +2154,15 @@ function handlePrint() {
     gap: 12px;
   }
   .guestmaster-table {
-    font-size: 0.55rem;
+    font-size: 0.66rem;
     th, td { padding: 1px 3px; }
-    thead th { font-size: 0.5rem; padding: 2px 3px; }
+    thead th { font-size: 0.6rem; padding: 2px 3px; }
 
     /* Date columns get a tiny bit more breathing room on paper so
        'May 15' doesn't get clipped to 'May…'. Override clamps. */
     .th-date, .td-date {
       width: 10%;
-      font-size: 0.55rem;
+      font-size: 0.66rem;
       letter-spacing: -0.01em;
       overflow: visible !important;
       text-overflow: clip !important;
