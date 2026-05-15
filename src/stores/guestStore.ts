@@ -4,7 +4,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Guest, GuestInput } from '@/types'
 import { NON_ASSIGNABLE_HOUSING_TYPES } from '@/types/Constants'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
@@ -18,8 +18,44 @@ export const useGuestStore = defineStore(
     const searchQuery = ref('')
     const savedScrollTop = ref(0)
 
-    // Ephemeral suggestion state (not persisted)
+    // Ephemeral suggestion state (not persisted under current `paths`,
+    // but historically was — stale localStorage from old builds can still
+    // deliver a plain Object on hydration, so consumers normalize defensively.
     const suggestedGroups = ref<Map<string, Set<string>>>(new Map())
+
+    // Defensive: hover/render paths reach `suggestedGroups.value` and call
+    // `.entries()`, `.size`, etc. If anything ever delivers a non-Map (HMR,
+    // legacy persisted shape, dev-tools edit), normalize to a Map so consumers
+    // don't TypeError. Sets serialized through JSON come back as `{}`, so
+    // values are accepted as Set | Array | (lossy) Object.
+    function asGroupMap(val: unknown): Map<string, Set<string>> {
+      if (val instanceof Map) return val as Map<string, Set<string>>
+      const out = new Map<string, Set<string>>()
+      if (val && typeof val === 'object') {
+        for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+          if (v instanceof Set) {
+            out.set(k, v as Set<string>)
+          } else if (Array.isArray(v)) {
+            out.set(k, new Set(v as string[]))
+          } else {
+            out.set(k, new Set())
+          }
+        }
+      }
+      return out
+    }
+
+    // Auto-correct any non-Map write back to a Map so downstream consumers
+    // never TypeError on `.entries()` / `.size` / `.get()` (issue #28).
+    watch(
+      suggestedGroups,
+      (val) => {
+        if (!(val instanceof Map)) {
+          suggestedGroups.value = asGroupMap(val)
+        }
+      },
+      { immediate: true, flush: 'sync' }
+    )
 
     // Getters
     const getGuestById = computed(() => {
