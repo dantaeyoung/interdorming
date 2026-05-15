@@ -646,7 +646,23 @@
         </div>
       </template>
 
-      <!-- === CHECK-IN SLIPS MODE === -->
+      <!-- === CHECK-IN SLIPS MODE ===
+           Layout per slip (4 logical rows tall, rowspan/colspan grid):
+
+             ┌───┬──────────┬───────┬───────┬─────┬─────┬───────┐
+             │   │ HOUSING  │ FIRST │ LAST  │ ARR │ DEP │ NOTES │  row 1 (headers)
+             │   ├──────────┼───────┼───────┼─────┼─────┤       │
+             │   │          │       │       │ Apr │ May │       │  row 2 (outer
+             │ E │ Commuter │  Ros  │ Arusha│ 29  │ 3   │ note  │   vals + dates)
+             │ M │  (rs=3)  │ (rs=3)│ (rs=3)├─────┴─────┤(rs=3) │
+             │ P │          │       │       │ REQ. LB?  │       │  row 3 (LB hdr)
+             │ T │          │       │       ├───────────┤       │
+             │ Y │          │       │       │   Yes     │       │  row 4 (LB val)
+             └───┴──────────┴───────┴───────┴───────────┴───────┘
+
+           The empty leftmost column is for hand-checking guests off
+           after check-in. ARR/DEP and Requested Lower Bunk share
+           horizontal space by stacking vertically. -->
       <template v-if="printMode === 'checkin-slips'">
         <div class="checkin-slips-section">
           <div
@@ -655,26 +671,36 @@
             class="checkin-slip"
           >
             <table class="checkin-slip-table">
-              <thead>
+              <tbody>
+                <!-- Row 1: top header strip -->
                 <tr>
+                  <th rowspan="4" class="slip-col-empty"></th>
                   <th v-if="checkInSlipsColumns.housing" class="slip-col-housing">Housing</th>
                   <th class="slip-col-first">First Name</th>
                   <th class="slip-col-last">Last Name</th>
-                  <th v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">Requested lower bunk?</th>
                   <th v-if="checkInSlipsColumns.arrival" class="slip-col-arr">Arrival</th>
                   <th v-if="checkInSlipsColumns.departure" class="slip-col-dep">Depart</th>
                   <th v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">Notes</th>
                 </tr>
-              </thead>
-              <tbody>
+
+                <!-- Row 2: outer values + ARR/DEP date values -->
                 <tr>
-                  <td v-if="checkInSlipsColumns.housing" class="slip-col-housing">{{ row.housingDisplay }}</td>
-                  <td class="slip-col-first">{{ row.guest.firstName || '' }}</td>
-                  <td class="slip-col-last">{{ row.guest.lastName || '' }}</td>
-                  <td v-if="checkInSlipsColumns.lowerBunk" class="slip-col-lb">{{ row.guest.lowerBunk ? 'Yes' : 'No' }}</td>
-                  <td v-if="checkInSlipsColumns.arrival" class="slip-col-arr">{{ formatGuestmasterDate(row.guest.arrival) || '' }}</td>
-                  <td v-if="checkInSlipsColumns.departure" class="slip-col-dep">{{ formatGuestmasterDate(row.guest.departure) || '' }}</td>
-                  <td v-if="checkInSlipsColumns.internalNotes" class="slip-col-internal">{{ row.guest.internalNotes || '' }}</td>
+                  <td v-if="checkInSlipsColumns.housing" rowspan="3" class="slip-col-housing slip-cell-value">{{ row.housingDisplay }}</td>
+                  <td rowspan="3" class="slip-col-first slip-cell-value">{{ row.guest.firstName || '' }}</td>
+                  <td rowspan="3" class="slip-col-last slip-cell-value">{{ row.guest.lastName || '' }}</td>
+                  <td v-if="checkInSlipsColumns.arrival" class="slip-col-arr slip-cell-value slip-cell-date">{{ formatGuestmasterDate(row.guest.arrival) || '' }}</td>
+                  <td v-if="checkInSlipsColumns.departure" class="slip-col-dep slip-cell-value slip-cell-date">{{ formatGuestmasterDate(row.guest.departure) || '' }}</td>
+                  <td v-if="checkInSlipsColumns.internalNotes" rowspan="3" class="slip-col-internal slip-cell-value slip-cell-notes">{{ row.guest.internalNotes || '' }}</td>
+                </tr>
+
+                <!-- Row 3: 'Requested lower bunk?' sub-header spanning ARR + DEP -->
+                <tr v-if="checkInSlipsColumns.lowerBunk">
+                  <th class="slip-col-lb-header" :colspan="lbHeaderColspan">Requested lower bunk?</th>
+                </tr>
+
+                <!-- Row 4: lower-bunk Yes/No value -->
+                <tr v-if="checkInSlipsColumns.lowerBunk">
+                  <td class="slip-col-lb-value slip-cell-value" :colspan="lbHeaderColspan">{{ row.guest.lowerBunk ? 'Yes' : 'No' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -1002,6 +1028,17 @@ function resetCheckInSlipsPrefs() {
   checkInSlipsColumns.departure = CHECKIN_SLIPS_DEFAULTS.departure
   checkInSlipsColumns.internalNotes = CHECKIN_SLIPS_DEFAULTS.internalNotes
 }
+
+/**
+ * The 'Requested lower bunk?' header sits below the ARR + DEP cells
+ * and spans whichever of those columns are visible. Min 1, max 2.
+ */
+const lbHeaderColspan = computed(() => {
+  let n = 0
+  if (checkInSlipsColumns.arrival) n++
+  if (checkInSlipsColumns.departure) n++
+  return n || 1
+})
 
 interface CheckInSlipRow {
   guest: Guest
@@ -2087,16 +2124,26 @@ function handlePrint() {
      consistent widths so the slips stack visually. */
   table-layout: fixed;
 
-  /* First/Last get the lion's share since the operator writes
-     signatures or notes in those columns. LB?, Arrival, Departure
-     squeezed narrow. Internal Notes takes the right edge. */
+  /* Empty leftmost is for hand-checking off the slip after check-in.
+     Sized to 75% of the Housing column (10.5% vs 14%). First/Last
+     get the lion's share since the operator writes signatures or
+     notes in those columns. ARR/DEP stack with LB? in the middle.
+     Notes takes the right edge. Total = 100%. */
+  .slip-col-empty    { width: 10.5%; }
   .slip-col-housing  { width: 14%; }
-  .slip-col-first    { width: 18%; }
-  .slip-col-last     { width: 18%; }
-  .slip-col-lb       { width: 12%; }
+  .slip-col-first    { width: 17.5%; }
+  .slip-col-last     { width: 17.5%; }
   .slip-col-arr      { width: 9%; }
   .slip-col-dep      { width: 9%; }
-  .slip-col-internal { width: 20%; }
+  .slip-col-internal { width: 22.5%; }
+
+  /* LB header / value sit below ARR + DEP and inherit those widths
+     via colspan — no fixed width needed here. Center the text
+     because they span two narrow columns. */
+  .slip-col-lb-header,
+  .slip-col-lb-value {
+    text-align: center;
+  }
 
   /* Header labels are smaller than the data and wrap on word
      boundaries (not mid-word) so 'INTERNAL NOTES' becomes 'INTERNAL'
@@ -2124,7 +2171,8 @@ function handlePrint() {
     font-size: 0.85rem;
   }
 
-  thead th {
+  /* Both <th> and <td> with background should pop on print. */
+  th {
     background: #f3f4f6;
     font-size: 0.6rem !important;
     font-weight: 700;
@@ -2136,23 +2184,12 @@ function handlePrint() {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     color: #000;
-    /* Header row: hard-locked so every slip's header is exactly the
-       same height, even if a column label wraps to two lines. The
-       operator stacks pages and slices with a paper cutter — any
-       variance throws the alignment off. */
-    height: 0.32in;
-    max-height: 0.32in;
-    overflow: hidden;
   }
 
-  tbody td {
-    /* The data row is the writable area. ~1.5in tall on screen so
-       there's space for hand-written check-in notes on each slip.
-       Locked with max-height + overflow:hidden so wrapped values
-       (long internal notes, long names) can't push the row taller
-       and break the cutter alignment. */
-    height: 1.5in;
-    max-height: 1.5in;
+  /* Slip-cell-value cells (housing/first/last/notes/dates/LB-value)
+     are the writable / display area. Hard-locked overflow so wrapped
+     content can never push the slip taller and break cutter alignment. */
+  .slip-cell-value {
     overflow: hidden;
     font-size: 1rem;
     font-weight: 500;
@@ -2167,6 +2204,30 @@ function handlePrint() {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* LB header sub-row: smaller / muted because it's a label, not a
+     value. The LB-value row inherits the .slip-cell-value font. */
+  .slip-col-lb-header {
+    /* match .checkin-slip-table th sizing — inherits from th selector */
+  }
+  .slip-col-lb-value {
+    font-weight: 700 !important;
+  }
+
+  /* Lock row heights so every slip is identical in vertical extent
+     regardless of which optional columns / Notes content fill them.
+     Rows 2 and 4 are the writable areas; rows 1 and 3 hold labels. */
+  tbody tr {
+    height: auto;
+  }
+  /* Row 1 (top headers) */
+  tbody tr:nth-child(1) { height: 0.32in; }
+  /* Row 2 (outer values + ARR/DEP dates) */
+  tbody tr:nth-child(2) { height: 0.5in; }
+  /* Row 3 (LB header) */
+  tbody tr:nth-child(3) { height: 0.25in; }
+  /* Row 4 (LB value) */
+  tbody tr:nth-child(4) { height: 0.45in; }
 }
 
 /* Work Coordinator: bigger font and pure black so the printed roster
@@ -2276,19 +2337,24 @@ function handlePrint() {
   /* Check-in Slips on paper: each slip is exactly the same height
      so the operator can stack the printed pages and slice with a
      paper cutter. Small inter-slip gap (~0.08in) gives the cutter
-     a clean strip to align against. Heights are hard-locked with
-     max-height so wrapped content can never push them taller. */
+     a clean strip to align against. Heights are hard-locked per
+     logical row of the rowspan layout. */
   .checkin-slip {
     margin-bottom: 0.08in !important;
   }
-  .checkin-slip-table thead th {
-    height: 0.28in !important;
-    max-height: 0.28in !important;
-    overflow: hidden !important;
+  .checkin-slip-table tbody tr:nth-child(1) {
+    height: 0.24in !important;
   }
-  .checkin-slip-table tbody td {
-    height: 0.75in !important;
-    max-height: 0.75in !important;
+  .checkin-slip-table tbody tr:nth-child(2) {
+    height: 0.30in !important;
+  }
+  .checkin-slip-table tbody tr:nth-child(3) {
+    height: 0.20in !important;
+  }
+  .checkin-slip-table tbody tr:nth-child(4) {
+    height: 0.30in !important;
+  }
+  .checkin-slip-table .slip-cell-value {
     overflow: hidden !important;
   }
 
