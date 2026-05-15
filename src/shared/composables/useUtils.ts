@@ -23,6 +23,69 @@ export function parseLocalDate(dateStr: string): Date {
   return d
 }
 
+interface StayLike {
+  arrival?: string | Date | null
+  departure?: string | Date | null
+}
+
+/**
+ * Returns true if either side has missing arrival or departure.
+ * Per spec: missing dates = "always present" = conflicts with everything.
+ */
+function hasMissingDates(s: StayLike): boolean {
+  return !s.arrival || !s.departure
+}
+
+function toLocalDate(value: string | Date): Date {
+  if (value instanceof Date) {
+    const d = new Date(value)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
+  return parseLocalDate(value)
+}
+
+/**
+ * Two stays overlap iff the half-open intervals
+ * [arrival, departure) overlap. Departure-day is treated as bed-available
+ * (guest leaves morning) — so A departing 4/15 does NOT conflict with
+ * B arriving 4/15.
+ *
+ * If either stay has missing arrival or departure, treat as "always present"
+ * → returns true (conflict).
+ */
+export function staysOverlap(a: StayLike, b: StayLike): boolean {
+  if (hasMissingDates(a) || hasMissingDates(b)) return true
+
+  const aStart = toLocalDate(a.arrival as string | Date)
+  const aEnd = toLocalDate(a.departure as string | Date)
+  const bStart = toLocalDate(b.arrival as string | Date)
+  const bEnd = toLocalDate(b.departure as string | Date)
+
+  if (isNaN(aStart.getTime()) || isNaN(aEnd.getTime())) return true
+  if (isNaN(bStart.getTime()) || isNaN(bEnd.getTime())) return true
+
+  // Half-open: [start, end). Overlap iff aStart < bEnd AND bStart < aEnd.
+  return aStart < bEnd && bStart < aEnd
+}
+
+/**
+ * Returns true if the View Date falls within a stay (inclusive of arrival,
+ * exclusive of departure). Used to pick which assignment to display in a
+ * bed when the operator has a date filter active.
+ *
+ * Stays with missing dates are considered to cover every date.
+ */
+export function stayCoversDate(stay: StayLike, date: Date): boolean {
+  if (hasMissingDates(stay)) return true
+  const start = toLocalDate(stay.arrival as string | Date)
+  const end = toLocalDate(stay.departure as string | Date)
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return true
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+  return target >= start && target < end
+}
+
 export function useUtils() {
   /**
    * Creates a display name from first name and preferred name

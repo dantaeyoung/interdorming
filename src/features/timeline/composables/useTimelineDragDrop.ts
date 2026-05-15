@@ -5,6 +5,9 @@
 
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useGuestStore } from '@/stores/guestStore'
+import { useUtils } from '@/shared/composables/useUtils'
+import { useOverlapConfirm } from '@/shared/composables/useOverlapConfirm'
 import type { DragDropState } from '../types/timeline'
 
 // Shared state - created outside the function so it's a singleton
@@ -35,6 +38,46 @@ let keyboardListenerAttached = false
 
 export function useTimelineDragDrop() {
   const assignmentStore = useAssignmentStore()
+  const guestStore = useGuestStore()
+
+  /**
+   * Place a guest on a bed with date-aware overlap confirmation. If the
+   * target bed has overlapping cohorts, prompts the operator before
+   * displacing them. Returns true if the placement happened.
+   */
+  async function placeGuestWithOverlapCheck(
+    guestId: string,
+    targetBedId: string
+  ): Promise<boolean> {
+    const guest = guestStore.getGuestById(guestId)
+    if (!guest) return false
+    const overlappingIds = assignmentStore.getOverlappingAssignments(targetBedId, guest)
+    if (overlappingIds.length === 0) {
+      assignmentStore.assignGuestToBed(guestId, targetBedId)
+      return true
+    }
+    const { requestOverlapConfirm } = useOverlapConfirm()
+    const { createFullName } = useUtils()
+    const overlapping = overlappingIds
+      .map(id => guestStore.getGuestById(id))
+      .filter((g): g is NonNullable<typeof g> => g !== undefined)
+      .map(g => ({
+        guestName: createFullName(g),
+        arrival: g.arrival,
+        departure: g.departure,
+      }))
+    const ok = await requestOverlapConfirm({
+      guestName: createFullName(guest),
+      guestArrival: guest.arrival,
+      guestDeparture: guest.departure,
+      bedId: targetBedId,
+      overlapping,
+    })
+    if (ok) {
+      assignmentStore.assignGuestToBed(guestId, targetBedId, false, true)
+    }
+    return ok
+  }
 
   /**
    * Called when drag starts on a guest blob
@@ -105,8 +148,8 @@ export function useTimelineDragDrop() {
       return
     }
 
-    // Reassign guest to new bed using existing assignment store
-    assignmentStore.assignGuestToBed(guestId, targetBedId)
+    // Date-aware reassign — opens overlap dialog if needed.
+    void placeGuestWithOverlapCheck(guestId, targetBedId)
 
     endDrag()
   }
@@ -164,8 +207,8 @@ export function useTimelineDragDrop() {
       // Unassign the clicked guest from their bed first
       assignmentStore.unassignGuest(guestId)
 
-      // Place the currently picked guest in the clicked guest's bed
-      assignmentStore.assignGuestToBed(pickedGuestId, bedId)
+      // Date-aware place — opens overlap dialog if needed.
+      void placeGuestWithOverlapCheck(pickedGuestId, bedId)
 
       // Now pick up the clicked guest (who is now unassigned)
       pickState.value = {
@@ -214,8 +257,8 @@ export function useTimelineDragDrop() {
       return true
     }
 
-    // Assign guest to new bed
-    assignmentStore.assignGuestToBed(guestId, targetBedId)
+    // Date-aware place — opens overlap dialog if needed.
+    void placeGuestWithOverlapCheck(guestId, targetBedId)
     cancelPick()
     return true
   }

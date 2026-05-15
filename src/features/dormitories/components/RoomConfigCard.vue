@@ -245,7 +245,7 @@ function addBed() {
     bedId: `${roomPrefix}${String(newPosition).padStart(2, '0')}`,
     bedType: 'single',
     position: newPosition,
-    assignedGuestId: null,
+    assignments: [],
     active: true
   }
   localRoom.value.beds.push(newBed)

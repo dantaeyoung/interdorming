@@ -360,7 +360,7 @@ function parseRoomConfigCSV(csvText: string): Dormitory[] {
       bedId,
       bedType: (values[headers.indexOf('Bed Type')] || 'single') as any,
       position: parseInt(values[headers.indexOf('Bed Position')] || '1'),
-      assignedGuestId: null,
+      assignments: [],
       active: values[headers.indexOf('Bed Active')]?.toLowerCase() !== 'no',
     })
   }

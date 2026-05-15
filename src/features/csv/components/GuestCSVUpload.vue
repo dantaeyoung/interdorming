@@ -43,12 +43,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { useCSV } from '../composables/useCSV'
 import { useGuestStore } from '@/stores/guestStore'
+import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useTimelineStore } from '@/stores/timelineStore'
 import { useHints } from '@/features/hints/composables/useHints'
+import { useImportConflictDialog } from '@/shared/composables/useImportConflictDialog'
+import { useUtils } from '@/shared/composables/useUtils'
 import type { Guest } from '@/types'
 import CSVWarningModal from './CSVWarningModal.vue'
 import CSVImportModeModal from './CSVImportModeModal.vue'
@@ -74,10 +77,13 @@ const emit = defineEmits<{
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const guestStore = useGuestStore()
+const assignmentStore = useAssignmentStore()
 const settingsStore = useSettingsStore()
 const timelineStore = useTimelineStore()
 const { highlightedElement } = useHints()
 const { parseGuestCSV } = useCSV()
+const { showImportConflicts } = useImportConflictDialog()
+const { createFullName } = useUtils()
 
 // Check if an element should be highlighted (supports comma-separated targets)
 const isHighlighted = (elementId: string) => {
@@ -211,6 +217,28 @@ function handleAddAndUpdate() {
   timelineStore.autoDetectDateRange()
 
   emit('upload-success', newGuests)
+
+  // Date-aware: after the import settles, scan for new bed-overlap
+  // conflicts caused by changed dates. Surface them in a modal so the
+  // operator knows what to resolve.
+  nextTick(() => {
+    const conflicts = assignmentStore.getAllOverlapConflicts()
+    if (conflicts.length > 0) {
+      showImportConflicts(
+        conflicts.map(c => ({
+          bedId: c.bedId,
+          guests: c.guests.map(g => {
+            const guest = guestStore.getGuestById(g.guestId)
+            return {
+              guestName: guest ? createFullName(guest) : '(unknown)',
+              arrival: g.arrival,
+              departure: g.departure,
+            }
+          }),
+        }))
+      )
+    }
+  })
 
   // Show warnings if any
   if (pendingCSVData.value.warnings.length > 0) {

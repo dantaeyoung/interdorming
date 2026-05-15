@@ -263,25 +263,25 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="bed in room.beds.filter(b => b.active !== false && (!showOnlyAssignedBeds || b.assignedGuestId) && (!hasDateFilter || !b.assignedGuestId || isGuestInDateRange(b.assignedGuestId)))" :key="bed.bedId">
+                <tr v-for="bed in room.beds.filter(b => b.active !== false && (!showOnlyAssignedBeds || getPrintGuestIdForBed(b)) && (!hasDateFilter || !getPrintGuestIdForBed(b) || isGuestInDateRange(getPrintGuestIdForBed(b))))" :key="bed.bedId">
                   <td v-if="columns.bedInfo" class="bed-info">
                     {{ bed.position }} {{ bed.bedType }}
                   </td>
-                  <td v-if="columns.guestName" class="guest-name">{{ getGuestFullName(bed.assignedGuestId) }}</td>
-                  <td v-if="columns.gender">{{ getGuestField(bed.assignedGuestId, 'gender') }}</td>
-                  <td v-if="columns.age">{{ getGuestField(bed.assignedGuestId, 'age') }}</td>
-                  <td v-if="columns.group">{{ getGuestField(bed.assignedGuestId, 'groupName') }}</td>
-                  <td v-if="columns.lowerBunk">{{ getGuestField(bed.assignedGuestId, 'lowerBunk') }}</td>
-                  <td v-if="columns.arrival">{{ getGuestField(bed.assignedGuestId, 'arrival') }}</td>
-                  <td v-if="columns.departure">{{ getGuestField(bed.assignedGuestId, 'departure') }}</td>
-                  <td v-if="columns.indivGrp">{{ getGuestField(bed.assignedGuestId, 'indivGrp') }}</td>
-                  <td v-if="columns.notes">{{ getGuestField(bed.assignedGuestId, 'notes') }}</td>
-                  <td v-if="columns.retreat">{{ getGuestField(bed.assignedGuestId, 'retreat') }}</td>
-                  <td v-if="columns.ratePerNight">{{ getGuestField(bed.assignedGuestId, 'ratePerNight') }}</td>
-                  <td v-if="columns.priceQuoted">{{ getGuestField(bed.assignedGuestId, 'priceQuoted') }}</td>
-                  <td v-if="columns.amountPaid">{{ getGuestField(bed.assignedGuestId, 'amountPaid') }}</td>
-                  <td v-if="columns.firstVisit">{{ getGuestField(bed.assignedGuestId, 'firstVisit') }}</td>
-                  <td v-if="columns.roomPreference">{{ getGuestField(bed.assignedGuestId, 'roomPreference') }}</td>
+                  <td v-if="columns.guestName" class="guest-name">{{ getGuestFullName(getPrintGuestIdForBed(bed)) }}</td>
+                  <td v-if="columns.gender">{{ getGuestField(getPrintGuestIdForBed(bed), 'gender') }}</td>
+                  <td v-if="columns.age">{{ getGuestField(getPrintGuestIdForBed(bed), 'age') }}</td>
+                  <td v-if="columns.group">{{ getGuestField(getPrintGuestIdForBed(bed), 'groupName') }}</td>
+                  <td v-if="columns.lowerBunk">{{ getGuestField(getPrintGuestIdForBed(bed), 'lowerBunk') }}</td>
+                  <td v-if="columns.arrival">{{ getGuestField(getPrintGuestIdForBed(bed), 'arrival') }}</td>
+                  <td v-if="columns.departure">{{ getGuestField(getPrintGuestIdForBed(bed), 'departure') }}</td>
+                  <td v-if="columns.indivGrp">{{ getGuestField(getPrintGuestIdForBed(bed), 'indivGrp') }}</td>
+                  <td v-if="columns.notes">{{ getGuestField(getPrintGuestIdForBed(bed), 'notes') }}</td>
+                  <td v-if="columns.retreat">{{ getGuestField(getPrintGuestIdForBed(bed), 'retreat') }}</td>
+                  <td v-if="columns.ratePerNight">{{ getGuestField(getPrintGuestIdForBed(bed), 'ratePerNight') }}</td>
+                  <td v-if="columns.priceQuoted">{{ getGuestField(getPrintGuestIdForBed(bed), 'priceQuoted') }}</td>
+                  <td v-if="columns.amountPaid">{{ getGuestField(getPrintGuestIdForBed(bed), 'amountPaid') }}</td>
+                  <td v-if="columns.firstVisit">{{ getGuestField(getPrintGuestIdForBed(bed), 'firstVisit') }}</td>
+                  <td v-if="columns.roomPreference">{{ getGuestField(getPrintGuestIdForBed(bed), 'roomPreference') }}</td>
                 </tr>
               </tbody>
             </table>
@@ -505,6 +505,21 @@ function isGuestInDateRange(guestId: string | null): boolean {
 
 const hasDateFilter = computed(() => !!(filterDateStart.value || filterDateEnd.value))
 
+/**
+ * For multi-assignment beds, picks the guest to print on this row. If a
+ * date filter is active, prefers an assignment whose stay overlaps the
+ * filter range. Otherwise returns the first assignment, or null.
+ */
+function getPrintGuestIdForBed(bed: { assignments: Array<{ guestId: string }> } | undefined): string | null {
+  if (!bed || !bed.assignments || bed.assignments.length === 0) return null
+  if (hasDateFilter.value) {
+    for (const a of bed.assignments) {
+      if (isGuestInDateRange(a.guestId)) return a.guestId
+    }
+  }
+  return bed.assignments[0].guestId
+}
+
 // Non-assignable (camping/commuter) guests
 const campingCommuterGuests = computed(() => {
   let guests = guestStore.guests.filter(g => !guestStore.isGuestAssignable(g))
@@ -579,7 +594,8 @@ const flatBedList = computed(() => {
 
       for (const bed of room.beds) {
         if (bed.active === false) continue
-        if (showOnlyAssignedBeds.value && !bed.assignedGuestId) continue
+        const guestId = getPrintGuestIdForBed(bed)
+        if (showOnlyAssignedBeds.value && !guestId) continue
 
         beds.push({
           dormName: dorm.dormitoryName,
@@ -587,7 +603,7 @@ const flatBedList = computed(() => {
           roomGender: room.roomGender,
           bedPosition: String(bed.position),
           bedType: bed.bedType,
-          guestId: bed.assignedGuestId || null,
+          guestId: guestId,
         })
       }
     }
@@ -625,11 +641,11 @@ const filteredAssignedCount = computed(() => {
 })
 
 function getOccupiedCount(room: Room): number {
-  return room.beds.filter(bed => bed.assignedGuestId).length
+  return room.beds.filter(bed => bed.assignments.length > 0).length
 }
 
 function roomHasAssignedGuests(room: Room): boolean {
-  return room.beds.some(bed => bed.assignedGuestId)
+  return room.beds.some(bed => bed.assignments.length > 0)
 }
 
 function dormHasAssignedGuests(dormitory: { rooms: Room[] }): boolean {

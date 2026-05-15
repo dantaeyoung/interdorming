@@ -6,7 +6,7 @@
 export type { Guest, GuestInput, GuestCSVRow, Gender } from './Guest'
 
 // Bed types
-export type { Bed, BedInput, BedType } from './Bed'
+export type { Bed, BedAssignment, BedInput, BedType } from './Bed'
 
 // Room types
 export type { Room, FlatRoom, RoomInput, RoomGender } from './Room'

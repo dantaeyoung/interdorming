@@ -6,6 +6,10 @@
 import { ref, computed } from 'vue'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { useGuestStore } from '@/stores/guestStore'
+import { staysOverlap as overlapsStay, useUtils } from '@/shared/composables/useUtils'
+import { useOverlapConfirm } from '@/shared/composables/useOverlapConfirm'
+import { useGroupConflictDialog } from '@/shared/composables/useGroupConflictDialog'
 import type { Bed } from '@/types'
 
 // Shared state (singleton) for drag tracking across components
@@ -217,6 +221,7 @@ export function useDragDrop() {
   // ============================================
 
   const assignmentStore = useAssignmentStore()
+  const guestStore = useGuestStore()
 
   /**
    * Pick up a guest by clicking
@@ -262,9 +267,11 @@ export function useDragDrop() {
   }
 
   /**
-   * Place a picked guest on a bed
+   * Place a picked guest on a bed. If the bed already holds an overlapping
+   * cohort, an `OverlapConfirmDialog` opens — the operator chooses Replace
+   * (displace overlapping) or Cancel (no-op).
    */
-  function placeGuestOnBed(bedId: string) {
+  async function placeGuestOnBed(bedId: string): Promise<boolean> {
     if (!pickedGuestId.value) return false
 
     const guestId = pickedGuestId.value
@@ -272,23 +279,45 @@ export function useDragDrop() {
     // Get current assignment if any
     const currentBedId = assignmentStore.getAssignmentByGuest(guestId)
     if (currentBedId === bedId) {
-      // Same bed, just cancel
       cancelPick()
       return false
     }
 
-    // Check if target bed is occupied
-    const existingGuestId = assignmentStore.getAssignmentByBed(bedId)
-    if (existingGuestId && existingGuestId !== guestId) {
-      // Swap guests
-      assignmentStore.swapGuests(guestId, existingGuestId)
-    } else {
-      // Just assign
-      assignmentStore.assignGuestToBed(guestId, bedId)
+    const guest = guestStore.getGuestById(guestId)
+    if (!guest) {
+      cancelPick()
+      return false
     }
 
+    const overlappingIds = assignmentStore.getOverlappingAssignments(bedId, guest)
+    if (overlappingIds.length === 0) {
+      assignmentStore.assignGuestToBed(guestId, bedId)
+      cancelPick()
+      return true
+    }
+
+    const { requestOverlapConfirm } = useOverlapConfirm()
+    const { createFullName } = useUtils()
+    const overlapping = overlappingIds
+      .map(id => guestStore.getGuestById(id))
+      .filter((g): g is NonNullable<typeof g> => g !== undefined)
+      .map(g => ({
+        guestName: createFullName(g),
+        arrival: g.arrival,
+        departure: g.departure,
+      }))
+    const ok = await requestOverlapConfirm({
+      guestName: createFullName(guest),
+      guestArrival: guest.arrival,
+      guestDeparture: guest.departure,
+      bedId,
+      overlapping,
+    })
+    if (ok) {
+      assignmentStore.assignGuestToBed(guestId, bedId, false, true)
+    }
     cancelPick()
-    return true
+    return ok
   }
 
   /**
@@ -333,13 +362,21 @@ export function useDragDrop() {
   }
 
   /**
-   * Place a picked group into a room starting from a clicked bed
-   * Fills empty beds in the same room
+   * Place a picked group into a room starting from a clicked bed.
+   *
+   * Date-aware: pre-checks each member against the room's existing
+   * assignments. If any member would conflict (date overlap with a
+   * non-group occupant), opens the GroupConflictDialog listing every
+   * conflict, makes no assignments, and returns { placed: 0 }.
+   *
+   * If all members can fit cleanly, places them into available beds
+   * starting from the clicked bed (existing greedy logic).
    */
   function placeGroupOnBed(bedId: string): { placed: number; total: number } {
     if (pickedGroupGuestIds.value.length === 0) return { placed: 0, total: 0 }
 
     const dormitoryStore = useDormitoryStore()
+    const { createFullName } = useUtils()
 
     const room = dormitoryStore.getRoomByBedId(bedId)
     if (!room) {
@@ -347,19 +384,72 @@ export function useDragDrop() {
       return { placed: 0, total: pickedGroupGuestIds.value.length }
     }
 
-    // Get all active beds in this room
     const roomBeds = room.beds.filter((b: Bed) => b.active !== false)
-
-    // Find empty beds in the room (not assigned and not the beds of our group members)
     const groupGuestSet = new Set(pickedGroupGuestIds.value)
-    const emptyBeds = roomBeds.filter((b: Bed) => {
-      if (!b.assignedGuestId) return true
-      // If the bed is occupied by one of our group members, it's available (they'll be moved)
-      if (groupGuestSet.has(b.assignedGuestId)) return true
-      return false
-    })
+    const groupGuests = pickedGroupGuestIds.value
+      .map(id => guestStore.getGuestById(id))
+      .filter((g): g is NonNullable<typeof g> => g !== undefined)
 
-    // First unassign all group members from their current beds
+    // Pre-check: a bed is "usable for the group" iff every existing
+    // assignment is either one of our members (they'll be moved) or a
+    // non-overlapping cohort.
+    function bedUsableForGroup(b: Bed): boolean {
+      for (const a of b.assignments) {
+        if (groupGuestSet.has(a.guestId)) continue
+        const other = guestStore.getGuestById(a.guestId)
+        if (!other) continue
+        for (const member of groupGuests) {
+          if (overlapsStay(other, member)) return false
+        }
+      }
+      return true
+    }
+
+    const usableBeds = roomBeds.filter(bedUsableForGroup)
+
+    // If we can't fit everyone, build a per-member conflict report and
+    // surface the GroupConflictDialog. No assignments are made.
+    if (usableBeds.length < groupGuests.length) {
+      const conflictItems: Array<{
+        memberName: string
+        bedId: string
+        conflictsWith: Array<{ guestName: string; arrival?: string; departure?: string }>
+      }> = []
+
+      // For each "blocking" bed, collect the assignments and which group
+      // members they overlap. Then fold into per-member entries.
+      for (const b of roomBeds) {
+        for (const a of b.assignments) {
+          if (groupGuestSet.has(a.guestId)) continue
+          const other = guestStore.getGuestById(a.guestId)
+          if (!other) continue
+          for (const member of groupGuests) {
+            if (overlapsStay(other, member)) {
+              conflictItems.push({
+                memberName: createFullName(member),
+                bedId: b.bedId,
+                conflictsWith: [
+                  {
+                    guestName: createFullName(other),
+                    arrival: other.arrival,
+                    departure: other.departure,
+                  },
+                ],
+              })
+            }
+          }
+        }
+      }
+
+      const { showGroupConflicts } = useGroupConflictDialog()
+      showGroupConflicts(room.roomName, conflictItems)
+      cancelPick()
+      return { placed: 0, total: groupGuests.length }
+    }
+
+    // OK — there are enough non-conflicting beds. Unassign group members
+    // from their current beds, then place into usable beds starting from
+    // the clicked one.
     assignmentStore.saveToHistory()
     const guestsToPlace = [...pickedGroupGuestIds.value]
 
@@ -369,19 +459,14 @@ export function useDragDrop() {
       }
     }
 
-    // Place guests into empty beds, starting from the clicked bed
-    const clickedBedIndex = emptyBeds.findIndex((b: Bed) => b.bedId === bedId)
-    // Reorder so clicked bed is first, then the rest in order
+    const clickedBedIndex = usableBeds.findIndex((b: Bed) => b.bedId === bedId)
     const orderedBeds = clickedBedIndex >= 0
-      ? [...emptyBeds.slice(clickedBedIndex), ...emptyBeds.slice(0, clickedBedIndex)]
-      : emptyBeds
-
-    // Re-check which beds are truly empty now (after unassigning group members)
-    const availableBeds = orderedBeds.filter((b: Bed) => !b.assignedGuestId)
+      ? [...usableBeds.slice(clickedBedIndex), ...usableBeds.slice(0, clickedBedIndex)]
+      : usableBeds
 
     let placed = 0
-    for (let i = 0; i < guestsToPlace.length && i < availableBeds.length; i++) {
-      assignmentStore.assignGuestToBed(guestsToPlace[i], availableBeds[i].bedId, true)
+    for (let i = 0; i < guestsToPlace.length && i < orderedBeds.length; i++) {
+      assignmentStore.assignGuestToBed(guestsToPlace[i], orderedBeds[i].bedId, true)
       placed++
     }
 

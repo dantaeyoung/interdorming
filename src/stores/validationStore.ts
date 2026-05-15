@@ -9,6 +9,7 @@ import { useGuestStore } from './guestStore'
 import { useAssignmentStore } from './assignmentStore'
 import { useDormitoryStore } from './dormitoryStore'
 import { useSettingsStore } from './settingsStore'
+import { staysOverlap } from '@/shared/composables/useUtils'
 import type { Guest, Bed, FlatRoom } from '@/types'
 
 export const useValidationStore = defineStore('validation', () => {
@@ -21,19 +22,45 @@ export const useValidationStore = defineStore('validation', () => {
   // Getters
   const getWarningsForBed = computed(() => {
     return (bedId: string): string[] => {
-      const guestId = assignmentStore.getAssignmentByBed(bedId)
-      if (!guestId) return []
-
-      const guest = guestStore.getGuestById(guestId)
-      if (!guest) return []
-
       const bed = dormitoryStore.getBedById(bedId)
-      if (!bed) return []
+      // Defensive: legacy beds might lack `assignments` until migration
+      // finishes; treat as empty rather than crashing.
+      const bedAssignments = bed?.assignments ?? []
+      if (!bed || bedAssignments.length === 0) return []
 
       const room = dormitoryStore.getRoomByBedId(bedId)
       if (!room) return []
 
-      return getAssignmentWarnings(guest, bed, room)
+      const warnings: string[] = []
+
+      // Date-overlap warning: any pair of assignments whose stays overlap.
+      const guests = bedAssignments
+        .map(a => guestStore.getGuestById(a.guestId))
+        .filter((g): g is Guest => g !== undefined)
+      const overlappingNames: string[] = []
+      for (let i = 0; i < guests.length; i++) {
+        for (let j = i + 1; j < guests.length; j++) {
+          if (staysOverlap(guests[i], guests[j])) {
+            const name = guests[j].preferredName || guests[j].firstName
+            if (!overlappingNames.includes(name)) overlappingNames.push(name)
+          }
+        }
+      }
+      if (overlappingNames.length > 0) {
+        warnings.push(`Date conflict: overlaps with ${overlappingNames.join(', ')}`)
+      }
+
+      // Per-guest gender/age/bunk warnings (deduplicated)
+      const seen = new Set<string>()
+      for (const guest of guests) {
+        for (const w of getAssignmentWarnings(guest, bed, room)) {
+          if (!seen.has(w)) {
+            seen.add(w)
+            warnings.push(w)
+          }
+        }
+      }
+      return warnings
     }
   })
 
@@ -131,7 +158,7 @@ export const useValidationStore = defineStore('validation', () => {
         return false
       }
       // Check if room has available beds
-      const hasAvailableBed = room.beds.some(bed => !bed.assignedGuestId)
+      const hasAvailableBed = room.beds.some(bed => bed.assignments.length === 0)
       return hasAvailableBed
     })
 
@@ -150,7 +177,7 @@ export const useValidationStore = defineStore('validation', () => {
 
         return room.beds.some(
           bed =>
-            !bed.assignedGuestId &&
+            bed.assignments.length === 0 &&
             (bed.bedType === 'lower' || bed.bedType === 'single') &&
             isRoomCompatible
         )

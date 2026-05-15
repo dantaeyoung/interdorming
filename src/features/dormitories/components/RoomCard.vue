@@ -43,7 +43,8 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
 import BedSlot from './BedSlot.vue'
-import type { Room } from '@/types'
+import { stayCoversDate } from '@/shared/composables/useUtils'
+import type { Room, Bed } from '@/types'
 
 interface Props {
   room: Room
@@ -62,12 +63,26 @@ const activeBeds = computed(() => {
   return props.room.beds.filter(bed => bed.active !== false)
 })
 
+/**
+ * Returns the guests in a bed that are visible at the View Date.
+ * If no View Date is set, returns ALL assigned guests on the bed.
+ */
+function guestsAtBedForView(bed: Bed) {
+  const guests = bed.assignments
+    .map(a => guestStore.getGuestById(a.guestId))
+    .filter((g): g is NonNullable<typeof g> => g !== undefined)
+  if (!props.viewDate) return guests
+  return guests.filter(g => stayCoversDate(g, props.viewDate!))
+}
+
 const occupiedCount = computed(() => {
-  return activeBeds.value.filter(bed => bed.assignedGuestId).length
+  return activeBeds.value.filter(bed => guestsAtBedForView(bed).length > 0).length
 })
 
 const hasAvailableBeds = computed(() => {
-  return props.room.beds.some(bed => !bed.assignedGuestId && bed.active !== false)
+  return props.room.beds.some(
+    bed => bed.active !== false && guestsAtBedForView(bed).length === 0
+  )
 })
 
 const roomBedIds = computed(() => props.room.beds.map(bed => bed.bedId))
@@ -77,10 +92,7 @@ const roomSuggestionCount = computed(() => {
 })
 
 const assignedGuests = computed(() => {
-  return props.room.beds
-    .filter(bed => bed.assignedGuestId)
-    .map(bed => guestStore.getGuestById(bed.assignedGuestId!))
-    .filter(guest => guest !== undefined)
+  return props.room.beds.flatMap(bed => guestsAtBedForView(bed))
 })
 
 const ageRange = computed(() => {

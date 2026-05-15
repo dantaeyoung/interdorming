@@ -8,6 +8,14 @@ import { ref, computed, watch, nextTick } from 'vue'
 import type { Dormitory, DormitoryInput, Room, RoomInput, Bed, FlatRoom, RoomLayout } from '@/types'
 import { DEFAULT_COLORS } from '@/types'
 
+/**
+ * Bed-shape schema version. Bump when changing bed structure so migration
+ * logic in `migrateBedAssignments` knows when to run.
+ *   v1 = single `assignedGuestId: string | null`
+ *   v2 = multi `assignments: BedAssignment[]` (date-aware sharing)
+ */
+const CURRENT_BED_SHAPE_VERSION = 2
+
 export const useDormitoryStore = defineStore(
   'dormitories',
   () => {
@@ -15,6 +23,9 @@ export const useDormitoryStore = defineStore(
     const dormitories = ref<Dormitory[]>([])
     const configName = ref<string>('')
     const selectedDormitoryIndex = ref<number | null>(null)
+    // Default to 1 (legacy) so existing localStorage without this key still
+    // triggers migration. Bumped to CURRENT_BED_SHAPE_VERSION after migrate.
+    const bedShapeVersion = ref<number>(1)
 
     // Layout state
     const layouts = ref<RoomLayout[]>([])
@@ -220,12 +231,12 @@ export const useDormitoryStore = defineStore(
               roomGender: 'M',
               active: true,
               beds: [
-                { bedId: 'MA1', bedType: 'lower', assignedGuestId: null, position: 1 },
-                { bedId: 'MA2', bedType: 'upper', assignedGuestId: null, position: 2 },
-                { bedId: 'MA3', bedType: 'lower', assignedGuestId: null, position: 3 },
-                { bedId: 'MA4', bedType: 'upper', assignedGuestId: null, position: 4 },
-                { bedId: 'MA5', bedType: 'single', assignedGuestId: null, position: 5 },
-                { bedId: 'MA6', bedType: 'single', assignedGuestId: null, position: 6 },
+                { bedId: 'MA1', bedType: 'lower', assignments: [], position: 1 },
+                { bedId: 'MA2', bedType: 'upper', assignments: [], position: 2 },
+                { bedId: 'MA3', bedType: 'lower', assignments: [], position: 3 },
+                { bedId: 'MA4', bedType: 'upper', assignments: [], position: 4 },
+                { bedId: 'MA5', bedType: 'single', assignments: [], position: 5 },
+                { bedId: 'MA6', bedType: 'single', assignments: [], position: 6 },
               ],
             },
             {
@@ -233,10 +244,10 @@ export const useDormitoryStore = defineStore(
               roomGender: 'M',
               active: true,
               beds: [
-                { bedId: 'MB1', bedType: 'lower', assignedGuestId: null, position: 1 },
-                { bedId: 'MB2', bedType: 'upper', assignedGuestId: null, position: 2 },
-                { bedId: 'MB3', bedType: 'lower', assignedGuestId: null, position: 3 },
-                { bedId: 'MB4', bedType: 'upper', assignedGuestId: null, position: 4 },
+                { bedId: 'MB1', bedType: 'lower', assignments: [], position: 1 },
+                { bedId: 'MB2', bedType: 'upper', assignments: [], position: 2 },
+                { bedId: 'MB3', bedType: 'lower', assignments: [], position: 3 },
+                { bedId: 'MB4', bedType: 'upper', assignments: [], position: 4 },
               ],
             },
             {
@@ -244,12 +255,12 @@ export const useDormitoryStore = defineStore(
               roomGender: 'F',
               active: true,
               beds: [
-                { bedId: 'WA1', bedType: 'lower', assignedGuestId: null, position: 1 },
-                { bedId: 'WA2', bedType: 'upper', assignedGuestId: null, position: 2 },
-                { bedId: 'WA3', bedType: 'lower', assignedGuestId: null, position: 3 },
-                { bedId: 'WA4', bedType: 'upper', assignedGuestId: null, position: 4 },
-                { bedId: 'WA5', bedType: 'single', assignedGuestId: null, position: 5 },
-                { bedId: 'WA6', bedType: 'single', assignedGuestId: null, position: 6 },
+                { bedId: 'WA1', bedType: 'lower', assignments: [], position: 1 },
+                { bedId: 'WA2', bedType: 'upper', assignments: [], position: 2 },
+                { bedId: 'WA3', bedType: 'lower', assignments: [], position: 3 },
+                { bedId: 'WA4', bedType: 'upper', assignments: [], position: 4 },
+                { bedId: 'WA5', bedType: 'single', assignments: [], position: 5 },
+                { bedId: 'WA6', bedType: 'single', assignments: [], position: 6 },
               ],
             },
             {
@@ -257,10 +268,10 @@ export const useDormitoryStore = defineStore(
               roomGender: 'F',
               active: true,
               beds: [
-                { bedId: 'WB1', bedType: 'lower', assignedGuestId: null, position: 1 },
-                { bedId: 'WB2', bedType: 'upper', assignedGuestId: null, position: 2 },
-                { bedId: 'WB3', bedType: 'lower', assignedGuestId: null, position: 3 },
-                { bedId: 'WB4', bedType: 'upper', assignedGuestId: null, position: 4 },
+                { bedId: 'WB1', bedType: 'lower', assignments: [], position: 1 },
+                { bedId: 'WB2', bedType: 'upper', assignments: [], position: 2 },
+                { bedId: 'WB3', bedType: 'lower', assignments: [], position: 3 },
+                { bedId: 'WB4', bedType: 'upper', assignments: [], position: 4 },
               ],
             },
           ],
@@ -275,16 +286,92 @@ export const useDormitoryStore = defineStore(
               roomGender: 'Coed',
               active: true,
               beds: [
-                { bedId: 'FR1', bedType: 'single', assignedGuestId: null, position: 1 },
-                { bedId: 'FR2', bedType: 'single', assignedGuestId: null, position: 2 },
-                { bedId: 'FR3', bedType: 'single', assignedGuestId: null, position: 3 },
-                { bedId: 'FR4', bedType: 'single', assignedGuestId: null, position: 4 },
+                { bedId: 'FR1', bedType: 'single', assignments: [], position: 1 },
+                { bedId: 'FR2', bedType: 'single', assignments: [], position: 2 },
+                { bedId: 'FR3', bedType: 'single', assignments: [], position: 3 },
+                { bedId: 'FR4', bedType: 'single', assignments: [], position: 4 },
               ],
             },
           ],
         },
       ]
     }
+
+    /**
+     * One-time migration from the legacy bed shape (`assignedGuestId`) to
+     * the new date-aware shape (`assignments: BedAssignment[]`).
+     *
+     * Runs against the live `dormitories` tree AND against every
+     * `layout.dormitories` snapshot. Detects need by inspecting actual data
+     * shape (any bed missing `assignments` or carrying `assignedGuestId`),
+     * not by version stamp — so legacy persisted state without
+     * `bedShapeVersion` is still detected.
+     *
+     * Returns true if migration ran, false if everything was already
+     * normalized.
+     */
+    function migrateBedAssignments(): boolean {
+      let mutated = false
+
+      const convertBed = (bed: any) => {
+        if (!Array.isArray(bed.assignments)) {
+          const legacyId = bed.assignedGuestId
+          bed.assignments = legacyId ? [{ guestId: legacyId }] : []
+          mutated = true
+        }
+        if ('assignedGuestId' in bed) {
+          delete bed.assignedGuestId
+          mutated = true
+        }
+      }
+
+      const convertDorms = (dorms: any[] | undefined) => {
+        if (!Array.isArray(dorms)) return
+        for (const dorm of dorms) {
+          if (!Array.isArray(dorm.rooms)) continue
+          for (const room of dorm.rooms) {
+            if (!Array.isArray(room.beds)) continue
+            for (const bed of room.beds) {
+              convertBed(bed)
+            }
+          }
+        }
+      }
+
+      _suppressAutoSave = true
+      convertDorms(dormitories.value as any[])
+      for (const layout of layouts.value) {
+        convertDorms(layout.dormitories as any[])
+      }
+      if (bedShapeVersion.value < CURRENT_BED_SHAPE_VERSION) {
+        bedShapeVersion.value = CURRENT_BED_SHAPE_VERSION
+        mutated = true
+      }
+      nextTick(() => {
+        _suppressAutoSave = false
+      })
+
+      return mutated
+    }
+
+    // Eager migration: run once as soon as data is non-empty (whether
+    // from default init, layout switch, or pinia hydration). One-shot
+    // watcher keeps perf overhead minimal once normalization is done.
+    let _migrationDone = false
+    const _stopMigrationWatch = watch(
+      [dormitories, layouts],
+      () => {
+        if (_migrationDone) return
+        if (dormitories.value.length === 0 && layouts.value.length === 0) {
+          // Wait for hydration / init to populate something
+          return
+        }
+        migrateBedAssignments()
+        _migrationDone = true
+        _stopMigrationWatch()
+      },
+      { immediate: true, deep: true, flush: 'sync' }
+    )
 
     function importDormitories(importedDormitories: Dormitory[]) {
       dormitories.value = importedDormitories
@@ -478,6 +565,7 @@ export const useDormitoryStore = defineStore(
       dormitories,
       configName,
       selectedDormitoryIndex,
+      bedShapeVersion,
       layouts,
       activeLayoutId,
 
@@ -503,6 +591,7 @@ export const useDormitoryStore = defineStore(
       setSelectedDormitory,
       initializeDefaultDormitories,
       importDormitories,
+      migrateBedAssignments,
 
       // Layout actions
       ensureLayoutsInitialized,
@@ -516,7 +605,7 @@ export const useDormitoryStore = defineStore(
   {
     persist: {
       key: 'dormAssignments-dormitories',
-      paths: ['dormitories', 'configName', 'layouts', 'activeLayoutId'],
+      paths: ['dormitories', 'configName', 'layouts', 'activeLayoutId', 'bedShapeVersion'],
     },
   }
 )

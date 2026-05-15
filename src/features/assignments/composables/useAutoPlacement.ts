@@ -11,6 +11,7 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { staysOverlap } from '@/shared/composables/useUtils'
 import { classifyGuests } from './useGroupClassification'
 import type { ClassifiedGroup } from './useGroupClassification'
 import type { Guest, Bed, Room, FlatRoom } from '@/types'
@@ -48,6 +49,40 @@ export function useAutoPlacement() {
       guest.lowerBunk === 'TRUE' ||
       guest.lowerBunk === 'true'
     )
+  }
+
+  /**
+   * A bed is "available for guest" iff it's active AND none of its existing
+   * assignments overlap with the candidate guest's stay. Date-aware
+   * replacement for the old `!bed.assignedGuestId` check.
+   */
+  function isBedAvailableForGuest(bed: Bed, guest: Guest): boolean {
+    if (bed.active === false) return false
+    for (const a of bed.assignments) {
+      if (a.guestId === guest.id) continue
+      const other = guestStore.guests.find(g => g.id === a.guestId)
+      if (!other) continue
+      if (staysOverlap(other, guest)) return false
+    }
+    return true
+  }
+
+  /**
+   * A bed is "available for group" iff it's active AND none of its existing
+   * assignments overlap with ANY member of the group. Conservative — a bed
+   * that overlaps even one member is excluded for the whole group.
+   */
+  function isBedAvailableForGroup(bed: Bed, group: ClassifiedGroup): boolean {
+    if (bed.active === false) return false
+    for (const a of bed.assignments) {
+      const other = guestStore.guests.find(g => g.id === a.guestId)
+      if (!other) continue
+      for (const member of group.members) {
+        if (a.guestId === member.id) continue
+        if (staysOverlap(other, member)) return false
+      }
+    }
+    return true
   }
 
   // ---------------------------------------------------------------------------
@@ -147,18 +182,22 @@ export function useAutoPlacement() {
   // ---------------------------------------------------------------------------
 
   /**
-   * Get available (unassigned, un-suggested) beds in a specific room
+   * Get available (un-suggested, no overlap) beds in a specific room.
+   * Date-aware: optionally filters by candidate guest or group.
    */
   function getAvailableBedsInRoom(
     room: FlatRoom,
-    suggestedAssignments: Map<string, string>
+    suggestedAssignments: Map<string, string>,
+    forGroup?: ClassifiedGroup,
+    forGuest?: Guest
   ): Bed[] {
-    return room.beds.filter(
-      bed =>
-        bed.active !== false &&
-        !bed.assignedGuestId &&
-        !isBedSuggested(bed.bedId, suggestedAssignments)
-    )
+    return room.beds.filter(bed => {
+      if (bed.active === false) return false
+      if (isBedSuggested(bed.bedId, suggestedAssignments)) return false
+      if (forGroup) return isBedAvailableForGroup(bed, forGroup)
+      if (forGuest) return isBedAvailableForGuest(bed, forGuest)
+      return bed.assignments.length === 0
+    })
   }
 
   /**
@@ -290,7 +329,11 @@ export function useAutoPlacement() {
       let bestRoomBeds: Bed[] = []
 
       for (const room of dormitoryStore.getAllRooms) {
-        const availableRoomBeds = getAvailableBedsInRoom(room, suggestedAssignments)
+        const availableRoomBeds = getAvailableBedsInRoom(
+          room,
+          suggestedAssignments,
+          group
+        )
         if (availableRoomBeds.length < group.members.length) continue
 
         const score = scoreRoomForGroup(
@@ -344,8 +387,8 @@ export function useAutoPlacement() {
       let bestBed: Bed | null = null
 
       for (const bed of availableBeds) {
-        // Skip if bed is already assigned or suggested
-        if (bed.assignedGuestId) continue
+        // Date-aware: bed must be available for THIS guest's stay
+        if (!isBedAvailableForGuest(bed, guest)) continue
         if (isBedSuggested(bed.bedId, suggestedAssignments)) continue
 
         const score = calculatePlacementScore(guest, bed, passConfig, suggestedAssignments)
@@ -630,8 +673,8 @@ export function useAutoPlacement() {
         if (dormBed.active === false) continue
         totalBeds++
 
-        // Check if bed is occupied (actual assignment or suggestion)
-        if (dormBed.assignedGuestId || suggestedBedIds.has(dormBed.bedId)) {
+        // Check if bed has any assignment or suggestion (date-blind heuristic)
+        if (dormBed.assignments.length > 0 || suggestedBedIds.has(dormBed.bedId)) {
           occupiedBeds++
         }
       }
@@ -661,25 +704,32 @@ export function useAutoPlacement() {
     const guestAge = parseInt(String(guest.age))
     if (isNaN(guestAge)) return 0
 
-    // Get ages of current and suggested roommates
+    // Get ages of current and suggested roommates whose stays overlap the
+    // candidate guest's stay (date-aware: a non-overlapping cohort isn't
+    // really a "roommate")
     const roommateAges: number[] = []
 
     for (const bed of room.beds) {
-      const assignedGuestId = bed.assignedGuestId
-
-      // Check actual assignments
-      if (assignedGuestId) {
-        const roommate = guestStore.getGuestById(assignedGuestId)
-        if (roommate?.age) {
+      let counted = false
+      for (const a of bed.assignments) {
+        if (a.guestId === guest.id) continue
+        const roommate = guestStore.getGuestById(a.guestId)
+        if (!roommate) continue
+        if (!staysOverlap(roommate, guest)) continue
+        if (roommate.age) {
           const age = parseInt(String(roommate.age))
-          if (!isNaN(age)) roommateAges.push(age)
+          if (!isNaN(age)) {
+            roommateAges.push(age)
+            counted = true
+          }
         }
-      } else {
-        // Check suggested assignments
+      }
+      // If no current overlapping assignment, check suggestions
+      if (!counted) {
         for (const [gId, bId] of suggestedAssignments.entries()) {
           if (bId === bed.bedId) {
             const roommate = guestStore.getGuestById(gId)
-            if (roommate?.age) {
+            if (roommate?.age && roommate.id !== guest.id && staysOverlap(roommate, guest)) {
               const age = parseInt(String(roommate.age))
               if (!isNaN(age)) roommateAges.push(age)
             }
@@ -707,10 +757,11 @@ export function useAutoPlacement() {
   // ---------------------------------------------------------------------------
 
   /**
-   * Get all available beds from active dormitories and rooms
+   * Get all beds from active dormitories and rooms. Date-aware filtering
+   * is applied per-guest inside `placementPass` via `isBedAvailableForGuest`.
    */
   function getAvailableBeds(): Bed[] {
-    const availableBeds: Bed[] = []
+    const allBeds: Bed[] = []
 
     for (const dormitory of dormitoryStore.dormitories) {
       if (!dormitory.active) continue
@@ -719,14 +770,14 @@ export function useAutoPlacement() {
         if (!room.active) continue
 
         for (const bed of room.beds) {
-          if (bed.active !== false && !bed.assignedGuestId) {
-            availableBeds.push(bed)
+          if (bed.active !== false) {
+            allBeds.push(bed)
           }
         }
       }
     }
 
-    return availableBeds
+    return allBeds
   }
 
   /**
@@ -766,10 +817,9 @@ export function useAutoPlacement() {
       return suggestedAssignments
     }
 
-    // Get available beds in this room only
-    const availableBeds = room.beds.filter(
-      bed => bed.active !== false && !bed.assignedGuestId
-    )
+    // Get all active beds in this room — per-guest date-aware filtering
+    // happens inside `placementPass` via `isBedAvailableForGuest`.
+    const availableBeds = room.beds.filter(bed => bed.active !== false)
 
     if (availableBeds.length === 0) {
       return suggestedAssignments

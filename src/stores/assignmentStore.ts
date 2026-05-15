@@ -1,6 +1,12 @@
 /**
  * Assignment Store
- * Manages guest-to-bed assignments and undo/redo history
+ * Manages guest-to-bed assignments and undo/redo history.
+ *
+ * Data model: each bed holds an array of `BedAssignment`s. Multiple guests
+ * may share the same bed as long as their stays don't overlap. The
+ * `assignments` Map (guestId → bedId) is a denormalized lookup that stays
+ * single-valued (one bed per guest stay) and must be kept in sync with the
+ * bed-level assignments arrays.
  */
 
 import { defineStore } from 'pinia'
@@ -9,7 +15,14 @@ import { useDormitoryStore } from './dormitoryStore'
 import { useGuestStore } from './guestStore'
 import { useAutoPlacement } from '@/features/assignments/composables/useAutoPlacement'
 import type { UnplaceableGroup } from '@/features/assignments/composables/useAutoPlacement'
-import type { AssignmentMap, HistoryState, SuggestedAssignmentMap } from '@/types'
+import { staysOverlap, stayCoversDate } from '@/shared/composables/useUtils'
+import type {
+  AssignmentMap,
+  HistoryState,
+  SuggestedAssignmentMap,
+  Bed,
+  Guest,
+} from '@/types'
 import { HISTORY_SIZE } from '@/types'
 
 export const useAssignmentStore = defineStore(
@@ -30,16 +43,21 @@ export const useAssignmentStore = defineStore(
       }
     })
 
-    // Reverse lookup map: bedId -> guestId (O(1) instead of O(n))
-    const bedToGuestMap = computed(() => {
-      const map = new Map<string, string>()
+    /**
+     * Reverse lookup: bedId → guestId[] (all guests assigned to that bed,
+     * regardless of date overlap). Use `getActiveGuestForBed` if you need
+     * the single guest visible at a specific date.
+     */
+    const bedToGuestsMap = computed(() => {
+      const map = new Map<string, string[]>()
       for (const [guestId, bedId] of assignments.value.entries()) {
-        map.set(bedId, guestId)
+        const list = map.get(bedId)
+        if (list) list.push(guestId)
+        else map.set(bedId, [guestId])
       }
       return map
     })
 
-    // Reverse lookup map for suggestions: bedId -> guestId
     const suggestedBedToGuestMap = computed(() => {
       const map = new Map<string, string>()
       for (const [guestId, bedId] of suggestedAssignments.value.entries()) {
@@ -48,9 +66,31 @@ export const useAssignmentStore = defineStore(
       return map
     })
 
-    const getAssignmentByBed = computed(() => {
-      return (bedId: string): string | undefined => {
-        return bedToGuestMap.value.get(bedId)
+    /**
+     * Returns all guestIds assigned to the given bed (any date). Empty array
+     * if the bed has no assignments.
+     */
+    const getGuestsAtBed = computed(() => {
+      return (bedId: string): string[] => {
+        return bedToGuestsMap.value.get(bedId) ?? []
+      }
+    })
+
+    /**
+     * Picks the single guest whose stay covers `date`. If multiple match
+     * (shouldn't happen if conflicts are resolved), returns the first.
+     * Returns undefined if no guest covers the date.
+     */
+    const getActiveGuestForBed = computed(() => {
+      const guestStore = useGuestStore()
+      return (bedId: string, date: Date): string | undefined => {
+        const guestIds = bedToGuestsMap.value.get(bedId)
+        if (!guestIds || guestIds.length === 0) return undefined
+        for (const id of guestIds) {
+          const guest = guestStore.guests.find(g => g.id === id)
+          if (guest && stayCoversDate(guest, date)) return id
+        }
+        return undefined
       }
     })
 
@@ -71,13 +111,12 @@ export const useAssignmentStore = defineStore(
 
     const hasSuggestions = computed(() => suggestedAssignments.value.size > 0)
 
-    // Get all guests assigned to a specific bed
+    // ----- Bed-state helpers (multi-assignment aware) -----
+
     function getGuestsAssignedToBed(bedId: string): string[] {
-      const guestId = bedToGuestMap.value.get(bedId)
-      return guestId ? [guestId] : []
+      return bedToGuestsMap.value.get(bedId) ?? []
     }
 
-    // Get all guests assigned to beds in a specific room
     function getGuestsAssignedToRoom(roomBedIds: string[]): string[] {
       const bedIdSet = new Set(roomBedIds)
       const guests: string[] = []
@@ -89,7 +128,6 @@ export const useAssignmentStore = defineStore(
       return guests
     }
 
-    // Get all guests assigned to beds in a specific dormitory
     function getGuestsAssignedToDormitory(dormitoryBedIds: string[]): string[] {
       const bedIdSet = new Set(dormitoryBedIds)
       const guests: string[] = []
@@ -101,59 +139,171 @@ export const useAssignmentStore = defineStore(
       return guests
     }
 
-    // Unassign all guests from a specific bed
+    /**
+     * Returns the guestIds of existing assignments on `bedId` whose stays
+     * overlap with the given guest's stay. Used by callers to detect
+     * conflicts before dropping.
+     */
+    function getOverlappingAssignments(
+      bedId: string,
+      candidateGuest: Guest
+    ): string[] {
+      const dormitoryStore = useDormitoryStore()
+      const guestStore = useGuestStore()
+      const bed = dormitoryStore.getBedById(bedId)
+      if (!bed) return []
+      const overlapping: string[] = []
+      for (const a of bed.assignments) {
+        if (a.guestId === candidateGuest.id) continue
+        const other = guestStore.guests.find(g => g.id === a.guestId)
+        if (!other) continue
+        if (staysOverlap(other, candidateGuest)) {
+          overlapping.push(a.guestId)
+        }
+      }
+      return overlapping
+    }
+
+    /**
+     * Scan every bed for overlapping assignments and return them grouped
+     * by bed. Used by the post-CSV-import conflict modal and by the
+     * `dateOverlap` validation warning.
+     */
+    function getAllOverlapConflicts(): Array<{
+      bedId: string
+      guests: { guestId: string; arrival?: string; departure?: string }[]
+    }> {
+      const dormitoryStore = useDormitoryStore()
+      const guestStore = useGuestStore()
+      const results: Array<{
+        bedId: string
+        guests: { guestId: string; arrival?: string; departure?: string }[]
+      }> = []
+      for (const bed of dormitoryStore.getAllBeds) {
+        if (bed.assignments.length < 2) continue
+        // Find any pair (i, j) with overlap. If at least one pair overlaps,
+        // include all guests on the bed in the report (operator picks
+        // which to keep).
+        const guests = bed.assignments
+          .map(a => guestStore.guests.find(g => g.id === a.guestId))
+          .filter((g): g is Guest => g !== undefined)
+        let hasOverlap = false
+        for (let i = 0; i < guests.length; i++) {
+          for (let j = i + 1; j < guests.length; j++) {
+            if (staysOverlap(guests[i], guests[j])) {
+              hasOverlap = true
+              break
+            }
+          }
+          if (hasOverlap) break
+        }
+        if (hasOverlap) {
+          results.push({
+            bedId: bed.bedId,
+            guests: guests.map(g => ({
+              guestId: g.id,
+              arrival: g.arrival,
+              departure: g.departure,
+            })),
+          })
+        }
+      }
+      return results
+    }
+
     function unassignGuestsFromBed(bedId: string) {
       const guests = getGuestsAssignedToBed(bedId)
       guests.forEach(guestId => unassignGuest(guestId, true))
     }
 
-    // Unassign all guests from beds in a room
     function unassignGuestsFromRoom(roomBedIds: string[]) {
       const guests = getGuestsAssignedToRoom(roomBedIds)
       guests.forEach(guestId => unassignGuest(guestId, true))
     }
 
-    // Unassign all guests from beds in a dormitory
     function unassignGuestsFromDormitory(dormitoryBedIds: string[]) {
       const guests = getGuestsAssignedToDormitory(dormitoryBedIds)
       guests.forEach(guestId => unassignGuest(guestId, true))
     }
 
-    // Actions
-    function assignGuestToBed(guestId: string, bedId: string, skipHistory = false) {
-      const dormitoryStore = useDormitoryStore()
+    // ----- Mutation primitives -----
 
-      // Save to history before making changes
+    function _removeGuestFromBed(bed: Bed, guestId: string) {
+      const idx = bed.assignments.findIndex(a => a.guestId === guestId)
+      if (idx !== -1) bed.assignments.splice(idx, 1)
+    }
+
+    function _addGuestToBed(bed: Bed, guestId: string) {
+      if (!bed.assignments.some(a => a.guestId === guestId)) {
+        bed.assignments.push({ guestId })
+      }
+    }
+
+    /**
+     * Assign a guest to a bed.
+     *
+     * - If the guest is already on another bed, they're removed from there
+     *   (one bed per guest stay).
+     * - If `displaceOverlapping` is true, any existing assignments on the
+     *   target bed whose stays overlap the new guest's stay are removed
+     *   (and those guests become unassigned). When false (default), the
+     *   caller is responsible for resolving conflicts beforehand — typically
+     *   via the confirm dialog.
+     */
+    function assignGuestToBed(
+      guestId: string,
+      bedId: string,
+      skipHistory = false,
+      displaceOverlapping = false
+    ) {
+      const dormitoryStore = useDormitoryStore()
+      const guestStore = useGuestStore()
+
+      const bed = dormitoryStore.getBedById(bedId)
+      if (!bed) return
+
       if (!skipHistory) {
         saveToHistory()
       }
 
-      // Unassign from previous bed if assigned
+      // Remove guest from previous bed if they had one.
       const existingBedId = assignments.value.get(guestId)
-      if (existingBedId) {
+      if (existingBedId && existingBedId !== bedId) {
         const existingBed = dormitoryStore.getBedById(existingBedId)
-        if (existingBed) {
-          existingBed.assignedGuestId = null
+        if (existingBed) _removeGuestFromBed(existingBed, guestId)
+      }
+
+      // Optionally displace overlapping assignments on the target bed.
+      if (displaceOverlapping) {
+        const candidateGuest = guestStore.guests.find(g => g.id === guestId)
+        if (candidateGuest) {
+          const toRemove: string[] = []
+          for (const a of bed.assignments) {
+            if (a.guestId === guestId) continue
+            const other = guestStore.guests.find(g => g.id === a.guestId)
+            if (other && staysOverlap(other, candidateGuest)) {
+              toRemove.push(a.guestId)
+            }
+          }
+          for (const otherId of toRemove) {
+            _removeGuestFromBed(bed, otherId)
+            assignments.value.delete(otherId)
+          }
         }
       }
 
-      // Clear any suggestion for this guest when manually assigned
+      // Clear any suggestion for this guest when manually assigned.
       if (suggestedAssignments.value.has(guestId)) {
         suggestedAssignments.value.delete(guestId)
       }
 
-      // Assign to new bed
-      const bed = dormitoryStore.getBedById(bedId)
-      if (bed) {
-        bed.assignedGuestId = guestId
-        assignments.value.set(guestId, bedId)
-      }
+      _addGuestToBed(bed, guestId)
+      assignments.value.set(guestId, bedId)
     }
 
     function unassignGuest(guestId: string, skipHistory = false) {
       const dormitoryStore = useDormitoryStore()
 
-      // Save to history before making changes
       if (!skipHistory) {
         saveToHistory()
       }
@@ -161,39 +311,44 @@ export const useAssignmentStore = defineStore(
       const bedId = assignments.value.get(guestId)
       if (bedId) {
         const bed = dormitoryStore.getBedById(bedId)
-        if (bed) {
-          bed.assignedGuestId = null
-        }
+        if (bed) _removeGuestFromBed(bed, guestId)
         assignments.value.delete(guestId)
       }
     }
 
+    /**
+     * Swap two guests' bed assignments. Both must already be assigned. If
+     * only one is assigned, the unassigned guest takes the other's bed and
+     * the previously-assigned guest becomes unassigned.
+     *
+     * Note: this does NOT do overlap checks — callers should resolve
+     * overlaps via the confirm dialog before invoking this. With date-aware
+     * sharing, the more common pattern is `assignGuestToBed(g, b, false,
+     * true)` to displace overlapping occupants rather than literal swap.
+     */
     function swapGuests(guestId1: string, guestId2: string) {
       const dormitoryStore = useDormitoryStore()
 
-      // Save to history before making changes
       saveToHistory()
 
       const bedId1 = assignments.value.get(guestId1)
       const bedId2 = assignments.value.get(guestId2)
 
       if (bedId1 && bedId2) {
-        // Both assigned - swap
         const bed1 = dormitoryStore.getBedById(bedId1)
         const bed2 = dormitoryStore.getBedById(bedId2)
-
         if (bed1 && bed2) {
-          bed1.assignedGuestId = guestId2
-          bed2.assignedGuestId = guestId1
+          _removeGuestFromBed(bed1, guestId1)
+          _removeGuestFromBed(bed2, guestId2)
+          _addGuestToBed(bed1, guestId2)
+          _addGuestToBed(bed2, guestId1)
           assignments.value.set(guestId1, bedId2)
           assignments.value.set(guestId2, bedId1)
         }
       } else if (bedId1) {
-        // Only first is assigned - move second to first's bed and unassign first
         unassignGuest(guestId1, true)
         assignGuestToBed(guestId2, bedId1, true)
       } else if (bedId2) {
-        // Only second is assigned - move first to second's bed and unassign second
         unassignGuest(guestId2, true)
         assignGuestToBed(guestId1, bedId2, true)
       }
@@ -204,9 +359,8 @@ export const useAssignmentStore = defineStore(
 
       saveToHistory()
 
-      // Clear all bed assignments
       for (const bed of dormitoryStore.getAllBeds) {
-        bed.assignedGuestId = null
+        bed.assignments = []
       }
 
       assignments.value.clear()
@@ -257,10 +411,8 @@ export const useAssignmentStore = defineStore(
 
       assignmentHistory.value.push(state)
 
-      // Clear redo history when new action is taken
       redoHistory.value = []
 
-      // Limit history size
       if (assignmentHistory.value.length > HISTORY_SIZE) {
         assignmentHistory.value.shift()
       }
@@ -271,7 +423,6 @@ export const useAssignmentStore = defineStore(
 
       const dormitoryStore = useDormitoryStore()
 
-      // Save current state to redo history before undoing
       const currentState: HistoryState = {
         assignments: new Map(assignments.value),
         rooms: JSON.parse(JSON.stringify(dormitoryStore.getAllRooms)),
@@ -281,10 +432,8 @@ export const useAssignmentStore = defineStore(
 
       const previousState = assignmentHistory.value.pop()!
 
-      // Restore assignments
       assignments.value = new Map(previousState.assignments)
 
-      // Restore dormitory structure
       if (previousState.dormitories) {
         dormitoryStore.importDormitories(
           JSON.parse(JSON.stringify(previousState.dormitories))
@@ -297,7 +446,6 @@ export const useAssignmentStore = defineStore(
 
       const dormitoryStore = useDormitoryStore()
 
-      // Save current state to undo history before redoing
       const currentState: HistoryState = {
         assignments: new Map(assignments.value),
         rooms: JSON.parse(JSON.stringify(dormitoryStore.getAllRooms)),
@@ -307,10 +455,8 @@ export const useAssignmentStore = defineStore(
 
       const nextState = redoHistory.value.pop()!
 
-      // Restore assignments
       assignments.value = new Map(nextState.assignments)
 
-      // Restore dormitory structure
       if (nextState.dormitories) {
         dormitoryStore.importDormitories(
           JSON.parse(JSON.stringify(nextState.dormitories))
@@ -323,7 +469,6 @@ export const useAssignmentStore = defineStore(
       redoHistory.value = []
     }
 
-    // Accept suggestions only for beds in a specific room
     function acceptSuggestionsForRoom(roomBedIds: string[]) {
       const suggestionsToAccept: [string, string][] = []
 
@@ -344,7 +489,6 @@ export const useAssignmentStore = defineStore(
       }
     }
 
-    // Get count of suggestions for a specific room
     function getSuggestionsCountForRoom(roomBedIds: string[]): number {
       let count = 0
       for (const bedId of roomBedIds) {
@@ -355,26 +499,20 @@ export const useAssignmentStore = defineStore(
       return count
     }
 
-    // Auto-placement using weighted scoring algorithm
     function autoPlace() {
       const { autoPlaceGuests } = useAutoPlacement()
 
-      // Clear existing suggestions and unplaceable groups
       suggestedAssignments.value.clear()
       unplaceableGroups.value = []
 
-      // Run auto-placement algorithm
       const result = autoPlaceGuests()
 
-      // Apply new suggestions
       result.suggestions.forEach((bedId, guestId) => {
         suggestedAssignments.value.set(guestId, bedId)
       })
 
-      // Store unplaceable groups for UI feedback
       unplaceableGroups.value = result.unplaceableGroups
 
-      // Return placement results
       return {
         placedCount: result.suggestions.size,
         unplacedCount: unassignedGuestIds.value.length - result.suggestions.size,
@@ -392,9 +530,10 @@ export const useAssignmentStore = defineStore(
 
       // Getters
       getAssignmentByGuest,
-      getAssignmentByBed,
-      bedToGuestMap,
+      bedToGuestsMap,
       suggestedBedToGuestMap,
+      getGuestsAtBed,
+      getActiveGuestForBed,
       canUndo,
       canRedo,
       unassignedGuestIds,
@@ -423,6 +562,8 @@ export const useAssignmentStore = defineStore(
       getGuestsAssignedToBed,
       getGuestsAssignedToRoom,
       getGuestsAssignedToDormitory,
+      getOverlappingAssignments,
+      getAllOverlapConflicts,
       unassignGuestsFromBed,
       unassignGuestsFromRoom,
       unassignGuestsFromDormitory,

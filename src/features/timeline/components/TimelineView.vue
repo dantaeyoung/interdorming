@@ -1020,7 +1020,7 @@ function roomHasAvailableBeds(dormitoryName: string, roomName: string): boolean 
   const room = dorm.rooms.find(r => r.roomName === roomName)
   if (!room || !room.beds) return false
 
-  return room.beds.some(bed => !bed.assignedGuestId && bed.active !== false)
+  return room.beds.some(bed => bed.assignments.length === 0 && bed.active !== false)
 }
 
 /**

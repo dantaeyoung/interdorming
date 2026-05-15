@@ -12,7 +12,14 @@
         @mouseleave="handleGuestLeave"
       >
         <div class="guest-info">
-          <strong class="guest-name">{{ displayName }}</strong>
+          <strong class="guest-name">
+            {{ displayName }}
+            <span
+              v-if="otherAssignments.length > 0"
+              class="other-assignments-badge"
+              :title="otherAssignmentsTooltip"
+            >+{{ otherAssignments.length }}</span>
+          </strong>
           <span class="guest-details">
             <span class="guest-gender" :style="genderBackgroundStyle">{{ assignedGuest.gender }}</span>
             <span class="guest-age">{{ assignedGuest.age }}</span>
@@ -76,6 +83,11 @@
     </div>
     <div v-else class="bed-empty">
       <span class="drop-hint">Drop guest here</span>
+      <span
+        v-if="allAssignedGuests.length > 0"
+        class="other-assignments-badge other-only"
+        :title="otherAssignmentsTooltip"
+      >+{{ allAssignedGuests.length }}</span>
     </div>
 
     <!-- Notes tooltip -->
@@ -107,6 +119,7 @@ import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import { useUtils } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
 import { parseLocalDate } from '@/shared/composables/useUtils'
+import { useOverlapConfirm } from '@/shared/composables/useOverlapConfirm'
 import { ValidationWarning } from '@/shared/components'
 import GuestFormModal from '@/features/guests/components/GuestFormModal.vue'
 import type { Bed, Guest } from '@/types'
@@ -129,21 +142,60 @@ const { setHoveredGroup, clearHoveredGroup } = useGroupLinking()
 const { createFullName } = useUtils()
 const { validateDrop } = useDropValidation()
 
-const rawAssignedGuest = computed(() => {
-  if (!props.bed.assignedGuestId) return null
-  return guestStore.getGuestById(props.bed.assignedGuestId)
+/**
+ * All guests currently assigned to this bed (any cohort, any date).
+ */
+const allAssignedGuests = computed(() => {
+  return props.bed.assignments
+    .map(a => guestStore.getGuestById(a.guestId))
+    .filter((g): g is NonNullable<typeof g> => g !== undefined)
 })
 
-// When viewDate is set, only show guest if their stay includes that date
+/**
+ * For backwards compatibility with the rest of the BedSlot code, expose
+ * a single "primary" guest: the one whose stay covers the View Date, or
+ * the first one if no view date is set / nothing matches it precisely.
+ */
+const rawAssignedGuest = computed(() => {
+  return allAssignedGuests.value[0] ?? null
+})
+
+// When viewDate is set, pick the guest whose stay covers that date.
 const assignedGuest = computed(() => {
-  const guest = rawAssignedGuest.value
-  if (!guest || !props.viewDate) return guest
-  if (!guest.arrival || !guest.departure) return guest // Show if no dates set
+  if (!props.viewDate) return allAssignedGuests.value[0] ?? null
   const vd = props.viewDate.getTime()
-  const arrival = parseLocalDate(guest.arrival).getTime()
-  const departure = parseLocalDate(guest.departure).getTime()
-  // Departure day = guest leaves in the morning, bed is free that night
-  return (vd >= arrival && vd < departure) ? guest : null
+  for (const guest of allAssignedGuests.value) {
+    if (!guest.arrival || !guest.departure) return guest
+    const arrival = parseLocalDate(guest.arrival).getTime()
+    const departure = parseLocalDate(guest.departure).getTime()
+    // Departure day = guest leaves in the morning, bed is free that night
+    if (vd >= arrival && vd < departure) return guest
+  }
+  return null
+})
+
+/**
+ * Other assignments on this bed that aren't the currently-displayed guest.
+ * Used for the "+N" badge and hover popover (see Stage 6).
+ */
+const otherAssignments = computed(() => {
+  const visible = assignedGuest.value
+  return allAssignedGuests.value.filter(g => g !== visible)
+})
+
+/**
+ * Tooltip content for the "+N" badge — lists each non-displayed assignment
+ * with its date range.
+ */
+const otherAssignmentsTooltip = computed(() => {
+  if (otherAssignments.value.length === 0) return ''
+  const lines = otherAssignments.value.map(g => {
+    const range = g.arrival && g.departure
+      ? `${g.arrival} → ${g.departure}`
+      : (g.arrival || g.departure || 'no dates')
+    return `${createFullName(g)} (${range})`
+  })
+  return `Also assigned to this bed:\n${lines.join('\n')}`
 })
 
 // Guest is assigned but filtered out by view date
@@ -287,16 +339,33 @@ const draggableProps = computed(() => {
   return useDraggableGuest(assignedGuest.value.id)
 })
 
-function handleDrop(guestId: string, bedId: string) {
-  // Check if the bed is already occupied
-  const existingGuestId = props.bed.assignedGuestId
-
-  if (existingGuestId && existingGuestId !== guestId) {
-    // Bed is occupied by a different guest - swap them
-    assignmentStore.swapGuests(guestId, existingGuestId)
-  } else {
-    // Bed is empty or same guest - just assign
+async function handleDrop(guestId: string, bedId: string) {
+  const guest = guestStore.getGuestById(guestId)
+  if (!guest) return
+  const overlappingIds = assignmentStore.getOverlappingAssignments(bedId, guest)
+  if (overlappingIds.length === 0) {
     assignmentStore.assignGuestToBed(guestId, bedId)
+    return
+  }
+  // Overlap → confirm before displacing.
+  const { requestOverlapConfirm } = useOverlapConfirm()
+  const overlapping = overlappingIds
+    .map(id => guestStore.getGuestById(id))
+    .filter((g): g is NonNullable<typeof g> => g !== undefined)
+    .map(g => ({
+      guestName: createFullName(g),
+      arrival: g.arrival,
+      departure: g.departure,
+    }))
+  const ok = await requestOverlapConfirm({
+    guestName: createFullName(guest),
+    guestArrival: guest.arrival,
+    guestDeparture: guest.departure,
+    bedId,
+    overlapping,
+  })
+  if (ok) {
+    assignmentStore.assignGuestToBed(guestId, bedId, false, true)
   }
 }
 
@@ -433,6 +502,25 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
   min-width: 150px;
   max-width: 150px;
   flex-shrink: 0;
+}
+
+.other-assignments-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #fbbf24;
+  color: #78350f;
+  font-size: 0.65rem;
+  font-weight: 700;
+  vertical-align: middle;
+  cursor: help;
+
+  &.other-only {
+    background: #d1d5db;
+    color: #4b5563;
+    margin-left: 8px;
+  }
 }
 
 .guest-details {

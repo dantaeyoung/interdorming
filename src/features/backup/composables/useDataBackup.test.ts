@@ -128,7 +128,7 @@ describe('useDataBackup', () => {
         roomName: 'Test Room',
         roomGender: 'M',
         active: true,
-        beds: [{ bedId: 'TR01', bedType: 'single', position: 1, assignedGuestId: null }],
+        beds: [{ bedId: 'TR01', bedType: 'single', position: 1, assignments: [] }],
       })
 
       // Assign guest to bed
@@ -229,7 +229,7 @@ describe('useDataBackup', () => {
                   roomName: 'Test Room',
                   roomGender: 'M',
                   active: true,
-                  beds: [{ bedId: 'TR01', bedType: 'single', position: 1, assignedGuestId: null }],
+                  beds: [{ bedId: 'TR01', bedType: 'single', position: 1, assignments: [] }],
                 },
               ],
             },
@@ -383,7 +383,7 @@ describe('useDataBackup', () => {
                   roomName: 'Test Room',
                   roomGender: 'M',
                   active: true,
-                  beds: [{ bedId: 'TR01', bedType: 'single', position: 1, assignedGuestId: null }],
+                  beds: [{ bedId: 'TR01', bedType: 'single', position: 1, assignments: [] }],
                 },
               ],
             },
@@ -437,7 +437,7 @@ describe('useDataBackup', () => {
         roomName: 'RT Room',
         roomGender: 'F',
         active: true,
-        beds: [{ bedId: 'RTR01', bedType: 'lower', position: 1, assignedGuestId: null }],
+        beds: [{ bedId: 'RTR01', bedType: 'lower', position: 1, assignments: [] }],
       })
 
       assignmentStore.assignGuestToBed(guestId, 'RTR01')

@@ -328,8 +328,9 @@ export function useHints(currentTab?: Ref<string>) {
     const details: ConflictDetail[] = []
 
     for (const [bedId, bedWarnings] of Object.entries(warnings)) {
-      const guestId = assignmentStore.getAssignmentByBed(bedId)
-      if (guestId) {
+      // With multi-assignment beds, list every guest assigned to the bed.
+      const guestIds = assignmentStore.getGuestsAtBed(bedId)
+      for (const guestId of guestIds) {
         const guest = guestStore.getGuestById(guestId)
         if (guest) {
           details.push({

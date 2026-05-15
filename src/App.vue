@@ -237,6 +237,16 @@
       @accept-all="handleAcceptAll"
       @clear-suggestions="handleClearSuggestions"
     />
+
+    <!-- Global overlap-confirmation dialog: any drop site that detects an
+         overlapping assignment opens this via `useOverlapConfirm`. -->
+    <OverlapConfirmDialog />
+
+    <!-- Global group-conflict dialog (group drop blocked by date overlap). -->
+    <GroupConflictDialog />
+
+    <!-- Post-CSV-import conflict dialog (date changes created bed conflicts). -->
+    <ImportConflictDialog />
   </div>
 </template>
 
@@ -245,7 +255,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 
 // Shared components
-import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal } from '@/shared/components'
+import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal, OverlapConfirmDialog, GroupConflictDialog, ImportConflictDialog } from '@/shared/components'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
 
@@ -279,7 +289,12 @@ const settingsStore = useSettingsStore()
 const { hasSortLevels, sortDescription } = useSortConfig()
 const showSortModal = ref(false)
 const roomSearchQuery = ref('')
-const viewDate = ref<Date | null>(null)
+// Default View Date to today (computed once at app load) so multi-assignment
+// beds show the operator's current cohort by default. Per spec: doesn't
+// live-update across midnight; operator can manually clear or change.
+const _today = new Date()
+_today.setHours(0, 0, 0, 0)
+const viewDate = ref<Date | null>(_today)
 
 const viewDateISO = computed(() => {
   if (!viewDate.value) return ''
@@ -309,6 +324,13 @@ onMounted(() => {
 
   // Migrate existing dormitory data into layout system
   dormitoryStore.ensureLayoutsInitialized()
+
+  // One-time migration from `bed.assignedGuestId` (single) to
+  // `bed.assignments` (array) for date-aware bed sharing. Wipes persisted
+  // undo history when it runs, since old snapshots embed the legacy shape.
+  if (dormitoryStore.migrateBedAssignments()) {
+    assignmentStore.clearHistory()
+  }
 })
 
 // Tab state - restore from localStorage or default to 'guest-data'
@@ -667,7 +689,7 @@ function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => strin
       bedId,
       bedType: (values[headers.indexOf('Bed Type')] || 'single') as any,
       position: parseInt(values[headers.indexOf('Bed Position')] || '1'),
-      assignedGuestId: null,
+      assignments: [],
       active: values[headers.indexOf('Bed Active')]?.toLowerCase() !== 'no' && values[headers.indexOf('Active')]?.toLowerCase() !== 'false',
     })
   }

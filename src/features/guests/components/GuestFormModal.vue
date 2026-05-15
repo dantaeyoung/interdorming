@@ -182,6 +182,10 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { Modal } from '@/shared/components'
+import { useAssignmentStore } from '@/stores/assignmentStore'
+import { useGuestStore } from '@/stores/guestStore'
+import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { staysOverlap, useUtils } from '@/shared/composables/useUtils'
 import type { Guest, Gender } from '@/types'
 
 interface Props {
@@ -448,6 +452,25 @@ function handleSubmit() {
     guestData.id = props.guest.id
   }
 
+  // Date-aware conflict check: if the operator changed arrival/departure
+  // and the new range now overlaps another assignment on the SAME bed,
+  // confirm before saving.
+  if (props.guest && props.guest.id && shouldCheckDateConflict(props.guest, guestData)) {
+    const conflicts = findBedConflicts(props.guest.id, guestData.arrival, guestData.departure)
+    if (conflicts.length > 0) {
+      const lines = conflicts.map(c => {
+        const range = c.arrival && c.departure ? `${c.arrival}–${c.departure}` : 'no dates'
+        return `${c.guestName} (${range})`
+      })
+      const ok = window.confirm(
+        `Saving will create a date conflict on bed ${conflicts[0].bedId}:\n\n` +
+        lines.join('\n') +
+        `\n\nSave anyway?`
+      )
+      if (!ok) return
+    }
+  }
+
   emit('submit', guestData)
 
   // Close modal directly without unsaved changes check (we're saving!)
@@ -456,6 +479,55 @@ function handleSubmit() {
   setTimeout(() => {
     resetForm()
   }, 100)
+}
+
+const assignmentStore = useAssignmentStore()
+const guestStore = useGuestStore()
+const dormitoryStore = useDormitoryStore()
+const { createFullName } = useUtils()
+
+function shouldCheckDateConflict(
+  original: Guest,
+  updated: Partial<Guest>
+): boolean {
+  // Only relevant if dates actually changed and the guest is currently
+  // assigned to a bed.
+  if (!assignmentStore.assignments.has(original.id)) return false
+  return original.arrival !== updated.arrival || original.departure !== updated.departure
+}
+
+interface BedConflict {
+  bedId: string
+  guestName: string
+  arrival?: string
+  departure?: string
+}
+
+function findBedConflicts(
+  guestId: string,
+  newArrival?: string,
+  newDeparture?: string
+): BedConflict[] {
+  const bedId = assignmentStore.assignments.get(guestId)
+  if (!bedId) return []
+  const bed = dormitoryStore.getBedById(bedId)
+  if (!bed) return []
+  const updatedStay = { arrival: newArrival, departure: newDeparture }
+  const conflicts: BedConflict[] = []
+  for (const a of bed.assignments) {
+    if (a.guestId === guestId) continue
+    const other = guestStore.getGuestById(a.guestId)
+    if (!other) continue
+    if (staysOverlap(other, updatedStay)) {
+      conflicts.push({
+        bedId,
+        guestName: createFullName(other),
+        arrival: other.arrival,
+        departure: other.departure,
+      })
+    }
+  }
+  return conflicts
 }
 </script>
 
