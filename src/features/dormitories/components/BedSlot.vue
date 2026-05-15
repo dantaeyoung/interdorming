@@ -20,10 +20,12 @@
               title="Reservation cancelled in latest CSV — please review"
             >CANCELLED</span>
             <span
-              v-if="otherAssignments.length > 0"
+              v-if="futureAssignments.length > 0"
+              ref="futureBadgeRef"
               class="other-assignments-badge"
-              :title="otherAssignmentsTooltip"
-            >+{{ otherAssignments.length }}</span>
+              @mouseenter="handleFutureBadgeMouseEnter"
+              @mouseleave="showFutureTooltip = false"
+            >+{{ futureAssignments.length }}</span>
           </strong>
           <span class="guest-details">
             <span class="guest-gender" :style="genderBackgroundStyle">{{ assignedGuest.gender }}</span>
@@ -90,10 +92,12 @@
     <div v-else class="bed-empty">
       <span class="drop-hint">Drop guest here</span>
       <span
-        v-if="allAssignedGuests.length > 0"
+        v-if="futureWhenEmpty.length > 0"
+        ref="futureBadgeRef"
         class="other-assignments-badge other-only"
-        :title="otherAssignmentsTooltip"
-      >+{{ allAssignedGuests.length }}</span>
+        @mouseenter="handleFutureBadgeMouseEnter"
+        @mouseleave="showFutureTooltip = false"
+      >+{{ futureWhenEmpty.length }}</span>
     </div>
 
     <!-- Notes tooltip — shows CSV notes and operator-added internal notes
@@ -108,6 +112,22 @@
           <div class="notes-tooltip-label">Internal</div>
           <div class="notes-tooltip-body">{{ assignedGuest.internalNotes }}</div>
         </div>
+      </div>
+    </Teleport>
+
+    <!-- Future-assignments hover popover — fires immediately on +N badge
+         hover (no browser title delay). -->
+    <Teleport to="body">
+      <div v-if="showFutureTooltip" class="future-tooltip-overlay" :style="futureTooltipPosition">
+        <div class="future-tooltip-label">Upcoming on this bed</div>
+        <ul class="future-tooltip-list">
+          <li v-for="g in futureTooltipGuests" :key="g.id">
+            <strong>{{ createFullName(g) }}</strong>
+            <span v-if="g.arrival || g.departure" class="future-tooltip-range">
+              {{ formatGuestDate(g.arrival) || '?' }} → {{ formatGuestDate(g.departure) || '?' }}
+            </span>
+          </li>
+        </ul>
       </div>
     </Teleport>
 
@@ -189,8 +209,8 @@ const assignedGuest = computed(() => {
 })
 
 /**
- * Other assignments on this bed that aren't the currently-displayed guest.
- * Used for the "+N" badge and hover popover (see Stage 6).
+ * All assignments on this bed that AREN'T the currently-displayed guest.
+ * Used as the input pool for the future-only filter below.
  */
 const otherAssignments = computed(() => {
   const visible = assignedGuest.value
@@ -198,19 +218,60 @@ const otherAssignments = computed(() => {
 })
 
 /**
- * Tooltip content for the "+N" badge — lists each non-displayed assignment
- * with its date range.
+ * Future assignments on this bed — filtered to only stays whose arrival
+ * is after the current View Date. Past cohorts (already left) are
+ * intentionally hidden so the "+N" badge stays meaningful even after
+ * many retreats have shared the same bed over time.
+ *
+ * Falls back to today when no View Date is set. A guest with no arrival
+ * is excluded (we can't classify them as future).
  */
-const otherAssignmentsTooltip = computed(() => {
-  if (otherAssignments.value.length === 0) return ''
-  const lines = otherAssignments.value.map(g => {
-    const range = g.arrival && g.departure
-      ? `${formatGuestDate(g.arrival)} → ${formatGuestDate(g.departure)}`
-      : (formatGuestDate(g.arrival) || formatGuestDate(g.departure) || 'no dates')
-    return `${createFullName(g)} (${range})`
+const futureAssignments = computed(() => {
+  const reference = (props.viewDate ? new Date(props.viewDate) : new Date())
+  reference.setHours(0, 0, 0, 0)
+  return otherAssignments.value.filter(g => {
+    if (!g.arrival) return false
+    const arrival = parseLocalDate(g.arrival)
+    if (isNaN(arrival.getTime())) return false
+    return arrival.getTime() > reference.getTime()
   })
-  return `Also assigned to this bed:\n${lines.join('\n')}`
 })
+
+/**
+ * Same future-filter applied to the empty-bed case (no current
+ * occupant, but other cohorts hold the bed on different dates).
+ */
+const futureWhenEmpty = computed(() => {
+  if (assignedGuest.value) return []
+  const reference = (props.viewDate ? new Date(props.viewDate) : new Date())
+  reference.setHours(0, 0, 0, 0)
+  return allAssignedGuests.value.filter(g => {
+    if (!g.arrival) return false
+    const arrival = parseLocalDate(g.arrival)
+    if (isNaN(arrival.getTime())) return false
+    return arrival.getTime() > reference.getTime()
+  })
+})
+
+// Guests rendered in the future-tooltip popover (whichever badge is showing)
+const futureTooltipGuests = computed(() =>
+  futureAssignments.value.length > 0 ? futureAssignments.value : futureWhenEmpty.value
+)
+
+const showFutureTooltip = ref(false)
+const futureBadgeRef = ref<HTMLSpanElement | null>(null)
+const futureTooltipPosition = ref({ top: '0px', left: '0px' })
+
+function handleFutureBadgeMouseEnter() {
+  if (futureBadgeRef.value) {
+    const rect = futureBadgeRef.value.getBoundingClientRect()
+    futureTooltipPosition.value = {
+      top: `${rect.bottom + 6}px`,
+      left: `${Math.max(8, Math.min(window.innerWidth - 280, rect.left))}px`,
+    }
+    showFutureTooltip.value = true
+  }
+}
 
 // Guest is assigned but filtered out by view date
 const isFilteredByDate = computed(() => {
@@ -868,6 +929,52 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
 
   .notes-tooltip-body {
     color: #374151;
+  }
+}
+
+.future-tooltip-overlay {
+  position: fixed;
+  z-index: 99999;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 0.75rem;
+  color: #374151;
+  min-width: 200px;
+  max-width: 280px;
+  pointer-events: none;
+
+  .future-tooltip-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9ca3af;
+    margin-bottom: 6px;
+  }
+
+  .future-tooltip-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    li {
+      padding: 3px 0;
+      border-bottom: 1px solid #f3f4f6;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+
+  .future-tooltip-range {
+    display: block;
+    color: #6b7280;
+    font-size: 0.7rem;
+    margin-top: 1px;
   }
 }
 </style>
