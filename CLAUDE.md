@@ -175,7 +175,15 @@ Each store persists independently under its own key. The `assignmentStore` manag
 ## Important Implementation Notes
 
 ### Version Tag
-A version tag (e.g., `v260225-16:45`) is displayed in the header for deployment verification. Update it in `App.vue` when deploying.
+A version tag (e.g., `v260225-16:45`) is displayed in the header for deployment verification. It lives in `App.vue` inside `<span class="version-tag">…</span>`.
+
+**MUST: bump it automatically on every merge to `main`.** Whenever you're about to merge `development` (or any branch) into `main`, do this without being asked:
+1. Run `date "+v%y%m%d-%H:%M"` to get the current stamp.
+2. Edit the `<span class="version-tag">…</span>` value in `App.vue` to that stamp.
+3. Stage and commit the bump as its own commit (subject: `Bump version tag to vYYMMDD-HH:MM`).
+4. Then perform the merge and push.
+
+This applies even when the user just says "merge to main" without mentioning the version. The intent is that production reflects when the merge happened, so the user never has to remind you.
 
 ### Singleton Composables
 `useDragDrop` uses module-level singleton refs so drag/pick state is shared across all components that call the composable.
