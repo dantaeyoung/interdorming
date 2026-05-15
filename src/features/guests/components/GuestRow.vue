@@ -46,7 +46,6 @@
       <td v-else-if="col.key === 'firstName'" :title="displayName">
         <div class="name-cell">
           <span class="name-text" :class="{ 'cancelled-name': guest.isCancelled }">{{ displayName }}</span>
-          <span v-if="guest.isCancelled" class="cancelled-badge" title="Reservation cancelled in latest CSV — please review">CANCELLED</span>
           <span v-if="hasSuggestion" class="suggestion-indicator" title="Has suggested placement">
             ✨
           </span>
@@ -423,14 +422,6 @@ function handleUnlink() {
       filter: grayscale(1);
     }
 
-    /* The CANCELLED tag itself should NOT be struck through — it's
-       the label explaining the row's state. !important wins over the
-       td-level rule above + some browsers' inheritance quirks for
-       text-decoration cascading into inline-block children. */
-    .cancelled-badge {
-      text-decoration: none !important;
-    }
-
     &:hover {
       background-color: inherit;
     }
@@ -539,18 +530,6 @@ function handleUnlink() {
     text-decoration: line-through;
     color: #9ca3af;
   }
-}
-
-.cancelled-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
 }
 
 .group-lines-cell {
