@@ -28,7 +28,6 @@
         ref="actionNotesButtonRef"
         class="btn-notes-action"
         :class="{ 'has-notes': hasAnyNotes, 'no-notes-empty': !hasAnyNotes, 'has-internal': hasInternalNote }"
-        :title="hasInternalNote ? 'Has internal notes' : (hasAnyNotes ? 'Has notes' : 'No notes')"
         @click.stop
         @mouseenter="hasAnyNotes && handleActionNotesMouseEnter()"
         @mouseleave="showActionNotesTooltip = false"
