@@ -1,19 +1,33 @@
 <template>
-  <div v-if="warnings.length > 0" class="validation-warning" :class="severityClass">
+  <div
+    v-if="warnings.length > 0"
+    ref="anchorRef"
+    class="validation-warning"
+    :class="severityClass"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="showFloatingTooltip = false"
+  >
     <span class="warning-icon">⚠</span>
     <span v-if="showText" class="warning-text">{{ warningText }}</span>
-    <div v-if="showTooltip" class="warning-tooltip">
-      <ul>
-        <li v-for="(warning, index) in warnings" :key="index">
-          {{ warning }}
-        </li>
-      </ul>
-    </div>
+    <Teleport to="body">
+      <div
+        v-if="showTooltip && showFloatingTooltip"
+        class="warning-tooltip-floating"
+        :class="severityClass"
+        :style="floatingPosition"
+      >
+        <ul>
+          <li v-for="(warning, index) in warnings" :key="index">
+            {{ warning }}
+          </li>
+        </ul>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 interface Props {
   warnings: string[]
@@ -36,6 +50,28 @@ const warningText = computed(() => {
   }
   return `${props.warnings.length} warnings`
 })
+
+// Teleport-based tooltip — escapes any ancestor `overflow: hidden`
+// (BedSlot / RoomCard) that was clipping the previous CSS-only tooltip.
+const anchorRef = ref<HTMLDivElement | null>(null)
+const showFloatingTooltip = ref(false)
+const floatingPosition = ref({ top: '0px', left: '0px' })
+
+function handleMouseEnter() {
+  if (!anchorRef.value) return
+  const rect = anchorRef.value.getBoundingClientRect()
+  // Default below the anchor; clamp horizontally to viewport edges.
+  const tooltipWidth = 280
+  const left = Math.max(
+    8,
+    Math.min(window.innerWidth - tooltipWidth - 8, rect.left + rect.width / 2 - tooltipWidth / 2)
+  )
+  floatingPosition.value = {
+    top: `${rect.bottom + 8}px`,
+    left: `${left}px`,
+  }
+  showFloatingTooltip.value = true
+}
 </script>
 
 <style scoped lang="scss">
@@ -66,10 +102,6 @@ const warningText = computed(() => {
     color: #1e40af;
     border: 1px solid #dbeafe;
   }
-
-  &:hover .warning-tooltip {
-    display: block;
-  }
 }
 
 .warning-icon {
@@ -79,32 +111,24 @@ const warningText = computed(() => {
 .warning-text {
   white-space: nowrap;
 }
+</style>
 
-.warning-tooltip {
-  display: none;
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+<style lang="scss">
+/* Global (un-scoped) styles for the Teleported tooltip. Lives at body
+   level so ancestor overflow can't clip it. */
+.warning-tooltip-floating {
+  position: fixed;
+  z-index: 99999;
   background-color: #1f2937;
   color: white;
   padding: 8px 12px;
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 100;
-  min-width: 200px;
-  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  width: 280px;
   white-space: normal;
-
-  &::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-bottom-color: #1f2937;
-  }
+  font-size: 0.8rem;
+  line-height: 1.4;
+  pointer-events: none;
 
   ul {
     margin: 0;
