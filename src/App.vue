@@ -116,14 +116,36 @@
                 </button>
               </div>
               <div class="card-header-right">
-                <label class="view-date-label">
-                  <input
-                    type="date"
-                    class="view-date-input"
-                    :value="viewDateISO"
-                    @input="handleViewDateChange"
-                  />
-                </label>
+                <div class="view-date-controls">
+                  <button
+                    class="btn-date-step"
+                    title="Back one week"
+                    @click="shiftViewDate(-7)"
+                  >«</button>
+                  <button
+                    class="btn-date-step"
+                    title="Back one day"
+                    @click="shiftViewDate(-1)"
+                  >‹</button>
+                  <label class="view-date-label">
+                    <input
+                      type="date"
+                      class="view-date-input"
+                      :value="viewDateISO"
+                      @input="handleViewDateChange"
+                    />
+                  </label>
+                  <button
+                    class="btn-date-step"
+                    title="Forward one day"
+                    @click="shiftViewDate(1)"
+                  >›</button>
+                  <button
+                    class="btn-date-step"
+                    title="Forward one week"
+                    @click="shiftViewDate(7)"
+                  >»</button>
+                </div>
                 <button
                   v-if="viewDate"
                   class="btn-clear-date"
@@ -313,6 +335,17 @@ function handleViewDateChange(event: Event) {
   } else {
     viewDate.value = null
   }
+}
+
+/**
+ * Step the View Date by N days. If the date filter is currently cleared,
+ * starts from today.
+ */
+function shiftViewDate(days: number) {
+  const base = viewDate.value ? new Date(viewDate.value) : new Date()
+  base.setHours(0, 0, 0, 0)
+  base.setDate(base.getDate() + days)
+  viewDate.value = base
 }
 
 // Git branch detection
@@ -952,6 +985,30 @@ function stopResize() {
 
   &:hover {
     background: #f3f4f6;
+  }
+}
+
+.view-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-date-step {
+  width: 24px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #4b5563;
+  cursor: pointer;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #1f2937;
   }
 }
 

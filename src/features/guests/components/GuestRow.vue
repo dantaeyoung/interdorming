@@ -104,7 +104,7 @@
 
       <td v-else-if="col.key === 'retreat'" class="retreat-cell">{{ guest.retreat || '-' }}</td>
 
-      <td v-else-if="col.key === 'arrival' || col.key === 'departure'" class="date-cell">{{ (guest as any)[col.key] || '-' }}</td>
+      <td v-else-if="col.key === 'arrival' || col.key === 'departure'" class="date-cell">{{ formatGuestDate((guest as any)[col.key]) || '-' }}</td>
 
       <td v-else>{{ (guest as any)[col.key] || '-' }}</td>
     </template>
@@ -137,7 +137,7 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useValidationStore } from '@/stores/validationStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { useUtils } from '@/shared/composables/useUtils'
+import { useUtils, formatGuestDate } from '@/shared/composables/useUtils'
 import { ValidationWarning } from '@/shared/components'
 import type { Guest, ColumnConfig } from '@/types'
 

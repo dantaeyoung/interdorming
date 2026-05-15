@@ -29,9 +29,9 @@
             </span>
           </span>
           <span v-if="assignedGuest.arrival || assignedGuest.departure" class="date-info">
-            <span v-if="assignedGuest.arrival">{{ assignedGuest.arrival }}</span>
+            <span v-if="assignedGuest.arrival">{{ formatGuestDate(assignedGuest.arrival) }}</span>
             <span v-if="assignedGuest.arrival && assignedGuest.departure">→</span>
-            <span v-if="assignedGuest.departure">{{ assignedGuest.departure }}</span>
+            <span v-if="assignedGuest.departure">{{ formatGuestDate(assignedGuest.departure) }}</span>
           </span>
         </div>
         <div class="guest-actions">
@@ -65,9 +65,9 @@
             </span>
           </span>
           <span v-if="suggestedGuest.arrival || suggestedGuest.departure" class="date-info">
-            <span v-if="suggestedGuest.arrival">{{ suggestedGuest.arrival }}</span>
+            <span v-if="suggestedGuest.arrival">{{ formatGuestDate(suggestedGuest.arrival) }}</span>
             <span v-if="suggestedGuest.arrival && suggestedGuest.departure">→</span>
-            <span v-if="suggestedGuest.departure">{{ suggestedGuest.departure }}</span>
+            <span v-if="suggestedGuest.departure">{{ formatGuestDate(suggestedGuest.departure) }}</span>
           </span>
           <span class="suggestion-badge">Suggested</span>
         </div>
@@ -118,7 +118,7 @@ import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import { useUtils } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
-import { parseLocalDate } from '@/shared/composables/useUtils'
+import { parseLocalDate, formatGuestDate } from '@/shared/composables/useUtils'
 import { useOverlapConfirm } from '@/shared/composables/useOverlapConfirm'
 import { ValidationWarning } from '@/shared/components'
 import GuestFormModal from '@/features/guests/components/GuestFormModal.vue'
@@ -191,8 +191,8 @@ const otherAssignmentsTooltip = computed(() => {
   if (otherAssignments.value.length === 0) return ''
   const lines = otherAssignments.value.map(g => {
     const range = g.arrival && g.departure
-      ? `${g.arrival} → ${g.departure}`
-      : (g.arrival || g.departure || 'no dates')
+      ? `${formatGuestDate(g.arrival)} → ${formatGuestDate(g.departure)}`
+      : (formatGuestDate(g.arrival) || formatGuestDate(g.departure) || 'no dates')
     return `${createFullName(g)} (${range})`
   })
   return `Also assigned to this bed:\n${lines.join('\n')}`

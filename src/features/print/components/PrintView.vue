@@ -357,8 +357,8 @@
               <td v-if="columns.gender">{{ guest.gender || '—' }}</td>
               <td v-if="columns.age">{{ guest.age || '—' }}</td>
               <td v-if="columns.group">{{ guest.groupName || '—' }}</td>
-              <td v-if="columns.arrival">{{ guest.arrival || '—' }}</td>
-              <td v-if="columns.departure">{{ guest.departure || '—' }}</td>
+              <td v-if="columns.arrival">{{ formatGuestDate(guest.arrival) || '—' }}</td>
+              <td v-if="columns.departure">{{ formatGuestDate(guest.departure) || '—' }}</td>
               <td v-if="columns.notes">{{ guest.notes || '—' }}</td>
             </tr>
           </tbody>
@@ -392,8 +392,8 @@
               <td v-if="columns.gender">{{ guest.gender || '' }}</td>
               <td v-if="columns.age">{{ guest.age || '' }}</td>
               <td v-if="columns.group">{{ guest.groupName || '' }}</td>
-              <td v-if="columns.arrival">{{ guest.arrival || '' }}</td>
-              <td v-if="columns.departure">{{ guest.departure || '' }}</td>
+              <td v-if="columns.arrival">{{ formatGuestDate(guest.arrival) || '' }}</td>
+              <td v-if="columns.departure">{{ formatGuestDate(guest.departure) || '' }}</td>
               <td v-if="columns.notes">{{ guest.notes || '' }}</td>
             </tr>
           </tbody>
@@ -435,7 +435,7 @@
 import { computed, reactive, ref, watch, onMounted } from 'vue'
 import type { Dormitory } from '@/types'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
-import { useUtils, parseLocalDate } from '@/shared/composables/useUtils'
+import { useUtils, parseLocalDate, formatGuestDate } from '@/shared/composables/useUtils'
 import type { Room } from '@/types'
 
 const STORAGE_KEY = 'dormAssignments-printPreferences'
@@ -684,6 +684,11 @@ function getGuestField(guestId: string | null, field: string): string {
   if (field === 'lowerBunk') {
     if (value === true || value === 'Yes' || value === 'TRUE' || value === 'true') return 'Yes'
     if (value === false || value === 'No' || value === 'FALSE' || value === 'false') return 'No'
+  }
+
+  // Normalize date fields to the canonical display format
+  if (field === 'arrival' || field === 'departure') {
+    return formatGuestDate(String(value)) || '—'
   }
 
   return String(value)

@@ -69,6 +69,56 @@ export function staysOverlap(a: StayLike, b: StayLike): boolean {
   return aStart < bEnd && bStart < aEnd
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+] as const
+
+/**
+ * Normalize any recognizable date string into the canonical user-facing
+ * format "Month DD, YYYY" (e.g. "May 15, 2026"). Used everywhere a
+ * guest's arrival/departure is rendered so mixed input formats from
+ * different CSVs don't show side-by-side.
+ *
+ * Returns the input unchanged if it can't be parsed.
+ */
+export function formatGuestDate(value: string | null | undefined): string {
+  if (!value) return ''
+  const s = String(value).trim()
+  if (!s) return ''
+
+  // Already in target format? Skip parsing.
+  // Loose regex — accepts "May 15, 2026" or "May 5, 2026"
+  if (/^[A-Za-z]+\s+\d{1,2},\s*\d{4}$/.test(s)) return s
+
+  // YYYY-MM-DD via parseLocalDate (avoids UTC timezone trap)
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) {
+    const m = Number(isoMatch[2]) - 1
+    const d = Number(isoMatch[3])
+    const y = Number(isoMatch[1])
+    if (m >= 0 && m < 12) return `${MONTH_NAMES[m]} ${d}, ${y}`
+  }
+
+  // "30-May-25" or "30-May-2025"
+  const dmy = s.match(/^(\d{1,2})-([A-Za-z]+)-(\d{2,4})$/)
+  if (dmy) {
+    const year = dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3]
+    const parsed = new Date(`${dmy[2]} ${dmy[1]}, ${year}`)
+    if (!isNaN(parsed.getTime())) {
+      return `${MONTH_NAMES[parsed.getMonth()]} ${parsed.getDate()}, ${parsed.getFullYear()}`
+    }
+  }
+
+  // Fallback: native Date parsing — handles "Apr 29, 2026", "5/15/2026"
+  const native = new Date(s)
+  if (!isNaN(native.getTime()) && native.getFullYear() >= 2000) {
+    return `${MONTH_NAMES[native.getMonth()]} ${native.getDate()}, ${native.getFullYear()}`
+  }
+
+  return s
+}
+
 /**
  * Returns true if the View Date falls within a stay (inclusive of arrival,
  * exclusive of departure). Used to pick which assignment to display in a
