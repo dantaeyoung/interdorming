@@ -1,5 +1,5 @@
 <template>
-  <Modal :is-open="isOpen" @close="dismissGroupConflicts">
+  <Modal :model-value="isOpen" @update:model-value="(v) => !v && dismissGroupConflicts()">
     <div class="group-conflict-dialog">
       <h3 class="title">
         <span class="icon">⚠️</span>
