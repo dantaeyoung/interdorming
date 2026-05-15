@@ -309,7 +309,8 @@ import { GuestDataView } from '@/features/guest-data/components'
 import { useCSV } from '@/features/csv/composables/useCSV'
 import { useExcelExport } from '@/features/export/composables/useExcelExport'
 
-import type { Guest } from '@/types'
+import type { Guest, Dormitory, Room } from '@/types'
+import { parseRoomGender, parseBedType } from '@/types/Constants'
 import type { Tab } from '@/shared/components/TabNavigation.vue'
 
 // Stores
@@ -687,7 +688,7 @@ async function handleLoadDefaultRooms() {
   }
 }
 
-function handleRoomImportSuccess(dormitories: any[]) {
+function handleRoomImportSuccess(dormitories: Dormitory[]) {
   showStatus(`Successfully imported ${dormitories.length} dormitories`, 'success')
 }
 
@@ -704,7 +705,7 @@ function handleRoomExportError(error: string) {
 }
 
 // Helper function to parse room config CSV
-function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => string[]): any[] {
+function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => string[]): Dormitory[] {
   const lines = csvText.trim().split('\n')
   if (lines.length < 2) {
     throw new Error('CSV must have at least a header row and one data row')
@@ -719,7 +720,7 @@ function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => strin
   }
 
   const headers = lines[startLine].split(',').map(h => h.trim().replace(/"/g, ''))
-  const dormitoriesMap = new Map<string, any>()
+  const dormitoriesMap = new Map<string, Dormitory>()
 
   for (let i = startLine + 1; i < lines.length; i++) {
     const values = parseCSVRow(lines[i])
@@ -731,23 +732,24 @@ function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => strin
     if (!dormitoryName || !roomName || !bedId) continue
 
     // Get or create dormitory
-    if (!dormitoriesMap.has(dormitoryName)) {
-      dormitoriesMap.set(dormitoryName, {
+    let dormitory = dormitoriesMap.get(dormitoryName)
+    if (!dormitory) {
+      dormitory = {
         dormitoryName,
         active: values[headers.indexOf('Dormitory Active')]?.toLowerCase() !== 'no' && values[headers.indexOf('Active')]?.toLowerCase() !== 'false',
         color: values[headers.indexOf('Dormitory Color')] || '#f8f9fa',
         rooms: [],
-      })
+      }
+      dormitoriesMap.set(dormitoryName, dormitory)
     }
 
-    const dormitory = dormitoriesMap.get(dormitoryName)!
-    let room = dormitory.rooms.find((r: any) => r.roomName === roomName)
+    let room: Room | undefined = dormitory.rooms.find(r => r.roomName === roomName)
 
     // Create room if doesn't exist
     if (!room) {
       room = {
         roomName,
-        roomGender: (values[headers.indexOf('Room Gender')] || 'M') as any,
+        roomGender: parseRoomGender(values[headers.indexOf('Room Gender')]),
         active: values[headers.indexOf('Room Active')]?.toLowerCase() !== 'no' && values[headers.indexOf('Active')]?.toLowerCase() !== 'false',
         beds: [],
       }
@@ -757,7 +759,7 @@ function parseRoomConfigCSV(csvText: string, parseCSVRow: (row: string) => strin
     // Add bed
     room.beds.push({
       bedId,
-      bedType: (values[headers.indexOf('Bed Type')] || 'single') as any,
+      bedType: parseBedType(values[headers.indexOf('Bed Type')]),
       position: parseInt(values[headers.indexOf('Bed Position')] || '1'),
       assignments: [],
       active: values[headers.indexOf('Bed Active')]?.toLowerCase() !== 'no' && values[headers.indexOf('Active')]?.toLowerCase() !== 'false',
