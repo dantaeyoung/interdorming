@@ -69,10 +69,19 @@ export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
 }
 
 /**
- * Statuses (lowercased, trimmed) that count as an active reservation.
- * Anything outside this set — including missing — is treated as cancelled
- * IF a `status` column was present in the CSV. If no status column at all,
- * everyone is treated as active (legacy / non-Planyo source).
+ * Reservation status falls into three categories:
+ *   - ACTIVE     → imported and kept as live guests. Whitelist below.
+ *   - CANCELLED  → matched against existing guests; if the same person
+ *                  was previously active, the existing record is flagged
+ *                  cancelled (kept in data so operator decides). New
+ *                  cancelled rows with no existing match are skipped.
+ *                  Detected by case-insensitive substring "cancel".
+ *   - OTHER      → e.g. "Not completed". Silently skipped on import,
+ *                  and DO NOT touch any existing record either. Operator
+ *                  may resubmit later when status changes.
+ *
+ * If the CSV has no status column at all, every row is treated as
+ * active (backwards compat for non-Planyo sources).
  */
 export const ACTIVE_RESERVATION_STATUSES = new Set([
   'reserved',
@@ -82,6 +91,19 @@ export const ACTIVE_RESERVATION_STATUSES = new Set([
 export function isActiveReservationStatus(status: string | undefined | null): boolean {
   if (!status) return true // Legacy / non-status sources stay active
   return ACTIVE_RESERVATION_STATUSES.has(status.trim().toLowerCase())
+}
+
+/**
+ * True if the status indicates a cancellation. Case-insensitive
+ * substring match on "cancel" so variants like "Cancelled by admin",
+ * "Cancellation requested", "Cancelled" are all caught.
+ *
+ * Returns false for missing status, "Not completed", and anything else
+ * that doesn't mention cancellation.
+ */
+export function isCancelledStatus(status: string | undefined | null): boolean {
+  if (!status) return false
+  return status.toLowerCase().includes('cancel')
 }
 
 /**

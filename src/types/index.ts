@@ -60,4 +60,5 @@ export {
   MESSAGES,
   ACTIVE_RESERVATION_STATUSES,
   isActiveReservationStatus,
+  isCancelledStatus,
 } from './Constants'

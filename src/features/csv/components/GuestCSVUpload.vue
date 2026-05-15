@@ -56,7 +56,7 @@ import type {
   ImportSummaryDateChange,
 } from '@/shared/composables/useImportSummary'
 import { useUtils } from '@/shared/composables/useUtils'
-import { isActiveReservationStatus } from '@/types'
+import { isActiveReservationStatus, isCancelledStatus } from '@/types'
 import type { Guest } from '@/types'
 import CSVWarningModal from './CSVWarningModal.vue'
 import CSVImportModeModal from './CSVImportModeModal.vue'
@@ -230,15 +230,16 @@ function handleAddAndUpdate() {
 
   newRows.forEach(newGuest => {
     const isActive = isActiveReservationStatus(newGuest.status)
+    const isCancelled = isCancelledStatus(newGuest.status)
     const existing = findMatch(newGuest)
 
     if (existing) {
       const wasActive = !existing.isCancelled
       const existingIndex = existingGuests.indexOf(existing)
 
-      if (!isActive) {
-        // Status moved to non-active. Mark as cancelled, surface in
-        // modal — but don't auto-unassign. Operator decides.
+      if (isCancelled) {
+        // Cancellation: mark existing as cancelled, surface in modal.
+        // Don't auto-unassign — operator decides.
         if (wasActive) {
           cancellations.push({
             guestName: createFullName(existing),
@@ -248,14 +249,18 @@ function handleAddAndUpdate() {
             status: newGuest.status,
           })
         }
-        // Update the record to mark cancelled + capture latest status,
-        // backfill planyoId if missing. Don't overwrite other fields.
         existingGuests[existingIndex] = {
           ...existing,
           status: newGuest.status,
           isCancelled: true,
           planyoId: existing.planyoId || newGuest.planyoId,
         }
+        return
+      }
+
+      if (!isActive) {
+        // Neither active nor cancelled (e.g. "Not completed").
+        // Silently skip — leave the existing record untouched.
         return
       }
 
@@ -287,8 +292,9 @@ function handleAddAndUpdate() {
       }
       existingGuests[existingIndex] = merged as Guest
     } else {
-      // No matching existing guest. Only add if active — non-active
-      // first-time rows are silently dropped (nothing to compare to).
+      // No matching existing guest. Only add if active — cancelled and
+      // "other" statuses (e.g. "Not completed") for new rows are
+      // silently dropped (nothing to compare to).
       if (isActive) {
         existingGuests.push(newGuest)
       }
