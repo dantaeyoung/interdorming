@@ -291,7 +291,14 @@ const suggestedDisplayName = computed(() => {
   return createFullName(suggestedGuest.value)
 })
 
-const warnings = computed(() => validationStore.getWarningsForBed(props.bed.bedId))
+// Scope warnings to the cohort visible at the current View Date — a
+// bed-sharer in a different (non-overlapping) cohort shouldn't surface
+// their warnings on this guest's slot. Empty slot → no warnings.
+const warnings = computed(() => {
+  const guest = assignedGuest.value
+  if (!guest) return []
+  return validationStore.getWarningsForBed(props.bed.bedId, guest.id)
+})
 
 const hasWarning = computed(() => warnings.value.length > 0)
 
