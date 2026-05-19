@@ -868,7 +868,7 @@ tr.guest-row {
      in the row so the column width stays consistent, but visually
      distinct from rows that do have notes. */
   &.no-notes-empty {
-    opacity: 0.18;
+    opacity: 0.08;
     cursor: default;
     pointer-events: none;
   }
@@ -879,8 +879,8 @@ tr.guest-row {
     position: absolute;
     top: 0;
     right: 0;
-    width: 6px;
-    height: 6px;
+    width: 9px;
+    height: 9px;
     background: #5b21b6;
     border-radius: 50%;
     border: 1px solid white;
