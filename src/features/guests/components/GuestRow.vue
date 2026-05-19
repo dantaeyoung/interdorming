@@ -1,6 +1,6 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': isUnassigned, 'non-assignable': !isAssignable, 'is-cancelled': guest.isCancelled }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': pillUnassigned && isUnassigned, 'non-assignable': !isAssignable, 'is-cancelled': guest.isCancelled }]"
     v-bind="draggableProps"
     @click="handleRowClick"
   >
@@ -184,6 +184,12 @@ interface Props {
   columns: ColumnConfig[]
   familyPosition?: 'none' | 'first' | 'middle' | 'last' | 'only'
   readonly?: boolean
+  // Visually pill unassigned rows (light grey background, rounded
+  // corners, vertical gaps). Intended for the unassigned-guests panel
+  // in Table View where the pill helps unassigned guests pop. The All
+  // Reservations table opts out — assigned/unassigned isn't the first
+  // question there and the pill leaks visual noise into a dense table.
+  pillUnassigned?: boolean
 }
 
 interface Emits {
@@ -193,6 +199,7 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   familyPosition: 'none',
   readonly: false,
+  pillUnassigned: true,
 })
 
 const emit = defineEmits<Emits>()
