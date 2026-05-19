@@ -20,8 +20,22 @@ export const useValidationStore = defineStore('validation', () => {
   const settingsStore = useSettingsStore()
 
   // Getters
+  /**
+   * Warnings for a bed.
+   *
+   * A bed can hold multiple cohorts (date-aware sharing). Pass
+   * `displayedGuestId` to scope warnings to the cohort currently shown
+   * in the slot: gender/age/bunk warnings come only from that guest,
+   * and date conflicts are reported only for stays that collide with
+   * theirs. Without it (e.g. the global `getAllWarnings` scan) every
+   * cohort on the bed is considered.
+   *
+   * Scoping matters because, e.g., a male guest sharing a bed with a
+   * female guest in a non-overlapping cohort would otherwise surface
+   * his "M guest in F room" warning on her slot.
+   */
   const getWarningsForBed = computed(() => {
-    return (bedId: string): string[] => {
+    return (bedId: string, displayedGuestId?: string): string[] => {
       const bed = dormitoryStore.getBedById(bedId)
       // Defensive: legacy beds might lack `assignments` until migration
       // finishes; treat as empty rather than crashing.
@@ -31,12 +45,34 @@ export const useValidationStore = defineStore('validation', () => {
       const room = dormitoryStore.getRoomByBedId(bedId)
       if (!room) return []
 
-      const warnings: string[] = []
-
-      // Date-overlap warning: any pair of assignments whose stays overlap.
       const guests = bedAssignments
         .map(a => guestStore.getGuestById(a.guestId))
         .filter((g): g is Guest => g !== undefined)
+
+      const displayedGuest = displayedGuestId
+        ? guests.find(g => g.id === displayedGuestId)
+        : undefined
+
+      const warnings: string[] = []
+
+      if (displayedGuest) {
+        // Cohort-scoped: only the displayed guest's stay/room warnings.
+        const overlappingNames: string[] = []
+        for (const other of guests) {
+          if (other === displayedGuest) continue
+          if (staysOverlap(displayedGuest, other)) {
+            const name = other.preferredName || other.firstName
+            if (!overlappingNames.includes(name)) overlappingNames.push(name)
+          }
+        }
+        if (overlappingNames.length > 0) {
+          warnings.push(`Date conflict: overlaps with ${overlappingNames.join(', ')}`)
+        }
+        warnings.push(...getAssignmentWarnings(displayedGuest, bed, room))
+        return warnings
+      }
+
+      // Unscoped: every cohort on the bed (used by getAllWarnings).
       const overlappingNames: string[] = []
       for (let i = 0; i < guests.length; i++) {
         for (let j = i + 1; j < guests.length; j++) {
@@ -50,7 +86,6 @@ export const useValidationStore = defineStore('validation', () => {
         warnings.push(`Date conflict: overlaps with ${overlappingNames.join(', ')}`)
       }
 
-      // Per-guest gender/age/bunk warnings (deduplicated)
       const seen = new Set<string>()
       for (const guest of guests) {
         for (const w of getAssignmentWarnings(guest, bed, room)) {
