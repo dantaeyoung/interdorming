@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260519-16:53</span>
+          <span class="version-tag">v260519-17:46</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
