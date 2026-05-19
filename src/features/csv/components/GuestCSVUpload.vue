@@ -48,6 +48,7 @@ import { useImportSummary } from '@/shared/composables/useImportSummary'
 import type {
   ImportSummaryCancellation,
   ImportSummaryDateChange,
+  ImportSummarySkippedNewRow,
 } from '@/shared/composables/useImportSummary'
 import { useUtils } from '@/shared/composables/useUtils'
 import { isActiveReservationStatus, isCancelledStatus } from '@/types'
@@ -147,9 +148,11 @@ async function handleFileChange(event: Event) {
 }
 
 /**
- * For Reset & Replace mode: drop non-active reservations entirely (no
- * existing data to compare against). Active = `Reserved` or
- * `Reserved + Email address verified + confirmed`. Sources without a
+ * First-time import path (no existing data to compare against): drop
+ * non-active reservations entirely. "Active" is any status containing
+ * "reserved" without "cancel" — see isActiveReservationStatus for the
+ * full rule (lets in "Reserved + Email address verified" and similar
+ * Planyo variants without an explicit whitelist). Sources without a
  * `status` column are treated as all-active (legacy / non-Planyo).
  */
 function performImport(result: { guests: Guest[]; warnings: string[]; totalRows: number }) {
@@ -211,6 +214,7 @@ function handleAddAndUpdate() {
 
   const cancellations: ImportSummaryCancellation[] = []
   const dateChanges: ImportSummaryDateChange[] = []
+  const skippedNewRows: ImportSummarySkippedNewRow[] = []
 
   newRows.forEach(newGuest => {
     const isActive = isActiveReservationStatus(newGuest.status)
@@ -278,9 +282,16 @@ function handleAddAndUpdate() {
     } else {
       // No matching existing guest. Only add if active — cancelled and
       // "other" statuses (e.g. "Not completed") for new rows are
-      // silently dropped (nothing to compare to).
+      // dropped (nothing to compare to), but we surface them in the
+      // summary so a misspelled status doesn't quietly orphan a guest.
       if (isActive) {
         existingGuests.push(newGuest)
+      } else {
+        skippedNewRows.push({
+          guestName: createFullName(newGuest),
+          status: newGuest.status,
+          planyoId: newGuest.planyoId,
+        })
       }
     }
   })
@@ -304,7 +315,7 @@ function handleAddAndUpdate() {
         }
       }),
     }))
-    showImportSummary({ cancellations, dateChanges, bedConflicts })
+    showImportSummary({ cancellations, dateChanges, bedConflicts, skippedNewRows })
   })
 
   if (pendingCSVData.value.warnings.length > 0) {
