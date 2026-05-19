@@ -42,6 +42,7 @@
           :columns="columns"
           :family-position="getFamilyPosition(guest, index)"
           :readonly="props.readonly"
+          :pill-unassigned="props.pillUnassigned"
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
@@ -176,6 +177,9 @@ interface Props {
   columns: ColumnConfig[]
   viewDate?: Date | null
   hideColumnControls?: boolean
+  // Forward to GuestRow — see its prop docs. Defaults to true to keep
+  // the unassigned-guest pill in the Table View left panel.
+  pillUnassigned?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -185,6 +189,7 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false,
   viewDate: null,
   hideColumnControls: false,
+  pillUnassigned: true,
 })
 
 const guestStore = useGuestStore()
