@@ -181,19 +181,29 @@ describe('isActiveReservationStatus', () => {
     expect(isActiveReservationStatus('')).toBe(true)
   })
 
-  it('accepts the documented active statuses (case-insensitive, trimmed)', () => {
+  it('accepts any status containing "reserved" (case-insensitive, trimmed)', () => {
     expect(isActiveReservationStatus('Reserved')).toBe(true)
     expect(isActiveReservationStatus(' RESERVED ')).toBe(true)
+    expect(isActiveReservationStatus('Reserved + Email address verified')).toBe(true)
     expect(
       isActiveReservationStatus('Reserved + Email address verified + confirmed')
     ).toBe(true)
+    expect(isActiveReservationStatus('Reserved (rebooked)')).toBe(true)
   })
 
-  it('rejects cancellations and incomplete statuses', () => {
+  it('rejects cancellations even when "reserved" is also present', () => {
+    // "cancel" takes precedence over "reserved" so a hybrid status
+    // like "Reserved → Cancelled" is treated as a cancellation.
     expect(isActiveReservationStatus('Cancelled')).toBe(false)
     expect(isActiveReservationStatus('Cancelled by admin')).toBe(false)
+    expect(isActiveReservationStatus('Reserved → Cancelled')).toBe(false)
+    expect(isActiveReservationStatus('Reservation cancelled')).toBe(false)
+  })
+
+  it('rejects OTHER statuses (no "reserved", no "cancel")', () => {
     expect(isActiveReservationStatus('Not completed')).toBe(false)
     expect(isActiveReservationStatus('Pending payment')).toBe(false)
+    expect(isActiveReservationStatus('Added to waiting list')).toBe(false)
   })
 })
 
@@ -220,10 +230,12 @@ describe('isCancelledStatus', () => {
   it('active and cancelled are mutually exclusive on real Planyo statuses', () => {
     const samples = [
       'Reserved',
+      'Reserved + Email address verified',
       'Reserved + Email address verified + confirmed',
       'Cancelled',
       'Cancelled by admin',
       'Not completed',
+      'Added to waiting list',
     ]
     for (const s of samples) {
       const active = isActiveReservationStatus(s)

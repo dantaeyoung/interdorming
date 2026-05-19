@@ -99,27 +99,41 @@ export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
 
 /**
  * Reservation status falls into three categories:
- *   - ACTIVE     → imported and kept as live guests. Whitelist below.
+ *   - ACTIVE     → imported and kept as live guests. Any status that
+ *                  contains "reserved" (case-insensitive) AND does NOT
+ *                  contain "cancel" counts. This catches the Planyo
+ *                  variants the strict whitelist used to miss:
+ *                    - "Reserved"
+ *                    - "Reserved + Email address verified"
+ *                    - "Reserved + Email address verified + confirmed"
+ *                    - "Reserved (rebooked)" / re-confirmed variants
+ *                    - any future tweak that still contains the word.
  *   - CANCELLED  → matched against existing guests; if the same person
  *                  was previously active, the existing record is flagged
  *                  cancelled (kept in data so operator decides). New
  *                  cancelled rows with no existing match are skipped.
- *                  Detected by case-insensitive substring "cancel".
- *   - OTHER      → e.g. "Not completed". Silently skipped on import,
- *                  and DO NOT touch any existing record either. Operator
- *                  may resubmit later when status changes.
+ *                  Detected by case-insensitive substring "cancel" —
+ *                  takes precedence over "reserved" so a hybrid like
+ *                  "Reserved → Cancelled" classifies as cancelled.
+ *   - OTHER      → e.g. "Not completed", "Pending", "Added to waiting
+ *                  list". Skipped on import, and DO NOT touch any
+ *                  existing record either. Operator may resubmit later
+ *                  when status changes. The re-import diff modal lists
+ *                  each skipped new row by name so the operator can
+ *                  spot a typo (or, with waitlist entries, just
+ *                  confirm the expected drop).
  *
  * If the CSV has no status column at all, every row is treated as
  * active (backwards compat for non-Planyo sources).
  */
-export const ACTIVE_RESERVATION_STATUSES = new Set([
-  'reserved',
-  'reserved + email address verified + confirmed',
-])
-
 export function isActiveReservationStatus(status: string | undefined | null): boolean {
   if (!status) return true // Legacy / non-status sources stay active
-  return ACTIVE_RESERVATION_STATUSES.has(status.trim().toLowerCase())
+  const lower = status.trim().toLowerCase()
+  if (!lower) return true
+  // Cancellations take precedence — a "Reserved → Cancelled" hybrid is
+  // a cancellation, not active.
+  if (lower.includes('cancel')) return false
+  return lower.includes('reserved')
 }
 
 /**

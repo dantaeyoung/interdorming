@@ -63,6 +63,28 @@
         </ul>
       </section>
 
+      <!-- Skipped new rows (status not "Reserved") -->
+      <section v-if="skippedNewRows.length > 0" class="summary-section">
+        <h4 class="section-title skipped-new">
+          <span class="icon">⏭</span>
+          {{ skippedNewRows.length }} new row{{ skippedNewRows.length === 1 ? '' : 's' }} skipped
+        </h4>
+        <ul class="item-list">
+          <li v-for="(item, idx) in skippedNewRows" :key="`sx-${idx}`">
+            <strong>{{ item.guestName }}</strong>
+            <span v-if="item.planyoId" class="meta">— {{ item.planyoId }}</span>
+            <span v-if="item.status" class="status status-skipped">{{ item.status }}</span>
+          </li>
+        </ul>
+        <p class="hint">
+          These rows weren't added because their status doesn't contain
+          <code>Reserved</code> (e.g. <code>Not completed</code>,
+          <code>Added to waiting list</code>) or it indicates a
+          cancellation. Check the status if someone you expected to see
+          is missing.
+        </p>
+      </section>
+
       <div class="actions">
         <button class="btn-ok" @click="dismissImportSummary">Got it</button>
       </div>
@@ -74,7 +96,7 @@
 import Modal from './Modal.vue'
 import { useImportSummary } from '@/shared/composables/useImportSummary'
 
-const { isOpen, cancellations, dateChanges, bedConflicts, dismissImportSummary } = useImportSummary()
+const { isOpen, cancellations, dateChanges, bedConflicts, skippedNewRows, dismissImportSummary } = useImportSummary()
 
 function formatRange(arrival?: string, departure?: string): string {
   if (!arrival && !departure) return 'no dates'
@@ -122,6 +144,7 @@ function formatRange(arrival?: string, departure?: string): string {
   &.cancellations { color: #b91c1c; }
   &.date-changes  { color: #1d4ed8; }
   &.bed-conflicts { color: #92400e; }
+  &.skipped-new   { color: #4b5563; }
 }
 
 .icon {
@@ -160,6 +183,25 @@ function formatRange(arrival?: string, departure?: string): string {
 .summary-section:has(.bed-conflicts) .item-list > li {
   border-left-color: #f59e0b;
   background: #fef3c7;
+}
+
+.skipped-new + .item-list > li,
+.summary-section:has(.skipped-new) .item-list > li {
+  border-left-color: #9ca3af;
+  background: #f3f4f6;
+}
+
+.status-skipped {
+  background: #e5e7eb !important;
+  color: #374151 !important;
+}
+
+code {
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  color: #1f2937;
 }
 
 .meta {
