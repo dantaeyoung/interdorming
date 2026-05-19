@@ -120,6 +120,16 @@ export function formatGuestDate(value: string | null | undefined): string {
 }
 
 /**
+ * Like {@link formatGuestDate} but without the year — for compact
+ * contexts (bed-slot date ranges) where the retreat year is obvious
+ * from context. "May 30, 2026" → "May 30". Inputs without a trailing
+ * year are returned as formatted by formatGuestDate.
+ */
+export function formatGuestDateShort(value: string | null | undefined): string {
+  return formatGuestDate(value).replace(/,\s*\d{4}$/, '')
+}
+
+/**
  * Returns true if the View Date falls within a stay (inclusive of arrival,
  * exclusive of departure). Used to pick which assignment to display in a
  * bed when the operator has a date filter active.
