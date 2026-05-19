@@ -10,6 +10,7 @@ import {
   parseLocalDate,
   stayCoversDate,
   formatGuestDate,
+  formatGuestDateShort,
 } from './useUtils'
 
 describe('parseLocalDate', () => {
@@ -163,5 +164,30 @@ describe('formatGuestDate', () => {
 
   it('returns input unchanged when it cannot be parsed', () => {
     expect(formatGuestDate('not a date')).toBe('not a date')
+  })
+})
+
+describe('formatGuestDateShort', () => {
+  it('drops the year from ISO input', () => {
+    expect(formatGuestDateShort('2026-05-30')).toBe('May 30')
+    expect(formatGuestDateShort('2026-06-01')).toBe('June 1')
+  })
+
+  it('drops the year from already-canonical input', () => {
+    expect(formatGuestDateShort('May 30, 2026')).toBe('May 30')
+  })
+
+  it('drops the year from Planyo-style "30-May-25"', () => {
+    expect(formatGuestDateShort('30-May-25')).toBe('May 30')
+  })
+
+  it('returns empty string for empty input', () => {
+    expect(formatGuestDateShort('')).toBe('')
+    expect(formatGuestDateShort(null)).toBe('')
+    expect(formatGuestDateShort(undefined)).toBe('')
+  })
+
+  it('returns unparseable input unchanged (no year suffix to strip)', () => {
+    expect(formatGuestDateShort('not a date')).toBe('not a date')
   })
 })

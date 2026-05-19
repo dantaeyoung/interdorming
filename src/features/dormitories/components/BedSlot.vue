@@ -46,9 +46,9 @@
             </span>
           </span>
           <span v-if="assignedGuest.arrival || assignedGuest.departure" class="date-info">
-            <span v-if="assignedGuest.arrival">{{ formatGuestDate(assignedGuest.arrival) }}</span>
+            <span v-if="assignedGuest.arrival">{{ formatGuestDateShort(assignedGuest.arrival) }}</span>
             <span v-if="assignedGuest.arrival && assignedGuest.departure">→</span>
-            <span v-if="assignedGuest.departure">{{ formatGuestDate(assignedGuest.departure) }}</span>
+            <span v-if="assignedGuest.departure">{{ formatGuestDateShort(assignedGuest.departure) }}</span>
           </span>
         </div>
         <ValidationWarning v-if="warnings.length > 0" :warnings="warnings" />
@@ -67,9 +67,9 @@
             </span>
           </span>
           <span v-if="suggestedGuest.arrival || suggestedGuest.departure" class="date-info">
-            <span v-if="suggestedGuest.arrival">{{ formatGuestDate(suggestedGuest.arrival) }}</span>
+            <span v-if="suggestedGuest.arrival">{{ formatGuestDateShort(suggestedGuest.arrival) }}</span>
             <span v-if="suggestedGuest.arrival && suggestedGuest.departure">→</span>
-            <span v-if="suggestedGuest.departure">{{ formatGuestDate(suggestedGuest.departure) }}</span>
+            <span v-if="suggestedGuest.departure">{{ formatGuestDateShort(suggestedGuest.departure) }}</span>
           </span>
           <span class="suggestion-badge">Suggested</span>
         </div>
@@ -146,7 +146,7 @@ import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
 import { useUtils } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
-import { parseLocalDate, formatGuestDate } from '@/shared/composables/useUtils'
+import { parseLocalDate, formatGuestDate, formatGuestDateShort } from '@/shared/composables/useUtils'
 import { useOverlapConfirm } from '@/shared/composables/useOverlapConfirm'
 import { ValidationWarning } from '@/shared/components'
 import GuestFormModal from '@/features/guests/components/GuestFormModal.vue'
@@ -756,11 +756,17 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
     background: #f3f4f6;
   }
 
+  /* Notes icon when the guest actually has notes — full opacity so it
+     reads as a clear, active affordance against the faded empty state. */
+  &.has-notes {
+    opacity: 1;
+  }
+
   /* When the notes icon is leading the row but the guest has no notes,
      keep it visible (per operator request — always-visible icons) but
      very faded and non-interactive. */
   &.no-notes-empty {
-    opacity: 0.18;
+    opacity: 0.08;
     cursor: default;
     pointer-events: none;
   }
@@ -776,8 +782,8 @@ const dropzoneProps = useDroppableBed(props.bed.bedId, handleDrop)
       position: absolute;
       top: 0;
       right: 0;
-      width: 6px;
-      height: 6px;
+      width: 9px;
+      height: 9px;
       background: #5b21b6;
       border-radius: 50%;
       border: 1px solid white;
