@@ -5,6 +5,7 @@
         <h4>{{ room.roomName }}</h4>
         <span :class="['badge', `badge-gender-${room.roomGender.toLowerCase()}`]">
           {{ room.roomGender }}
+          <span v-if="genderOverridden" class="override-marker" title="Room gender is set by a time-based override on this date">📅</span>
         </span>
       </div>
       <div class="room-actions">
@@ -52,11 +53,15 @@ interface Props {
   /** Color of the parent dormitory — rendered as a thin left stripe so
    *  the operator can still tell dorms apart in the flattened view. */
   dormColor?: string
+  /** True if this room's gender is currently set by a time-based override
+   *  rather than the base config — surfaces a small 📅 marker on the badge. */
+  genderOverridden?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   viewDate: null,
   dormColor: '#e5e7eb',
+  genderOverridden: false,
 })
 
 const guestStore = useGuestStore()
@@ -171,11 +176,19 @@ function handleAcceptRoomSuggestions() {
 }
 
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   padding: 2px 8px;
   border-radius: 10px;
   font-size: 0.7rem;
   font-weight: 500;
+
+  .override-marker {
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: help;
+  }
 
   &.badge-gender-m {
     background-color: #dbeafe;

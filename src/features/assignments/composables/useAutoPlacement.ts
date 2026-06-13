@@ -52,12 +52,15 @@ export function useAutoPlacement() {
   }
 
   /**
-   * A bed is "available for guest" iff it's active AND none of its existing
-   * assignments overlap with the candidate guest's stay. Date-aware
-   * replacement for the old `!bed.assignedGuestId` check.
+   * A bed is "available for guest" iff it's active for the guest's entire
+   * stay (including any time-based overrides) AND none of its existing
+   * assignments overlap with the candidate guest's stay.
    */
   function isBedAvailableForGuest(bed: Bed, guest: Guest): boolean {
     if (bed.active === false) return false
+    if (!dormitoryStore.isBedActiveDuringStay(bed.bedId, guest.arrival, guest.departure)) {
+      return false
+    }
     for (const a of bed.assignments) {
       if (a.guestId === guest.id) continue
       const other = guestStore.guests.find(g => g.id === a.guestId)
@@ -68,12 +71,18 @@ export function useAutoPlacement() {
   }
 
   /**
-   * A bed is "available for group" iff it's active AND none of its existing
-   * assignments overlap with ANY member of the group. Conservative — a bed
-   * that overlaps even one member is excluded for the whole group.
+   * A bed is "available for group" iff it's active for every member's stay
+   * (including overrides) AND none of its existing assignments overlap with
+   * ANY member of the group. Conservative — a bed that's inactive during
+   * even one member's stay is excluded for the whole group.
    */
   function isBedAvailableForGroup(bed: Bed, group: ClassifiedGroup): boolean {
     if (bed.active === false) return false
+    for (const member of group.members) {
+      if (!dormitoryStore.isBedActiveDuringStay(bed.bedId, member.arrival, member.departure)) {
+        return false
+      }
+    }
     for (const a of bed.assignments) {
       const other = guestStore.guests.find(g => g.id === a.guestId)
       if (!other) continue
