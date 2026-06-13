@@ -43,6 +43,15 @@ export { DEFAULT_SETTINGS, GROUP_TYPE_LABELS, DEFAULT_GROUP_PLACEMENT_ORDER, DEF
 // Room Layout types
 export type { RoomLayout } from './RoomLayout'
 
+// Time-based override types
+export type {
+  ConfigOverride,
+  OverridePreset,
+  OverrideTarget,
+  OverrideAttribute,
+  PresetTemplateEntry,
+} from './Overrides'
+
 // Storage types
 export type { StorageData, LegacyStorageData } from './Storage'
 
