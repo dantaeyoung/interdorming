@@ -4,9 +4,24 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed, watch, nextTick } from 'vue'
-import type { Dormitory, DormitoryInput, Room, RoomInput, Bed, FlatRoom, RoomLayout } from '@/types'
+import { ref, computed, watch, nextTick, toRaw } from 'vue'
+import type {
+  Dormitory,
+  DormitoryInput,
+  Room,
+  RoomInput,
+  Bed,
+  FlatRoom,
+  RoomLayout,
+  ConfigOverride,
+  OverridePreset,
+  OverrideTarget,
+  OverrideAttribute,
+  PresetTemplateEntry,
+  RoomGender,
+} from '@/types'
 import { DEFAULT_COLORS } from '@/types'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 
 /**
  * Bed-shape schema version. Bump when changing bed structure so migration
@@ -30,6 +45,10 @@ export const useDormitoryStore = defineStore(
     // Layout state
     const layouts = ref<RoomLayout[]>([])
     const activeLayoutId = ref<string | null>(null)
+
+    // Time-based overrides + presets (see specs/TimeBasedRoomConfig.md)
+    const overrides = ref<ConfigOverride[]>([])
+    const presets = ref<OverridePreset[]>([])
 
     // Internal flag to suppress auto-save during layout switch
     let _suppressAutoSave = false
@@ -544,6 +563,350 @@ export const useDormitoryStore = defineStore(
       }
     }
 
+    // --- Time-based Overrides + Presets ---
+
+    /**
+     * True if `date` falls within `[effectiveFrom, effectiveTo]` (inclusive
+     * on both ends; `effectiveTo === null` = open-ended).
+     */
+    function isOverrideActiveOn(override: ConfigOverride, date: string): boolean {
+      const d = parseLocalDate(date)
+      if (isNaN(d.getTime())) return false
+      const from = parseLocalDate(override.effectiveFrom)
+      if (isNaN(from.getTime())) return false
+      if (d < from) return false
+      if (override.effectiveTo === null) return true
+      const to = parseLocalDate(override.effectiveTo)
+      if (isNaN(to.getTime())) return true
+      return d <= to
+    }
+
+    /**
+     * Effective config at a given date, computed by applying every
+     * override active on that date to a deep clone of the base.
+     *
+     * Resolution order:
+     *   1. Collect overrides active on this date.
+     *   2. Build per-target maps keyed by (dorm name / dorm+room name / bed id),
+     *      keeping only the most-recently-created override per (target, attr).
+     *   3. For each dormitory → room → bed, resolve:
+     *        - bed.active: explicit bed override > cascade from room > base
+     *        - room.active: explicit room override > cascade from dorm > base
+     *        - room.gender: explicit room gender override > base
+     *        - dorm.active: explicit dorm override > base
+     *   4. Bubble exceptions back up so iteration finds them:
+     *        - If any bed in a room is active (e.g. via bed-level exception
+     *          inside a closed room), the room is marked active.
+     *        - If any room in a dorm is active, the dorm is marked active.
+     *
+     * Pass `date === null` to skip override resolution and return the raw
+     * base tree (useful for editing the base config in Room Configuration).
+     */
+    const dormitoriesAt = computed(() => {
+      return (date: string | null): Dormitory[] => {
+        if (!date) return dormitories.value
+
+        const active = overrides.value.filter(o => isOverrideActiveOn(o, date))
+        if (active.length === 0) return dormitories.value
+
+        // Most-recently-created wins at same target+attr level.
+        const sorted = [...active].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+        const dormActive = new Map<string, boolean>()
+        const roomActive = new Map<string, boolean>()
+        const roomGender = new Map<string, RoomGender>()
+        const bedActive = new Map<string, boolean>()
+
+        const roomKey = (dormName: string, roomName: string) => `${dormName} ${roomName}`
+
+        for (const o of sorted) {
+          if (o.target.kind === 'dormitory' && o.change.attr === 'active') {
+            if (!dormActive.has(o.target.dormitoryName)) {
+              dormActive.set(o.target.dormitoryName, o.change.value)
+            }
+          } else if (o.target.kind === 'room' && o.change.attr === 'active') {
+            const key = roomKey(o.target.dormitoryName, o.target.roomName)
+            if (!roomActive.has(key)) roomActive.set(key, o.change.value)
+          } else if (o.target.kind === 'room' && o.change.attr === 'gender') {
+            const key = roomKey(o.target.dormitoryName, o.target.roomName)
+            if (!roomGender.has(key)) roomGender.set(key, o.change.value)
+          } else if (o.target.kind === 'bed' && o.change.attr === 'active') {
+            if (!bedActive.has(o.target.bedId)) {
+              bedActive.set(o.target.bedId, o.change.value)
+            }
+          }
+        }
+
+        // toRaw() unwraps Vue's reactive Proxy so structuredClone can walk the tree.
+        const cloned: Dormitory[] = structuredClone(toRaw(dormitories.value))
+
+        for (const dorm of cloned) {
+          const dormSelfActive = dormActive.has(dorm.dormitoryName)
+            ? dormActive.get(dorm.dormitoryName)!
+            : dorm.active
+
+          let anyRoomActive = false
+
+          for (const room of dorm.rooms) {
+            const rKey = roomKey(dorm.dormitoryName, room.roomName)
+
+            let roomSelfActive: boolean
+            if (roomActive.has(rKey)) {
+              roomSelfActive = roomActive.get(rKey)!
+            } else if (!dormSelfActive) {
+              roomSelfActive = false
+            } else {
+              roomSelfActive = room.active
+            }
+
+            if (roomGender.has(rKey)) {
+              room.roomGender = roomGender.get(rKey)!
+            }
+
+            let anyBedActive = false
+
+            for (const bed of room.beds) {
+              const baseBedActive = bed.active !== false
+              let bedFinalActive: boolean
+
+              if (bedActive.has(bed.bedId)) {
+                bedFinalActive = bedActive.get(bed.bedId)!
+              } else if (!roomSelfActive) {
+                bedFinalActive = false
+              } else {
+                bedFinalActive = baseBedActive
+              }
+
+              bed.active = bedFinalActive
+              if (bedFinalActive) anyBedActive = true
+            }
+
+            // Bed-level exception bubbles room active so iteration finds it.
+            if (anyBedActive) roomSelfActive = true
+            room.active = roomSelfActive
+            if (roomSelfActive) anyRoomActive = true
+          }
+
+          // Room-level exception bubbles dorm active.
+          dorm.active = anyRoomActive ? true : dormSelfActive
+        }
+
+        return cloned
+      }
+    })
+
+    /**
+     * True iff the bed exists, its room is active, and its dormitory is
+     * active for **every day** in the half-open stay window
+     * `[arrival, departure)`. Used by auto-placement and drop validation
+     * so a candidate can't be placed on a bed that closes mid-stay.
+     *
+     * Missing dates = "always present" = check at "now" (today).
+     */
+    function isBedActiveDuringStay(
+      bedId: string,
+      arrival: string | null | undefined,
+      departure: string | null | undefined
+    ): boolean {
+      // No overrides → fall through to base active state lookup.
+      if (overrides.value.length === 0) {
+        const bed = getBedById.value(bedId)
+        if (!bed || bed.active === false) return false
+        const room = getRoomByBedId.value(bedId)
+        if (!room || !room.active) return false
+        const dorm = getDormitoryByBedId.value(bedId)
+        if (!dorm || !dorm.active) return false
+        return true
+      }
+
+      // For half-open intervals, we need to check days [arrival, departure).
+      // Missing/invalid dates: check just today.
+      const start = arrival ? parseLocalDate(arrival) : new Date()
+      const end = departure ? parseLocalDate(departure) : new Date()
+      start.setHours(0, 0, 0, 0)
+      end.setHours(0, 0, 0, 0)
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        const today = new Date().toISOString().slice(0, 10)
+        return isBedActiveOn(bedId, today)
+      }
+
+      // Walk each day in the half-open window. For single-day stays
+      // (start === end), check that one day.
+      const cursor = new Date(start)
+      const stopDate = end > start ? end : new Date(start.getTime() + 86400000)
+      while (cursor < stopDate) {
+        const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
+        if (!isBedActiveOn(bedId, iso)) return false
+        cursor.setDate(cursor.getDate() + 1)
+      }
+      return true
+    }
+
+    /**
+     * True iff the bed (and its containing room + dorm) is active on the
+     * specified date, after applying overrides.
+     */
+    function isBedActiveOn(bedId: string, date: string): boolean {
+      const dorms = dormitoriesAt.value(date)
+      for (const dorm of dorms) {
+        if (!dorm.active) continue
+        for (const room of dorm.rooms) {
+          if (!room.active) continue
+          for (const bed of room.beds) {
+            if (bed.bedId === bedId) return bed.active !== false
+          }
+        }
+      }
+      return false
+    }
+
+    /**
+     * Effective room gender at a given date (after overrides). Returns
+     * the base gender if there's no active gender override on that day.
+     */
+    function roomGenderAt(dormitoryName: string, roomName: string, date: string): RoomGender | null {
+      const dorms = dormitoriesAt.value(date)
+      const dorm = dorms.find(d => d.dormitoryName === dormitoryName)
+      if (!dorm) return null
+      const room = dorm.rooms.find(r => r.roomName === roomName)
+      return room?.roomGender ?? null
+    }
+
+    // --- Override CRUD ---
+
+    /**
+     * Throws on a backwards date range (`effectiveTo < effectiveFrom`)
+     * since that would silently create a no-op override — typically a
+     * UI-side typo rather than a meaningful state. Validates only the
+     * direction; if either side is unparseable, lets it through (older
+     * data with unusual date formats may still need to round-trip).
+     */
+    function _validateOverrideRange(from: string, to: string | null): void {
+      if (to === null) return
+      const fromD = parseLocalDate(from)
+      const toD = parseLocalDate(to)
+      if (isNaN(fromD.getTime()) || isNaN(toD.getTime())) return
+      if (toD < fromD) {
+        throw new RangeError(
+          `Override has effectiveTo (${to}) before effectiveFrom (${from}).`
+        )
+      }
+    }
+
+    function addOverride(input: {
+      target: OverrideTarget
+      change: OverrideAttribute
+      effectiveFrom: string
+      effectiveTo: string | null
+      presetId?: string | null
+      applicationId?: string | null
+      note?: string
+    }): ConfigOverride {
+      _validateOverrideRange(input.effectiveFrom, input.effectiveTo)
+      const override: ConfigOverride = {
+        id: crypto.randomUUID(),
+        target: input.target,
+        change: input.change,
+        effectiveFrom: input.effectiveFrom,
+        effectiveTo: input.effectiveTo,
+        presetId: input.presetId ?? null,
+        applicationId: input.applicationId ?? null,
+        note: input.note,
+        createdAt: new Date().toISOString(),
+      }
+      overrides.value.push(override)
+      return override
+    }
+
+    function deleteOverride(overrideId: string): boolean {
+      const idx = overrides.value.findIndex(o => o.id === overrideId)
+      if (idx === -1) return false
+      overrides.value.splice(idx, 1)
+      return true
+    }
+
+    function updateOverride(overrideId: string, updates: Partial<Omit<ConfigOverride, 'id' | 'createdAt'>>): boolean {
+      const o = overrides.value.find(x => x.id === overrideId)
+      if (!o) return false
+      Object.assign(o, updates)
+      return true
+    }
+
+    // --- Preset CRUD ---
+
+    function addPreset(input: { name: string; description?: string; entries?: PresetTemplateEntry[] }): OverridePreset {
+      const now = new Date().toISOString()
+      const preset: OverridePreset = {
+        id: crypto.randomUUID(),
+        name: input.name,
+        description: input.description,
+        entries: input.entries ?? [],
+        createdAt: now,
+        updatedAt: now,
+      }
+      presets.value.push(preset)
+      return preset
+    }
+
+    function updatePreset(presetId: string, updates: Partial<Omit<OverridePreset, 'id' | 'createdAt'>>): boolean {
+      const p = presets.value.find(x => x.id === presetId)
+      if (!p) return false
+      Object.assign(p, updates)
+      p.updatedAt = new Date().toISOString()
+      return true
+    }
+
+    function deletePreset(presetId: string): boolean {
+      const idx = presets.value.findIndex(p => p.id === presetId)
+      if (idx === -1) return false
+      presets.value.splice(idx, 1)
+      // Also delete every override that came from this preset (any application).
+      overrides.value = overrides.value.filter(o => o.presetId !== presetId)
+      return true
+    }
+
+    /**
+     * Apply a preset for a given date window. Emits one override per
+     * template entry, all tagged with this preset's id and a fresh
+     * `applicationId` so the application can be reverted as a unit.
+     *
+     * Returns the `applicationId` (or null if the preset doesn't exist).
+     */
+    function applyPreset(
+      presetId: string,
+      effectiveFrom: string,
+      effectiveTo: string | null,
+      note?: string
+    ): string | null {
+      const preset = presets.value.find(p => p.id === presetId)
+      if (!preset) return null
+      _validateOverrideRange(effectiveFrom, effectiveTo)
+      const applicationId = crypto.randomUUID()
+      for (const entry of preset.entries) {
+        addOverride({
+          target: entry.target,
+          change: entry.change,
+          effectiveFrom,
+          effectiveTo,
+          presetId,
+          applicationId,
+          note,
+        })
+      }
+      return applicationId
+    }
+
+    /**
+     * Delete every override emitted by a specific preset application.
+     * Returns the number of overrides removed.
+     */
+    function revertPresetApplication(applicationId: string): number {
+      const before = overrides.value.length
+      overrides.value = overrides.value.filter(o => o.applicationId !== applicationId)
+      return before - overrides.value.length
+    }
+
     // Auto-save watcher: debounced save of dormitories to active layout
     let _autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -600,12 +963,28 @@ export const useDormitoryStore = defineStore(
       switchLayout,
       deleteLayout,
       importLayouts,
+
+      // Time-based overrides + presets
+      overrides,
+      presets,
+      dormitoriesAt,
+      isBedActiveDuringStay,
+      isBedActiveOn,
+      roomGenderAt,
+      addOverride,
+      deleteOverride,
+      updateOverride,
+      addPreset,
+      updatePreset,
+      deletePreset,
+      applyPreset,
+      revertPresetApplication,
     }
   },
   {
     persist: {
       key: 'dormAssignments-dormitories',
-      paths: ['dormitories', 'configName', 'layouts', 'activeLayoutId', 'bedShapeVersion'],
+      paths: ['dormitories', 'configName', 'layouts', 'activeLayoutId', 'bedShapeVersion', 'overrides', 'presets'],
     },
   }
 )
