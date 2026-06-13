@@ -31,6 +31,12 @@ export function useDropValidation() {
       return { isValid: false, reason: 'Room not found' }
     }
 
+    // Bed must be active during the guest's entire stay — covers
+    // time-based overrides (dorm closed, room closed, bed closed).
+    if (!dormitoryStore.isBedActiveDuringStay(bedId, guest.arrival, guest.departure)) {
+      return { isValid: false, reason: 'Bed inactive during stay (override active)' }
+    }
+
     return validateGuestBedCompatibility(guest, bed, room)
   }
 
