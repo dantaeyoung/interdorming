@@ -4,7 +4,7 @@
  * but the snapshot module iterates real keys via `length` + `key(i)`, so it
  * needs a complete, index-aware implementation.
  */
-export function installLocalStorageMock(): void {
+export function installLocalStorageMock(): Storage {
   let store = new Map<string, string>()
   const mock: Storage = {
     getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
@@ -27,4 +27,5 @@ export function installLocalStorageMock(): void {
     configurable: true,
     writable: true,
   })
+  return mock
 }
