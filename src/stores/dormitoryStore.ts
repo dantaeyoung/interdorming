@@ -50,6 +50,19 @@ export const useDormitoryStore = defineStore(
     const overrides = ref<ConfigOverride[]>([])
     const presets = ref<OverridePreset[]>([])
 
+    /**
+     * One-shot flag flipped after the operator either dismisses or
+     * completes the "multi-layout → base + presets" migration. Once true:
+     * the layout selector is hidden from the Configuration tab and the
+     * `layouts` / `activeLayoutId` fields become read-only legacy state
+     * (kept around for one release as a safety net per the spec).
+     *
+     * Defaults to false so first load after this code ships triggers the
+     * migration check; one-layout (or empty) sessions silently flip it
+     * during initialization so no dialog appears.
+     */
+    const layoutMigrationComplete = ref<boolean>(false)
+
     // Internal flag to suppress auto-save during layout switch
     let _suppressAutoSave = false
 
@@ -979,12 +992,15 @@ export const useDormitoryStore = defineStore(
       deletePreset,
       applyPreset,
       revertPresetApplication,
+
+      // Layout deprecation / migration
+      layoutMigrationComplete,
     }
   },
   {
     persist: {
       key: 'dormAssignments-dormitories',
-      paths: ['dormitories', 'configName', 'layouts', 'activeLayoutId', 'bedShapeVersion', 'overrides', 'presets'],
+      paths: ['dormitories', 'configName', 'layouts', 'activeLayoutId', 'bedShapeVersion', 'overrides', 'presets', 'layoutMigrationComplete'],
     },
   }
 )

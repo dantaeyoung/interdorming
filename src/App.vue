@@ -214,7 +214,7 @@
 
     <!-- Room Configuration Tab -->
     <div v-if="activeTab === 'configuration'" class="tab-content">
-      <LayoutSelector @status="(msg, type) => showStatus(msg, type)" />
+      <LayoutSelector v-if="!layoutMigrationComplete" @status="(msg, type) => showStatus(msg, type)" />
       <div class="toolbar">
         <div class="toolbar-left">
           <h2>Room Configuration</h2>
@@ -281,6 +281,11 @@
     <!-- Combined post-CSV-import summary: cancellations + date changes
          + new bed conflicts in one dialog. -->
     <ImportSummaryDialog />
+
+    <!-- One-time migration: multi-layout state → base config + presets.
+         Surfaces only when the operator has >1 saved layout and hasn't
+         migrated yet. See specs/TimeBasedRoomConfig.md §Migration. -->
+    <LayoutMigrationDialog :is-open="showLayoutMigration" @close="showLayoutMigration = false" />
   </div>
 </template>
 
@@ -298,7 +303,7 @@ import { HintBanner } from '@/features/hints/components'
 import { useHints } from '@/features/hints/composables/useHints'
 import { useTour } from '@/features/hints/composables/useTour'
 import { GuestList, GuestSearch, ColumnsDropdown } from '@/features/guests/components'
-import { RoomList, ConfigRoomList, LayoutSelector, PresetsAndOverridesSection } from '@/features/dormitories/components'
+import { RoomList, ConfigRoomList, LayoutSelector, PresetsAndOverridesSection, LayoutMigrationDialog } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
@@ -403,7 +408,21 @@ onMounted(() => {
   if (dormitoryStore.migrateBedAssignments()) {
     assignmentStore.clearHistory()
   }
+
+  // Layouts → base + presets migration. Silent for users who never had
+  // more than one layout (the common case); surfaces the dialog only when
+  // there's actual data to convert.
+  if (!dormitoryStore.layoutMigrationComplete) {
+    if (dormitoryStore.layouts.length <= 1) {
+      dormitoryStore.layoutMigrationComplete = true
+    } else {
+      showLayoutMigration.value = true
+    }
+  }
 })
+
+const showLayoutMigration = ref(false)
+const layoutMigrationComplete = computed(() => dormitoryStore.layoutMigrationComplete)
 
 // Tab state - restore from localStorage or default to 'guest-data'
 const ACTIVE_TAB_KEY = 'dormAssignments-activeTab'
