@@ -22,3 +22,20 @@ func TestStorePutGet(t *testing.T) {
 		t.Fatalf("bad rec %+v", rec)
 	}
 }
+
+func TestStoreConflict(t *testing.T) {
+	s, _ := OpenStore(":memory:")
+	s.Put("abc", 0, "s", "i", "v1")                   // rev -> 1
+	_, conflict, _ := s.Put("abc", 0, "s", "i", "v2") // stale base 0, current 1
+	if !conflict {
+		t.Fatal("expected conflict")
+	}
+	rec, _ := s.Get("abc")
+	if rec.Ciphertext != "v1" {
+		t.Fatal("stale write must not overwrite")
+	}
+	rev, conflict, _ := s.Put("abc", 1, "s", "i", "v2") // correct base
+	if conflict || rev != 2 {
+		t.Fatalf("expected rev 2, got %d conflict=%v", rev, conflict)
+	}
+}
