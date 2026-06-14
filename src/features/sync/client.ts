@@ -27,7 +27,10 @@ export class SyncClient {
   }
 
   async pull(authProofHex: string): Promise<StoredRecord | null> {
-    const res = await this.fetchFn(this.url('/v1/pull'), {
+    // Call through a local ref so `this` isn't the SyncClient — the browser's
+    // real fetch throws "Illegal invocation" unless its `this` is window.
+    const doFetch = this.fetchFn
+    const res = await doFetch(this.url('/v1/pull'), {
       method: 'POST',
       headers: { Authorization: `Bearer ${authProofHex}` },
     })
@@ -37,7 +40,8 @@ export class SyncClient {
   }
 
   async push(authProofHex: string, body: PushBody): Promise<PushResult> {
-    const res = await this.fetchFn(this.url('/v1/push'), {
+    const doFetch = this.fetchFn
+    const res = await doFetch(this.url('/v1/push'), {
       method: 'POST',
       headers: { Authorization: `Bearer ${authProofHex}`, 'content-type': 'application/json' },
       body: JSON.stringify(body),

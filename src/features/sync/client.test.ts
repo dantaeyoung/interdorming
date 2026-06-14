@@ -33,6 +33,19 @@ describe('SyncClient', () => {
     expect(r).toEqual({ ok: true, revision: 4 })
   })
 
+  it('does not bind the SyncClient as `this` on fetch (browser fetch needs window this)', async () => {
+    let capturedThis: unknown = 'unset'
+    function fakeFetch(this: unknown) {
+      capturedThis = this
+      return Promise.resolve(new Response('', { status: 404 }))
+    }
+    const c = new SyncClient('https://sync.example', fakeFetch as unknown as typeof fetch)
+    await c.pull('PROOF')
+    // If we call `this.fetchFn(...)`, real browser fetch throws "Illegal
+    // invocation". Guard: the client instance must never be fetch's `this`.
+    expect(capturedThis).not.toBe(c)
+  })
+
   it('push reports a conflict on 409', async () => {
     const c = new SyncClient(
       'https://sync.example',
