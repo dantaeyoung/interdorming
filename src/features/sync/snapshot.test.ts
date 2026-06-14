@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { gatherSnapshot, applySnapshot, SNAPSHOT_SCHEMA_VERSION } from './snapshot'
+import { gatherSnapshot, applySnapshot, hashSnapshot, SNAPSHOT_SCHEMA_VERSION } from './snapshot'
 import { installLocalStorageMock } from './testLocalStorage'
 
 installLocalStorageMock()
@@ -28,5 +28,15 @@ describe('snapshot gather/apply', () => {
     })
     expect(localStorage.getItem('dormAssignments-guests')).toBe('NEW')
     expect(localStorage.getItem('dormAssignments-sync')).toBe('KEEP')
+  })
+})
+
+describe('hashSnapshot', () => {
+  it('hashes equal snapshots equally and differs on change', async () => {
+    const a = { schemaVersion: 1, data: { x: '1', y: '2' } }
+    const b = { schemaVersion: 1, data: { y: '2', x: '1' } } // key order differs
+    const c = { schemaVersion: 1, data: { x: '9', y: '2' } }
+    expect(await hashSnapshot(a)).toBe(await hashSnapshot(b))
+    expect(await hashSnapshot(a)).not.toBe(await hashSnapshot(c))
   })
 })
