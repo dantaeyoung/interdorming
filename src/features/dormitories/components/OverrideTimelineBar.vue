@@ -384,15 +384,15 @@ function daysBetween(a: string, b: string): number {
 }
 
 .bar-wrapper {
-  padding: 8px 16px 0;
+  padding: 8px 0 0;
 }
 
 .bar {
   position: relative;
   display: flex;
   height: 56px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border-top: 1px solid #d1d5db;
+  border-bottom: 1px solid #d1d5db;
   overflow: hidden;
   user-select: none;
 }
@@ -456,7 +456,7 @@ function daysBetween(a: string, b: string): number {
 .axis {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0 8px;
+  padding: 4px 16px 8px;
   font-size: 0.7rem;
   color: #6b7280;
 }
