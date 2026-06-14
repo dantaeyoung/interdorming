@@ -30,15 +30,16 @@
           v-for="(seg, idx) in segments"
           :key="seg.start"
           :style="{ flexGrow: seg.durationDays, background: seg.color }"
-          :class="['segment', { 'is-selected': selectedSignature === segmentKey(seg), 'is-first': idx === 0 }]"
+          :class="['segment', { 'is-selected': selectedSignature === segmentKey(seg) }]"
           role="listitem"
-          :title="idx === 0 ? `${segmentTooltip(seg)}\n← In effect from before ${formatDate(seg.start)}` : segmentTooltip(seg)"
+          :title="edgeTooltip(seg, idx)"
           @click="selectSegment(seg)"
         >
-          <span v-if="idx === 0" class="leading-edge" aria-hidden="true">←</span>
+          <span v-if="idx === 0" class="edge-marker leading" aria-hidden="true">←</span>
           <span class="segment-label">
             {{ seg.label }}<span v-if="seg.extraOneOffCount > 0" class="extra-badge">+{{ seg.extraOneOffCount }}</span>
           </span>
+          <span v-if="idx === segments.length - 1" class="edge-marker trailing" aria-hidden="true">→</span>
         </button>
         <div
           v-if="todayOffset !== null"
@@ -277,6 +278,17 @@ function segmentTooltip(seg: TimelineSegment): string {
   return `${seg.label}${seg.extraOneOffCount > 0 ? ` (+${seg.extraOneOffCount} one-off)` : ''}\n${range}`
 }
 
+/**
+ * Like `segmentTooltip`, but the leftmost / rightmost segments
+ * additionally call out that they extend past the visible range.
+ */
+function edgeTooltip(seg: TimelineSegment, idx: number): string {
+  const base = segmentTooltip(seg)
+  if (idx === 0) return `${base}\n← In effect from before ${formatDate(seg.start)}`
+  if (idx === segments.value.length - 1) return `${base}\n→ Continues beyond ${formatDate(seg.end)}`
+  return base
+}
+
 const todayOffset = computed<number | null>(() => {
   const today = todayIso()
   if (today < rangeStart.value || today > rangeEnd.value) return null
@@ -404,28 +416,16 @@ function daysBetween(a: string, b: string): number {
   &:last-child { border-right: none; }
   &:hover { filter: brightness(0.95); }
   &.is-selected { filter: brightness(0.85); outline: 2px solid #4f46e5; outline-offset: -2px; }
-
-  // First segment: visually communicate that this config extends
-  // back beyond the visible range. Soft horizontal fade on the left
-  // edge + a small ← arrow at the leading edge.
-  &.is-first::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 28px;
-    background: linear-gradient(to right, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
-    pointer-events: none;
-  }
 }
 
-.leading-edge {
+.edge-marker {
   font-size: 0.75rem;
-  color: rgba(0, 0, 0, 0.45);
-  margin-right: 4px;
+  color: rgba(0, 0, 0, 0.4);
   pointer-events: none;
   flex-shrink: 0;
+
+  &.leading { margin-right: 4px; }
+  &.trailing { margin-left: 4px; }
 }
 
 .segment-label {
