@@ -16,3 +16,10 @@ export { default as BedConfigItem } from './BedConfigItem.vue'
 // Layout management components
 export { default as LayoutSelector } from './LayoutSelector.vue'
 export { default as NewLayoutModal } from './NewLayoutModal.vue'
+
+// Time-based overrides + presets
+export { default as PresetsAndOverridesSection } from './PresetsAndOverridesSection.vue'
+export { default as PresetEditModal } from './PresetEditModal.vue'
+export { default as ApplyPresetModal } from './ApplyPresetModal.vue'
+export { default as OneOffOverrideModal } from './OneOffOverrideModal.vue'
+export { default as OverrideEntryEditor } from './OverrideEntryEditor.vue'

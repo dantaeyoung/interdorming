@@ -236,6 +236,7 @@
           empty-title="No rooms configured"
           empty-message="Add a dormitory to begin configuring rooms and beds."
         />
+        <PresetsAndOverridesSection />
       </div>
     </div>
 
@@ -297,7 +298,7 @@ import { HintBanner } from '@/features/hints/components'
 import { useHints } from '@/features/hints/composables/useHints'
 import { useTour } from '@/features/hints/composables/useTour'
 import { GuestList, GuestSearch, ColumnsDropdown } from '@/features/guests/components'
-import { RoomList, ConfigRoomList, LayoutSelector } from '@/features/dormitories/components'
+import { RoomList, ConfigRoomList, LayoutSelector, PresetsAndOverridesSection } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
