@@ -40,3 +40,26 @@ export async function deriveKeys(password: string, salt: Uint8Array): Promise<De
   const idDigest = new Uint8Array(await crypto.subtle.digest('SHA-256', authProof))
   return { encKey, authProofHex: toHex(authProof), workspaceId: toHex(idDigest) }
 }
+
+export async function encryptJSON(
+  key: CryptoKey,
+  obj: unknown,
+): Promise<{ ivHex: string; ciphertextHex: string }> {
+  const iv = randomBytes(12)
+  const data = new TextEncoder().encode(JSON.stringify(obj))
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data)
+  return { ivHex: toHex(iv), ciphertextHex: toHex(new Uint8Array(ct)) }
+}
+
+export async function decryptJSON(
+  key: CryptoKey,
+  ivHex: string,
+  ciphertextHex: string,
+): Promise<unknown> {
+  const pt = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromHex(ivHex) },
+    key,
+    fromHex(ciphertextHex),
+  )
+  return JSON.parse(new TextDecoder().decode(pt))
+}

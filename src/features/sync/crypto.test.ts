@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toHex, fromHex, randomBytes, deriveKeys } from './crypto'
+import { toHex, fromHex, randomBytes, deriveKeys, encryptJSON, decryptJSON } from './crypto'
 
 describe('hex helpers', () => {
   it('round-trips bytes through hex', () => {
@@ -32,5 +32,23 @@ describe('deriveKeys', () => {
     const a = await deriveKeys('password-a', salt)
     const b = await deriveKeys('password-b', salt)
     expect(a.workspaceId).not.toBe(b.workspaceId)
+  })
+})
+
+describe('encrypt/decrypt', () => {
+  it('encrypts and decrypts a JSON payload', async () => {
+    const { encKey } = await deriveKeys('pw', randomBytes(16))
+    const payload = { hello: 'world', n: 42 }
+    const { ivHex, ciphertextHex } = await encryptJSON(encKey, payload)
+    expect(ciphertextHex.length).toBeGreaterThan(0)
+    const back = await decryptJSON(encKey, ivHex, ciphertextHex)
+    expect(back).toEqual(payload)
+  })
+
+  it('fails to decrypt with the wrong key', async () => {
+    const a = await deriveKeys('pw-a', fromHex('00112233445566778899aabbccddeeff'))
+    const b = await deriveKeys('pw-b', fromHex('00112233445566778899aabbccddeeff'))
+    const { ivHex, ciphertextHex } = await encryptJSON(a.encKey, { secret: 1 })
+    await expect(decryptJSON(b.encKey, ivHex, ciphertextHex)).rejects.toThrow()
   })
 })
