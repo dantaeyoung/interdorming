@@ -7,6 +7,22 @@ import (
 	"testing"
 )
 
+// Frozen cross-language vector — MUST match the constants in
+// src/features/sync/crypto.test.ts (VECTOR_AUTH_PROOF_HEX / VECTOR_WORKSPACE_ID).
+// The client derives authProof from password "test-vector-pw" + salt 0x00*16;
+// the server must hash that same proof into the same workspace id. Change one,
+// change both.
+const vectorAuthProofHex = "e889ac78dcbbcebd9563f4dd792f79b6bd182b65139df961c0774ef48e572555"
+const vectorWorkspaceID = "668547a32d549c8709bd5d75898e55b3f6e50db8f6a7822ce1034e74308657a1"
+
+func TestWorkspaceIdVector(t *testing.T) {
+	req := httptest.NewRequest("POST", "/v1/pull", nil)
+	req.Header.Set("Authorization", "Bearer "+vectorAuthProofHex)
+	if got := idFromAuth(req); got != vectorWorkspaceID {
+		t.Fatalf("workspace id mismatch:\n got  %s\n want %s", got, vectorWorkspaceID)
+	}
+}
+
 func mustStore(t *testing.T) *Store {
 	t.Helper()
 	s, err := OpenStore(":memory:")

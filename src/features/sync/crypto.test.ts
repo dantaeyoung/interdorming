@@ -35,6 +35,23 @@ describe('deriveKeys', () => {
   })
 })
 
+// Frozen cross-language vector. These two constants pin the client/server
+// contract: the server must compute the SAME workspaceId from the SAME
+// authProof. The matching Go test is TestWorkspaceIdVector in
+// sync-server/handlers_test.go — if you change one, change both.
+const VECTOR_PASSWORD = 'test-vector-pw'
+const VECTOR_SALT_HEX = '00'.repeat(16)
+const VECTOR_AUTH_PROOF_HEX = 'e889ac78dcbbcebd9563f4dd792f79b6bd182b65139df961c0774ef48e572555'
+const VECTOR_WORKSPACE_ID = '668547a32d549c8709bd5d75898e55b3f6e50db8f6a7822ce1034e74308657a1'
+
+describe('frozen workspace-id vector (client/server contract)', () => {
+  it('produces the frozen authProof + workspaceId', async () => {
+    const k = await deriveKeys(VECTOR_PASSWORD, fromHex(VECTOR_SALT_HEX))
+    expect(k.authProofHex).toBe(VECTOR_AUTH_PROOF_HEX)
+    expect(k.workspaceId).toBe(VECTOR_WORKSPACE_ID)
+  })
+})
+
 describe('encrypt/decrypt', () => {
   it('encrypts and decrypts a JSON payload', async () => {
     const { encKey } = await deriveKeys('pw', randomBytes(16))
