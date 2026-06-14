@@ -14,31 +14,48 @@ export function randomBytes(len: number): Uint8Array {
 
 const PBKDF2_ITERATIONS = 600_000
 
-export interface DerivedKeys {
-  encKey: CryptoKey // AES-256-GCM, non-extractable
-  authProofHex: string // 32 bytes hex — sent to server
-  workspaceId: string // SHA-256(authProof) hex — server lookup key
-}
+// Identity (auth) is derived with a FIXED application salt so that every device
+// computes the SAME authProof / workspaceId from the password alone — no
+// discovery step, no chicken-and-egg with the per-workspace salt. This is the
+// LOWER-stakes secret: cracking it only grants server read/write of ciphertext
+// you still cannot decrypt. The encryption key (deriveEncKey) keeps a RANDOM
+// per-workspace salt, so the data blob retains full salted protection.
+// The string is exactly 16 ASCII bytes.
+const FIXED_APP_SALT = new TextEncoder().encode('dormsync-auth-v1')
 
-export async function deriveKeys(password: string, salt: Uint8Array): Promise<DerivedKeys> {
-  const enc = new TextEncoder()
-  const baseKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, [
-    'deriveBits',
-  ])
-  const bits = await crypto.subtle.deriveBits(
+async function pbkdf2Bits(password: string, salt: Uint8Array, bits: number): Promise<Uint8Array> {
+  const baseKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  )
+  const out = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
     baseKey,
-    512, // 64 bytes
+    bits,
   )
-  const material = new Uint8Array(bits)
-  const encRaw = material.slice(0, 32)
-  const authProof = material.slice(32, 64)
-  const encKey = await crypto.subtle.importKey('raw', encRaw, { name: 'AES-GCM' }, false, [
-    'encrypt',
-    'decrypt',
-  ])
+  return new Uint8Array(out)
+}
+
+export interface AuthIdentity {
+  authProofHex: string // 32 bytes hex — sent to server in the Authorization header
+  workspaceId: string // SHA-256(authProof) hex — server row key
+}
+
+// Deterministic from the password (fixed salt). Same password -> same workspace.
+export async function deriveAuth(password: string): Promise<AuthIdentity> {
+  const authProof = await pbkdf2Bits(password, FIXED_APP_SALT, 256) // 32 bytes
   const idDigest = new Uint8Array(await crypto.subtle.digest('SHA-256', authProof))
-  return { encKey, authProofHex: toHex(authProof), workspaceId: toHex(idDigest) }
+  return { authProofHex: toHex(authProof), workspaceId: toHex(idDigest) }
+}
+
+// AES-256-GCM key derived from password + the random per-workspace salt. The
+// salt is minted on first push and travels back with every pull.
+export async function deriveEncKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+  const encRaw = await pbkdf2Bits(password, salt, 256) // 32 bytes
+  return crypto.subtle.importKey('raw', encRaw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
 }
 
 export async function encryptJSON(
