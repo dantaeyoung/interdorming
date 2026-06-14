@@ -45,9 +45,15 @@ import type { PresetTemplateEntry } from '@/types'
 
 interface Props {
   isOpen: boolean
+  /**
+   * Optional pre-fill for `effectiveFrom`. Used by the timeline bar's
+   * "+ Add override starting here" action so the modal opens with the
+   * date the operator clicked on. Falls back to today.
+   */
+  initialFrom?: string | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { initialFrom: null })
 const emit = defineEmits<{ close: [] }>()
 
 const dormitoryStore = useDormitoryStore()
@@ -66,7 +72,7 @@ watch(
       target: { kind: 'dormitory', dormitoryName: firstDorm?.dormitoryName ?? '' },
       change: { attr: 'active', value: false },
     }
-    effectiveFrom.value = todayIso()
+    effectiveFrom.value = props.initialFrom ?? todayIso()
     effectiveTo.value = ''
     note.value = ''
   },
