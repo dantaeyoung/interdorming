@@ -39,34 +39,11 @@
       </ul>
     </div>
 
-    <!-- Overrides timeline -->
-    <div class="card">
-      <div class="card-header">
-        <h4>All overrides</h4>
-        <button class="btn-small" @click="openOneOff">+ Add one-off</button>
-      </div>
-      <div v-if="overrides.length === 0" class="empty">
-        No overrides yet.
-      </div>
-      <ul v-else class="overrides-list">
-        <li v-for="o in sortedOverrides" :key="o.id" class="override-row">
-          <span class="window">{{ formatDate(o.effectiveFrom) }} → {{ o.effectiveTo ? formatDate(o.effectiveTo) : '∞' }}</span>
-          <span class="target">{{ targetLabel(o.target) }}</span>
-          <span class="separator">→</span>
-          <span class="change">{{ changeLabel(o.change) }}</span>
-          <span v-if="o.presetId" class="source preset-source" :title="presetNameFor(o.presetId) ?? ''">
-            from preset: {{ presetNameFor(o.presetId) ?? '(deleted)' }}
-          </span>
-          <span v-else class="source oneoff-source">one-off</span>
-          <span v-if="o.note" class="note" :title="o.note">📝</span>
-          <button class="btn-mini btn-danger" @click="deleteOverride(o.id)" title="Delete this override">×</button>
-        </li>
-      </ul>
-    </div>
+    <!-- Configuration timeline (replaces the flat overrides list) -->
+    <OverrideTimelineBar />
 
     <PresetEditModal :is-open="editModalOpen" :preset="editTarget" @close="editModalOpen = false" />
     <ApplyPresetModal :is-open="applyModalOpen" :preset="applyTarget" @close="applyModalOpen = false" />
-    <OneOffOverrideModal :is-open="oneOffModalOpen" @close="oneOffModalOpen = false" />
   </section>
 </template>
 
@@ -75,23 +52,18 @@ import { computed, ref } from 'vue'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import PresetEditModal from './PresetEditModal.vue'
 import ApplyPresetModal from './ApplyPresetModal.vue'
-import OneOffOverrideModal from './OneOffOverrideModal.vue'
-import type { OverridePreset, OverrideTarget, OverrideAttribute } from '@/types'
+import OverrideTimelineBar from './OverrideTimelineBar.vue'
+import type { OverridePreset } from '@/types'
 
 const dormitoryStore = useDormitoryStore()
 
 const presets = computed(() => dormitoryStore.presets)
 const overrides = computed(() => dormitoryStore.overrides)
 
-const sortedOverrides = computed(() => {
-  return [...overrides.value].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
-})
-
 const editModalOpen = ref(false)
 const editTarget = ref<OverridePreset | null>(null)
 const applyModalOpen = ref(false)
 const applyTarget = ref<OverridePreset | null>(null)
-const oneOffModalOpen = ref(false)
 
 function openNewPreset() {
   editTarget.value = null
@@ -108,10 +80,6 @@ function openApply(preset: OverridePreset) {
   applyModalOpen.value = true
 }
 
-function openOneOff() {
-  oneOffModalOpen.value = true
-}
-
 function confirmDeletePreset(preset: OverridePreset) {
   const applied = applicationsForPreset(preset.id).length
   const msg = applied > 0
@@ -120,10 +88,6 @@ function confirmDeletePreset(preset: OverridePreset) {
   if (window.confirm(msg)) {
     dormitoryStore.deletePreset(preset.id)
   }
-}
-
-function deleteOverride(id: string) {
-  if (window.confirm('Delete this override?')) dormitoryStore.deleteOverride(id)
 }
 
 function revertApplication(applicationId: string, presetName: string) {
@@ -163,23 +127,7 @@ function applicationsForPreset(presetId: string): PresetApplication[] {
   return [...byApp.values()].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
 }
 
-function presetNameFor(presetId: string): string | null {
-  return presets.value.find(p => p.id === presetId)?.name ?? null
-}
-
-function targetLabel(t: OverrideTarget): string {
-  if (t.kind === 'dormitory') return `Dormitory: ${t.dormitoryName}`
-  if (t.kind === 'room') return `Room: ${t.dormitoryName} / ${t.roomName}`
-  return `Bed: ${t.bedId}`
-}
-
-function changeLabel(c: OverrideAttribute): string {
-  if (c.attr === 'active') return c.value ? 'Open' : 'Closed'
-  return `Gender: ${c.value}`
-}
-
 function formatDate(iso: string): string {
-  // Render YYYY-MM-DD as "Mon DD" or "Mon DD, YYYY" if year differs from current.
   const [y, m, d] = iso.split('-').map(Number)
   if (!y || !m || !d) return iso
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -241,7 +189,6 @@ function formatDate(iso: string): string {
 }
 
 .preset-list,
-.overrides-list,
 .applications {
   list-style: none;
   margin: 0;
@@ -311,57 +258,6 @@ function formatDate(iso: string): string {
 
   .app-count {
     color: #b45309;
-  }
-}
-
-.override-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 0.85rem;
-
-  &:last-child { border-bottom: none; }
-
-  .window {
-    color: #374151;
-    font-weight: 500;
-    min-width: 180px;
-  }
-
-  .target {
-    color: #1f2937;
-  }
-
-  .separator {
-    color: #9ca3af;
-  }
-
-  .change {
-    color: #4f46e5;
-    font-weight: 500;
-  }
-
-  .source {
-    margin-left: auto;
-    font-size: 0.75rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-
-    &.preset-source {
-      background: #ede9fe;
-      color: #6d28d9;
-    }
-
-    &.oneoff-source {
-      background: #f3f4f6;
-      color: #6b7280;
-    }
-  }
-
-  .note {
-    cursor: help;
   }
 }
 
