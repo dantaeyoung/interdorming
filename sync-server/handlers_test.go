@@ -108,6 +108,33 @@ func TestPushConflict(t *testing.T) {
 	}
 }
 
+func TestCORSPreflight(t *testing.T) {
+	srv := NewServer(mustStore(t))
+	req := httptest.NewRequest("OPTIONS", "/v1/push", nil)
+	req.Header.Set("Origin", "https://app.example")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "authorization")
+	rr := httptest.NewRecorder()
+	srv.ServeHTTP(rr, req)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("preflight want 204 got %d", rr.Code)
+	}
+	if rr.Header().Get("Access-Control-Allow-Origin") == "" {
+		t.Fatal("preflight missing Access-Control-Allow-Origin")
+	}
+	if !strings.Contains(strings.ToLower(rr.Header().Get("Access-Control-Allow-Headers")), "authorization") {
+		t.Fatalf("preflight must allow Authorization header, got %q", rr.Header().Get("Access-Control-Allow-Headers"))
+	}
+}
+
+func TestCORSHeaderOnResponse(t *testing.T) {
+	srv := NewServer(mustStore(t))
+	rr := doReq(srv, "POST", "/v1/pull", "deadbeef", "")
+	if rr.Header().Get("Access-Control-Allow-Origin") == "" {
+		t.Fatal("response missing Access-Control-Allow-Origin")
+	}
+}
+
 func TestPushTooLarge(t *testing.T) {
 	srv := NewServer(mustStore(t))
 	big := strings.Repeat("a", 6*1024*1024) // 6 MB > 5 MB cap

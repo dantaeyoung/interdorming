@@ -22,10 +22,28 @@ func NewServer(store *Store) http.Handler {
 	s := &Server{store: store, mux: http.NewServeMux()}
 	s.mux.HandleFunc("/v1/pull", s.handlePull)
 	s.mux.HandleFunc("/v1/push", s.handlePush)
-	return s
+	return withCORS(s)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.mux.ServeHTTP(w, r) }
+
+// withCORS allows the static app (served from a different origin, e.g.
+// app.<domain> calling sync.<domain>) to reach the API. Auth is a bearer proof
+// in the Authorization header — there are no cookies — so an open origin is
+// safe: the proof, not the origin, is what authorizes.
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 // idFromAuth extracts the bearer authProof (hex), validates it, and returns the
 // workspace id = hex(SHA-256(rawProofBytes)). The empty string means the token
