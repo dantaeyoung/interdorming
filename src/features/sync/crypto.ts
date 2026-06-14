@@ -51,11 +51,25 @@ export async function deriveAuth(password: string): Promise<AuthIdentity> {
   return { authProofHex: toHex(authProof), workspaceId: toHex(idDigest) }
 }
 
+function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
+}
+
 // AES-256-GCM key derived from password + the random per-workspace salt. The
 // salt is minted on first push and travels back with every pull.
 export async function deriveEncKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
-  const encRaw = await pbkdf2Bits(password, salt, 256) // 32 bytes
-  return crypto.subtle.importKey('raw', encRaw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
+  return importAesKey(await pbkdf2Bits(password, salt, 256)) // 32 bytes
+}
+
+// Raw enc-key bytes (hex) for the optional "remember on this device" cache.
+// Plaintext-on-device by design (local data is already plaintext); never sent.
+export async function deriveEncKeyHex(password: string, salt: Uint8Array): Promise<string> {
+  return toHex(await pbkdf2Bits(password, salt, 256))
+}
+
+// Rebuild the AES key from cached raw bytes (auto-unlock without the password).
+export async function importEncKey(rawHex: string): Promise<CryptoKey> {
+  return importAesKey(fromHex(rawHex))
 }
 
 export async function encryptJSON(

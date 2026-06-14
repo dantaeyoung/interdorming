@@ -11,8 +11,9 @@
  * heavier-but-smoother future optimization.
  */
 import { useSyncStore } from '@/stores/syncStore'
-import { SyncEngine } from './engine'
+import { SyncEngine, type CachedMaterial } from './engine'
 import { SyncClient } from './client'
+import { deriveAuth, deriveEncKeyHex, importEncKey, fromHex } from './crypto'
 import { gatherSnapshot, hashSnapshot } from './snapshot'
 
 export interface SyncEngineLike {
@@ -26,6 +27,7 @@ export interface SyncEngineLike {
 
 export interface UseSyncOptions {
   createEngine?: (password: string, serverUrl: string) => Promise<SyncEngineLike>
+  createEngineFromMaterial?: (material: CachedMaterial, serverUrl: string) => SyncEngineLike
   reload?: () => void
   debounceMs?: number
   pollMs?: number
@@ -36,12 +38,19 @@ export function useSync(options: UseSyncOptions = {}) {
   const createEngine =
     options.createEngine ??
     (async (password: string, serverUrl: string) =>
-      SyncEngine.create(password, new SyncClient(serverUrl)))
+      SyncEngine.fromPassword(password, new SyncClient(serverUrl)))
+  const createEngineFromMaterial =
+    options.createEngineFromMaterial ??
+    ((material: CachedMaterial, serverUrl: string) =>
+      SyncEngine.fromMaterial(material, new SyncClient(serverUrl)))
   const reload = options.reload ?? (() => location.reload())
   const debounceMs = options.debounceMs ?? 4000
   const pollMs = options.pollMs ?? 25000
 
   let engine: SyncEngineLike | null = null
+  // Held in memory after unlock so the workspace salt (minted on first push)
+  // can be cached for "remember on this device". Never persisted.
+  let password: string | null = null
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let changeTimer: ReturnType<typeof setInterval> | null = null
@@ -63,10 +72,20 @@ export function useSync(options: UseSyncOptions = {}) {
     }
   }
 
-  async function unlock(password: string): Promise<boolean> {
+  /** Cache derived key material so a remembered device can auto-unlock later. */
+  async function cacheIfRemembering(): Promise<void> {
+    if (!store.rememberOnDevice || !password || !engine?.currentSaltHex) return
+    const saltHex = engine.currentSaltHex
+    const { authProofHex } = await deriveAuth(password)
+    const encKeyHex = await deriveEncKeyHex(password, fromHex(saltHex))
+    store.rememberKeyMaterial({ saltHex, authProofHex, encKeyHex })
+  }
+
+  async function unlock(pw: string): Promise<boolean> {
+    password = pw
     store.setStatus('syncing')
     try {
-      engine = await createEngine(password, store.serverUrl)
+      engine = await createEngine(pw, store.serverUrl)
     } catch (e) {
       engine = null
       store.setStatus('error')
@@ -79,10 +98,40 @@ export function useSync(options: UseSyncOptions = {}) {
     if (result === null) return false // offline; status already set
     store.currentRevision = engine.lastRevision
     lastPushedHash = await currentHash()
+    await cacheIfRemembering()
     store.setStatus('idle')
     if (result.applied) {
       store.lastSyncedAt = Date.now()
       reload() // re-hydrate Pinia from the freshly-applied snapshot
+    }
+    return true
+  }
+
+  /** Auto-unlock at app start from cached material (no password prompt). */
+  async function tryAutoUnlock(): Promise<boolean> {
+    const km = store.keyMaterial
+    if (!store.enabled || !km) return false
+    store.setStatus('syncing')
+    let encKey: CryptoKey
+    try {
+      encKey = await importEncKey(km.encKeyHex)
+    } catch (e) {
+      store.setStatus('error')
+      store.lastError = String(e)
+      return false
+    }
+    engine = createEngineFromMaterial(
+      { authProofHex: km.authProofHex, saltHex: km.saltHex, encKey },
+      store.serverUrl,
+    )
+    const result = await safeNetwork(() => engine!.pullRemote())
+    if (result === null) return false
+    store.currentRevision = engine.lastRevision
+    lastPushedHash = await currentHash()
+    store.setStatus('idle')
+    if (result.applied) {
+      store.lastSyncedAt = Date.now()
+      reload()
     }
     return true
   }
@@ -110,6 +159,8 @@ export function useSync(options: UseSyncOptions = {}) {
       store.currentRevision = result.revision
       lastPushedHash = await currentHash()
       store.lastSyncedAt = Date.now()
+      // First push mints the workspace salt — cache it now if remembering.
+      await cacheIfRemembering()
       store.setStatus('idle')
     } else {
       // The seatbelt: someone else wrote first. Never auto-overwrite.
@@ -170,5 +221,23 @@ export function useSync(options: UseSyncOptions = {}) {
     focusHandler = null
   }
 
-  return { unlock, pullNow, pushNow, notifyChange, resolveConflict, startAuto, stopAuto }
+  return {
+    unlock,
+    tryAutoUnlock,
+    pullNow,
+    pushNow,
+    notifyChange,
+    resolveConflict,
+    startAuto,
+    stopAuto,
+  }
+}
+
+// Single app-wide instance so the Settings panel, status chip, conflict banner,
+// and the auto loop all share ONE engine (same singleton idea as useDragDrop).
+// Tests bypass this and call useSync({...}) directly with injected deps.
+let shared: ReturnType<typeof useSync> | null = null
+export function useSharedSync(): ReturnType<typeof useSync> {
+  if (!shared) shared = useSync()
+  return shared
 }

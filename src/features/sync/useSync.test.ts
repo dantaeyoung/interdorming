@@ -80,6 +80,37 @@ describe('useSync', () => {
     expect(store.currentRevision).toBe(7)
   })
 
+  it('caches key material on unlock when rememberOnDevice is on, and auto-unlocks from it', async () => {
+    const store = useSyncStore()
+    store.setEnabled(true)
+    store.setRememberOnDevice(true)
+    // Engine reports a known salt as if a workspace already existed.
+    const engine = makeEngine({
+      currentSaltHex: '00112233445566778899aabbccddeeff',
+      pullRemote: vi.fn(async () => ({ applied: false, revision: 0 })),
+    })
+    const sync = useSync({ createEngine: async () => engine })
+    await sync.unlock('pw')
+    const km = store.keyMaterial
+    expect(km).not.toBeNull()
+    expect(km!.saltHex).toBe('00112233445566778899aabbccddeeff')
+    expect(km!.authProofHex).toHaveLength(64)
+    expect(km!.encKeyHex).toHaveLength(64)
+
+    // A fresh useSync should auto-unlock from the cached material (no password).
+    let materialUsed: unknown = null
+    const sync2 = useSync({
+      createEngineFromMaterial: (material) => {
+        materialUsed = material
+        return makeEngine({ currentSaltHex: material.saltHex })
+      },
+    })
+    const ok = await sync2.tryAutoUnlock()
+    expect(ok).toBe(true)
+    expect((materialUsed as { saltHex: string }).saltHex).toBe('00112233445566778899aabbccddeeff')
+    expect(store.status).toBe('idle')
+  })
+
   it('debounced auto-push fires once after several rapid local changes', async () => {
     vi.useFakeTimers()
     const engine = makeEngine()
