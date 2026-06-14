@@ -1,0 +1,7 @@
+# Build output
+/dormsync
+
+# Runtime SQLite database (+ WAL/SHM sidecars)
+*.db
+*.db-wal
+*.db-shm
