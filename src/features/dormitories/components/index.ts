@@ -24,3 +24,6 @@ export { default as ApplyPresetModal } from './ApplyPresetModal.vue'
 export { default as OneOffOverrideModal } from './OneOffOverrideModal.vue'
 export { default as OverrideEntryEditor } from './OverrideEntryEditor.vue'
 export { default as OverrideTimelineBar } from './OverrideTimelineBar.vue'
+
+// Layout deprecation
+export { default as LayoutMigrationDialog } from './LayoutMigrationDialog.vue'
