@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260614-14:39</span>
+          <span class="version-tag">v260614-14:41</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -232,11 +232,11 @@
       </div>
 
       <div class="scrollable-content">
+        <PresetsAndOverridesSection />
         <ConfigRoomList
           empty-title="No rooms configured"
           empty-message="Add a dormitory to begin configuring rooms and beds."
         />
-        <PresetsAndOverridesSection />
       </div>
     </div>
 

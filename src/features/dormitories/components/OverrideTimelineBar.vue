@@ -27,14 +27,15 @@
     <div v-else class="bar-wrapper">
       <div class="bar" role="list">
         <button
-          v-for="seg in segments"
+          v-for="(seg, idx) in segments"
           :key="seg.start"
           :style="{ flexGrow: seg.durationDays, background: seg.color }"
-          :class="['segment', { 'is-selected': selectedSignature === segmentKey(seg) }]"
+          :class="['segment', { 'is-selected': selectedSignature === segmentKey(seg), 'is-first': idx === 0 }]"
           role="listitem"
-          :title="segmentTooltip(seg)"
+          :title="idx === 0 ? `${segmentTooltip(seg)}\n← In effect from before ${formatDate(seg.start)}` : segmentTooltip(seg)"
           @click="selectSegment(seg)"
         >
+          <span v-if="idx === 0" class="leading-edge" aria-hidden="true">←</span>
           <span class="segment-label">
             {{ seg.label }}<span v-if="seg.extraOneOffCount > 0" class="extra-badge">+{{ seg.extraOneOffCount }}</span>
           </span>
@@ -385,6 +386,7 @@ function daysBetween(a: string, b: string): number {
 }
 
 .segment {
+  position: relative;
   border: none;
   border-right: 1px solid rgba(0, 0, 0, 0.08);
   padding: 0 6px;
@@ -402,6 +404,28 @@ function daysBetween(a: string, b: string): number {
   &:last-child { border-right: none; }
   &:hover { filter: brightness(0.95); }
   &.is-selected { filter: brightness(0.85); outline: 2px solid #4f46e5; outline-offset: -2px; }
+
+  // First segment: visually communicate that this config extends
+  // back beyond the visible range. Soft horizontal fade on the left
+  // edge + a small ← arrow at the leading edge.
+  &.is-first::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 28px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+    pointer-events: none;
+  }
+}
+
+.leading-edge {
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.45);
+  margin-right: 4px;
+  pointer-events: none;
+  flex-shrink: 0;
 }
 
 .segment-label {
