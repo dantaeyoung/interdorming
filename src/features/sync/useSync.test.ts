@@ -112,9 +112,10 @@ describe('useSync', () => {
   })
 
   it('debounced auto-push fires once after several rapid local changes', async () => {
-    vi.useFakeTimers()
+    // Real timers + a tiny debounce: the async snapshot hash (crypto.subtle)
+    // doesn't resolve reliably under fake timers, so keep this deterministic.
     const engine = makeEngine()
-    const sync = useSync({ createEngine: async () => engine, debounceMs: 4000 })
+    const sync = useSync({ createEngine: async () => engine, debounceMs: 20 })
     await sync.unlock('pw')
     // A real local change so the hash differs from what unlock recorded.
     localStorage.setItem('dormAssignments-guests', '["changed"]')
@@ -122,7 +123,7 @@ describe('useSync', () => {
     sync.notifyChange()
     sync.notifyChange()
     expect(engine.pushLocal).not.toHaveBeenCalled()
-    await vi.advanceTimersByTimeAsync(4000)
+    await new Promise((r) => setTimeout(r, 80))
     expect(engine.pushLocal).toHaveBeenCalledTimes(1)
   })
 })

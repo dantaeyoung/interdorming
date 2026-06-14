@@ -9,6 +9,9 @@
       <DataBackupControls />
     </div>
 
+    <!-- Cloud Sync Section -->
+    <SyncSettings />
+
     <!-- Gender Colors Section -->
     <div class="settings-section">
       <h2>Gender Colors</h2>
@@ -113,6 +116,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import AutoPlacementSettings from './AutoPlacementSettings.vue'
+import SyncSettings from '@/features/sync/SyncSettings.vue'
 import { DataBackupControls } from '@/features/backup/components'
 import { ConfirmDialog } from '@/shared/components'
 import { useSettingsStore } from '@/stores/settingsStore'

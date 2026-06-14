@@ -8,7 +8,8 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-<span class="version-tag">v260614-23:35</span>
+          <span class="version-tag">v260614-23:35</span>
+          <SyncStatusIndicator />
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -36,6 +37,9 @@
         <!-- <AssignmentStats class="header-stats" data-tour="header-stats" /> -->
       </div>
     </div>
+
+    <!-- Cloud Sync conflict banner -->
+    <SyncConflictBanner />
 
     <!-- Tab Navigation -->
     <TabNavigation
@@ -319,6 +323,10 @@ import { SettingsPanel } from '@/features/settings/components'
 import { PrintView } from '@/features/print/components'
 import { TimelineView } from '@/features/timeline/components'
 import { GuestDataView } from '@/features/guest-data/components'
+import SyncStatusIndicator from '@/features/sync/SyncStatusIndicator.vue'
+import SyncConflictBanner from '@/features/sync/SyncConflictBanner.vue'
+import { useSyncStore } from '@/stores/syncStore'
+import { useSharedSync } from '@/features/sync/useSync'
 
 // Composables
 import { useCSV } from '@/features/csv/composables/useCSV'
@@ -333,6 +341,8 @@ const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const assignmentStore = useAssignmentStore()
 const settingsStore = useSettingsStore()
+const syncStore = useSyncStore()
+const sync = useSharedSync()
 
 // Sort configuration
 const { hasSortLevels, sortDescription } = useSortConfig()
@@ -432,6 +442,15 @@ onMounted(() => {
   // Cuts-model migration: convert overrides/presets to configurations.
   // Idempotent — runs once, flips the flag.
   dormitoryStore.migrateToCutsModel()
+
+  // Cloud sync (opt-in). If a device is remembered, auto-unlock from cached
+  // key material and start the background pull/push loop. Any failure here is
+  // non-fatal — the app stays fully usable offline.
+  if (syncStore.enabled) {
+    void sync.tryAutoUnlock().then((unlocked) => {
+      if (unlocked) sync.startAuto()
+    })
+  }
 })
 
 const showLayoutMigration = ref(false)
