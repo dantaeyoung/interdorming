@@ -155,12 +155,13 @@ export const useValidationStore = defineStore('validation', () => {
       warnings.push('Needs Lower Bunk')
     }
 
-    // Override conflict: a time-based override has made this bed (or its
-    // room/dorm) inactive at some point during the guest's stay. Doesn't
-    // auto-unassign — surfaces a non-blocking warning so the operator can
-    // re-place the guest at their own pace.
+    // Time-based configuration check: the bed (or its room/dorm) is
+    // inactive at some point during the guest's stay according to the
+    // active configuration. Doesn't auto-unassign — surfaces a
+    // non-blocking warning so the operator can re-place at their own
+    // pace.
     if (!dormitoryStore.isBedActiveDuringStay(bed.bedId, guest.arrival, guest.departure)) {
-      warnings.push('Bed inactive during stay (override active)')
+      warnings.push('Bed inactive during stay')
     }
 
     // Check for family/group separation warnings - DISABLED

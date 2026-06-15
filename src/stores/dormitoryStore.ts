@@ -19,6 +19,8 @@ import type {
   OverrideAttribute,
   PresetTemplateEntry,
   RoomGender,
+  TimelineConfiguration,
+  ConfigurationTemplate,
 } from '@/types'
 import { DEFAULT_COLORS } from '@/types'
 import { parseLocalDate } from '@/shared/composables/useUtils'
@@ -62,6 +64,24 @@ export const useDormitoryStore = defineStore(
      * during initialization so no dialog appears.
      */
     const layoutMigrationComplete = ref<boolean>(false)
+
+    /**
+     * Configuration-cuts model (`specs/ConfigurationCuts.md`).
+     *
+     * `configurations` is a sorted array (by `effectiveFrom` ascending,
+     * `null` first). There is always exactly one configuration with
+     * `effectiveFrom === null` — the initial one covering "from the
+     * start of time" up to the next cut.
+     *
+     * `selectedConfigurationId` is the editing target: which
+     * configuration the dormitory editor in Configuration tab edits.
+     * Defaults to the configuration covering today.
+     */
+    const configurations = ref<TimelineConfiguration[]>([])
+    const configurationTemplates = ref<ConfigurationTemplate[]>([])
+    const selectedConfigurationId = ref<string | null>(null)
+    /** Flipped true after migrating from overrides/presets to configurations. */
+    const cutsModelMigrationComplete = ref<boolean>(false)
 
     // Internal flag to suppress auto-save during layout switch
     let _suppressAutoSave = false
@@ -615,8 +635,47 @@ export const useDormitoryStore = defineStore(
      * Pass `date === null` to skip override resolution and return the raw
      * base tree (useful for editing the base config in Room Configuration).
      */
+    /**
+     * Pick the configuration covering `date`. Configurations are kept
+     * sorted by `effectiveFrom` (with the `null` initial config first),
+     * so the covering config is the latest one whose `effectiveFrom <=
+     * date`. `date === null` → today.
+     */
+    function configurationCovering(date: string | null): TimelineConfiguration | null {
+      const list = configurations.value
+      if (list.length === 0) return null
+      const probe = date ?? todayIso()
+      let match: TimelineConfiguration | null = null
+      for (const c of list) {
+        if (c.effectiveFrom === null) {
+          match = c
+        } else if (c.effectiveFrom <= probe) {
+          match = c
+        } else {
+          break
+        }
+      }
+      return match
+    }
+
+    function todayIso(): string {
+      const d = new Date()
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }
+
     const dormitoriesAt = computed(() => {
       return (date: string | null): Dormitory[] => {
+        // New cuts model: each date resolves to the configuration whose
+        // window covers it. Once we've migrated, configurations is the
+        // sole source of truth.
+        if (configurations.value.length > 0) {
+          const c = configurationCovering(date)
+          if (c) return c.dormitories
+        }
+
+        // Pre-migration / legacy fallback to the override-resolution
+        // path. Kept so the migration code itself can call
+        // `dormitoriesAt(start)` on each segment boundary to snapshot.
         if (!date) return dormitories.value
 
         const active = overrides.value.filter(o => isOverrideActiveOn(o, date))
@@ -920,6 +979,379 @@ export const useDormitoryStore = defineStore(
       return before - overrides.value.length
     }
 
+    // --- Configuration Cuts (specs/ConfigurationCuts.md) ---
+
+    function _cloneDormitories(tree: Dormitory[]): Dormitory[] {
+      return structuredClone(toRaw(tree))
+    }
+
+    /**
+     * Keep `configurations` sorted by `effectiveFrom` ascending, with
+     * the null (initial) one first. Called after every mutation.
+     */
+    function _sortConfigurations() {
+      configurations.value.sort((a, b) => {
+        if (a.effectiveFrom === b.effectiveFrom) return 0
+        if (a.effectiveFrom === null) return -1
+        if (b.effectiveFrom === null) return 1
+        return a.effectiveFrom < b.effectiveFrom ? -1 : 1
+      })
+    }
+
+    interface CutOptions {
+      /** Optional name; auto-numbered if omitted. */
+      name?: string
+      /**
+       * Source for the new segment's snapshot. Default: clone the
+       * configuration covering `date`. Pass another configuration id
+       * to copy from elsewhere on the timeline, or a templateId to
+       * paste a template.
+       */
+      copyFrom?: string
+      templateId?: string
+    }
+
+    /**
+     * Insert a cut at `date`. The new TimelineConfiguration starts at
+     * that date and is a deep copy of either (a) the configuration
+     * covering `date`, (b) another configuration if `copyFrom` is set,
+     * or (c) a template if `templateId` is set. Returns the new
+     * configuration (or null if `date` already has a cut).
+     */
+    function cutAt(date: string, options: CutOptions = {}): TimelineConfiguration | null {
+      if (!date) return null
+      const existing = configurations.value.find(c => c.effectiveFrom === date)
+      if (existing) return null
+
+      let source: Dormitory[] | null = null
+      if (options.templateId) {
+        const tpl = configurationTemplates.value.find(t => t.id === options.templateId)
+        if (tpl) source = _cloneDormitories(tpl.dormitories)
+      } else if (options.copyFrom) {
+        const src = configurations.value.find(c => c.id === options.copyFrom)
+        if (src) source = _cloneDormitories(src.dormitories)
+      } else {
+        const covering = configurationCovering(date)
+        if (covering) source = _cloneDormitories(covering.dormitories)
+      }
+      if (!source) source = _cloneDormitories(dormitories.value)
+
+      const now = new Date().toISOString()
+      const config: TimelineConfiguration = {
+        id: crypto.randomUUID(),
+        effectiveFrom: date,
+        name: options.name?.trim() || `Configuration ${configurations.value.length + 1}`,
+        dormitories: source,
+        createdAt: now,
+        updatedAt: now,
+      }
+      configurations.value.push(config)
+      _sortConfigurations()
+      return config
+    }
+
+    /**
+     * Remove a non-initial cut. The previous configuration's window
+     * naturally extends to the next cut. Returns true on success,
+     * false if the configuration is the initial one (refused) or
+     * doesn't exist.
+     */
+    function deleteCut(configurationId: string): boolean {
+      const idx = configurations.value.findIndex(c => c.id === configurationId)
+      if (idx === -1) return false
+      const target = configurations.value[idx]
+      if (target.effectiveFrom === null) return false
+      configurations.value.splice(idx, 1)
+      // If the deleted one was selected, fall back to today's covering.
+      if (selectedConfigurationId.value === configurationId) {
+        const fallback = configurationCovering(null)
+        selectedConfigurationId.value = fallback?.id ?? null
+      }
+      return true
+    }
+
+    /** Replace a configuration's snapshot with a new tree. */
+    function updateConfigurationDormitories(configurationId: string, tree: Dormitory[]): boolean {
+      const c = configurations.value.find(x => x.id === configurationId)
+      if (!c) return false
+      c.dormitories = _cloneDormitories(tree)
+      c.updatedAt = new Date().toISOString()
+      return true
+    }
+
+    function renameConfiguration(configurationId: string, name: string): boolean {
+      const c = configurations.value.find(x => x.id === configurationId)
+      if (!c) return false
+      c.name = name.trim() || c.name
+      c.updatedAt = new Date().toISOString()
+      return true
+    }
+
+    function saveConfigurationAsTemplate(configurationId: string, name: string, description?: string): ConfigurationTemplate | null {
+      const c = configurations.value.find(x => x.id === configurationId)
+      if (!c) return null
+      const tpl: ConfigurationTemplate = {
+        id: crypto.randomUUID(),
+        name: name.trim() || c.name,
+        description,
+        dormitories: _cloneDormitories(c.dormitories),
+        createdAt: new Date().toISOString(),
+      }
+      configurationTemplates.value.push(tpl)
+      return tpl
+    }
+
+    function deleteConfigurationTemplate(templateId: string): boolean {
+      const idx = configurationTemplates.value.findIndex(t => t.id === templateId)
+      if (idx === -1) return false
+      configurationTemplates.value.splice(idx, 1)
+      return true
+    }
+
+    function renameConfigurationTemplate(templateId: string, name: string): boolean {
+      const t = configurationTemplates.value.find(x => x.id === templateId)
+      if (!t) return false
+      t.name = name.trim() || t.name
+      return true
+    }
+
+    /**
+     * The configuration whose window covers today. Read-only helper —
+     * Configuration tab uses this as the default editing target.
+     */
+    const currentConfiguration = computed<TimelineConfiguration | null>(() => {
+      return configurationCovering(null)
+    })
+
+    /** Set the editing target by id. No-op if id is unknown. */
+    function selectConfiguration(configurationId: string | null) {
+      if (configurationId === null) {
+        selectedConfigurationId.value = null
+        return
+      }
+      if (configurations.value.find(c => c.id === configurationId)) {
+        selectedConfigurationId.value = configurationId
+      }
+    }
+
+    /**
+     * One-way migration from the override / preset model
+     * (TimeBasedRoomConfig spec) to the cuts model
+     * (ConfigurationCuts spec). Idempotent — runs once, marked complete.
+     *
+     * Steps:
+     *   1. Compute the segment boundaries from existing overrides.
+     *   2. For each segment, snapshot the effective config at the
+     *      segment's start via the legacy `dormitoriesAt`.
+     *   3. The "earliest" segment becomes the initial configuration
+     *      (`effectiveFrom: null`).
+     *   4. Each preset becomes a ConfigurationTemplate (snapshot of base
+     *      after applying that preset's entries).
+     *   5. Clear `overrides` and `presets`; flip the migration flag.
+     *
+     * If `configurations` is already non-empty, this just flips the
+     * flag without touching anything. If both `overrides` and `presets`
+     * are empty, a single initial configuration is created from the
+     * current `dormitories` tree.
+     */
+    function migrateToCutsModel() {
+      if (cutsModelMigrationComplete.value) return
+      if (configurations.value.length > 0) {
+        cutsModelMigrationComplete.value = true
+        return
+      }
+
+      // Collect all override boundary dates.
+      const boundarySet = new Set<string>()
+      for (const o of overrides.value) {
+        boundarySet.add(o.effectiveFrom)
+        if (o.effectiveTo !== null) {
+          // The day AFTER effectiveTo is when the override flips off.
+          const d = parseLocalDate(o.effectiveTo)
+          if (!isNaN(d.getTime())) {
+            d.setDate(d.getDate() + 1)
+            boundarySet.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+          }
+        }
+      }
+      const boundaries = [...boundarySet].sort()
+      const now = new Date().toISOString()
+
+      // First configuration: effectiveFrom = null = initial.
+      const initial: TimelineConfiguration = {
+        id: crypto.randomUUID(),
+        effectiveFrom: null,
+        name: 'Default',
+        // Snapshot the "before any overrides" state = the raw base.
+        dormitories: _cloneDormitories(dormitories.value),
+        createdAt: now,
+        updatedAt: now,
+      }
+      configurations.value.push(initial)
+
+      // For each boundary, snapshot the effective config at that date.
+      for (let i = 0; i < boundaries.length; i++) {
+        const start = boundaries[i]
+        // _resolveLegacy uses the OLD override path because configurations
+        // is non-empty by now and dormitoriesAt would short-circuit.
+        const snapshot = _resolveLegacyDormitoriesAt(start)
+        // Name from the preset that fully covers this segment, if any.
+        const activeAtStart = overrides.value.filter(o => isOverrideActiveOn(o, start))
+        let name = `Configuration ${i + 2}`
+        const presetCounts = new Map<string, number>()
+        for (const o of activeAtStart) {
+          if (o.presetId) {
+            presetCounts.set(o.presetId, (presetCounts.get(o.presetId) ?? 0) + 1)
+          }
+        }
+        if (presetCounts.size === 1) {
+          const onlyId = [...presetCounts.keys()][0]
+          const preset = presets.value.find(p => p.id === onlyId)
+          if (preset) name = preset.name
+        } else if (presetCounts.size === 0 && activeAtStart.length === 0) {
+          name = 'Default'
+        }
+        configurations.value.push({
+          id: crypto.randomUUID(),
+          effectiveFrom: start,
+          name,
+          dormitories: snapshot,
+          createdAt: now,
+          updatedAt: now,
+        })
+      }
+
+      // Each preset → ConfigurationTemplate. Apply the preset's entries
+      // to the base in-memory and snapshot the result.
+      for (const preset of presets.value) {
+        const synthetic: ConfigOverride[] = preset.entries.map((e, idx) => ({
+          id: `_migrate_${preset.id}_${idx}`,
+          target: e.target,
+          change: e.change,
+          effectiveFrom: '1900-01-01',
+          effectiveTo: null,
+          presetId: preset.id,
+          applicationId: null,
+          createdAt: now,
+        }))
+        const baseDorms = _cloneDormitories(dormitories.value)
+        const snapshot = _applyOverridesToTree(baseDorms, synthetic, '1900-01-02')
+        configurationTemplates.value.push({
+          id: crypto.randomUUID(),
+          name: preset.name,
+          description: preset.description,
+          dormitories: snapshot,
+          createdAt: now,
+        })
+      }
+
+      _sortConfigurations()
+      // Default editing target = today's covering config.
+      selectedConfigurationId.value = configurationCovering(null)?.id ?? initial.id
+
+      // Clear legacy state (kept in the persisted schema for one release
+      // for rollback; emptied here to prevent double-counting).
+      overrides.value = []
+      presets.value = []
+      cutsModelMigrationComplete.value = true
+    }
+
+    /** Same logic as `dormitoriesAt` was before the cuts-model branch. */
+    function _resolveLegacyDormitoriesAt(date: string): Dormitory[] {
+      const active = overrides.value.filter(o => isOverrideActiveOn(o, date))
+      if (active.length === 0) return _cloneDormitories(dormitories.value)
+      return _applyOverridesToTree(_cloneDormitories(dormitories.value), active, date)
+    }
+
+    /** Lifted from the original cascade logic so the migration can reuse it. */
+    function _applyOverridesToTree(tree: Dormitory[], active: ConfigOverride[], _date: string): Dormitory[] {
+      const sorted = [...active].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      const dormActiveMap = new Map<string, boolean>()
+      const roomActiveMap = new Map<string, boolean>()
+      const roomGenderMap = new Map<string, RoomGender>()
+      const bedActiveMap = new Map<string, boolean>()
+      const roomKey = (d: string, r: string) => `${d} ${r}`
+      for (const o of sorted) {
+        if (o.target.kind === 'dormitory' && o.change.attr === 'active') {
+          if (!dormActiveMap.has(o.target.dormitoryName)) dormActiveMap.set(o.target.dormitoryName, o.change.value)
+        } else if (o.target.kind === 'room' && o.change.attr === 'active') {
+          const k = roomKey(o.target.dormitoryName, o.target.roomName)
+          if (!roomActiveMap.has(k)) roomActiveMap.set(k, o.change.value)
+        } else if (o.target.kind === 'room' && o.change.attr === 'gender') {
+          const k = roomKey(o.target.dormitoryName, o.target.roomName)
+          if (!roomGenderMap.has(k)) roomGenderMap.set(k, o.change.value)
+        } else if (o.target.kind === 'bed' && o.change.attr === 'active') {
+          if (!bedActiveMap.has(o.target.bedId)) bedActiveMap.set(o.target.bedId, o.change.value)
+        }
+      }
+      for (const dorm of tree) {
+        const dormSelfActive = dormActiveMap.has(dorm.dormitoryName) ? dormActiveMap.get(dorm.dormitoryName)! : dorm.active
+        let anyRoomActive = false
+        for (const room of dorm.rooms) {
+          const k = roomKey(dorm.dormitoryName, room.roomName)
+          let roomSelfActive: boolean
+          if (roomActiveMap.has(k)) roomSelfActive = roomActiveMap.get(k)!
+          else if (!dormSelfActive) roomSelfActive = false
+          else roomSelfActive = room.active
+          if (roomGenderMap.has(k)) room.roomGender = roomGenderMap.get(k)!
+          let anyBedActive = false
+          for (const bed of room.beds) {
+            const baseBed = bed.active !== false
+            let bedFinal: boolean
+            if (bedActiveMap.has(bed.bedId)) bedFinal = bedActiveMap.get(bed.bedId)!
+            else if (!roomSelfActive) bedFinal = false
+            else bedFinal = baseBed
+            bed.active = bedFinal
+            if (bedFinal) anyBedActive = true
+          }
+          if (anyBedActive) roomSelfActive = true
+          room.active = roomSelfActive
+          if (roomSelfActive) anyRoomActive = true
+        }
+        dorm.active = anyRoomActive ? true : dormSelfActive
+      }
+      return tree
+    }
+
+    // --- Editing-target syncing ---
+
+    /**
+     * When the editing target changes, load that configuration's snapshot
+     * into the working `dormitories` ref. Suppress the autosave watcher
+     * during the load so the swap doesn't immediately write back.
+     */
+    watch(selectedConfigurationId, (newId) => {
+      if (!newId) return
+      const c = configurations.value.find(x => x.id === newId)
+      if (!c) return
+      _suppressAutoSave = true
+      dormitories.value = _cloneDormitories(c.dormitories)
+      nextTick(() => { _suppressAutoSave = false })
+    })
+
+    /**
+     * Auto-save the working `dormitories` ref back to the selected
+     * configuration's snapshot. Debounced so a flurry of edits collapses
+     * into a single write.
+     */
+    let _cutsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null
+    watch(
+      dormitories,
+      () => {
+        if (_suppressAutoSave) return
+        if (configurations.value.length === 0) return
+        if (!selectedConfigurationId.value) return
+        if (_cutsAutoSaveTimer) clearTimeout(_cutsAutoSaveTimer)
+        _cutsAutoSaveTimer = setTimeout(() => {
+          const c = configurations.value.find(x => x.id === selectedConfigurationId.value)
+          if (!c) return
+          c.dormitories = _cloneDormitories(dormitories.value)
+          c.updatedAt = new Date().toISOString()
+        }, 500)
+      },
+      { deep: true }
+    )
+
     // Auto-save watcher: debounced save of dormitories to active layout
     let _autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -995,12 +1427,42 @@ export const useDormitoryStore = defineStore(
 
       // Layout deprecation / migration
       layoutMigrationComplete,
+
+      // Configuration cuts model
+      configurations,
+      configurationTemplates,
+      selectedConfigurationId,
+      cutsModelMigrationComplete,
+      currentConfiguration,
+      configurationCovering,
+      cutAt,
+      deleteCut,
+      updateConfigurationDormitories,
+      renameConfiguration,
+      saveConfigurationAsTemplate,
+      deleteConfigurationTemplate,
+      renameConfigurationTemplate,
+      selectConfiguration,
+      migrateToCutsModel,
     }
   },
   {
     persist: {
       key: 'dormAssignments-dormitories',
-      paths: ['dormitories', 'configName', 'layouts', 'activeLayoutId', 'bedShapeVersion', 'overrides', 'presets', 'layoutMigrationComplete'],
+      paths: [
+        'dormitories',
+        'configName',
+        'layouts',
+        'activeLayoutId',
+        'bedShapeVersion',
+        'overrides',
+        'presets',
+        'layoutMigrationComplete',
+        'configurations',
+        'configurationTemplates',
+        'selectedConfigurationId',
+        'cutsModelMigrationComplete',
+      ],
     },
   }
 )

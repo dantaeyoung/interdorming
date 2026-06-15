@@ -27,3 +27,8 @@ export { default as OverrideTimelineBar } from './OverrideTimelineBar.vue'
 
 // Layout deprecation
 export { default as LayoutMigrationDialog } from './LayoutMigrationDialog.vue'
+
+// Configuration cuts (current model)
+export { default as ConfigurationsSection } from './ConfigurationsSection.vue'
+export { default as ConfigurationTimelineBar } from './ConfigurationTimelineBar.vue'
+export { default as CutPopover } from './CutPopover.vue'
