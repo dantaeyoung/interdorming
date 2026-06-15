@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+permissions:
+  contents: read
+
+jobs:
+  client:
+    name: Client (build + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Go is needed so the client↔server integration test
+      # (src/features/sync/integration.test.ts) can `go build` the real
+      # dormsync server and exercise the real wire seam — not a mock.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sync-server/go.mod
+          cache-dependency-path: sync-server/go.sum
+
+      - run: npm ci
+
+      # Type-check (vue-tsc) + production build.
+      - run: npm run build
+
+      # Full vitest suite, including the integration test (builds + spawns the
+      # real Go server). `vitest` runs once and exits in CI (no watch on TTY-less).
+      - run: npm test -- --run
+
+  server:
+    name: Server (Go vet + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sync-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sync-server/go.mod
+          cache-dependency-path: sync-server/go.sum
+
+      - run: go vet ./...
+
+      - run: go test ./...

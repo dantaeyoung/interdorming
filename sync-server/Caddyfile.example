@@ -1,0 +1,36 @@
+# Caddy reverse proxy for dormsync — gives you automatic HTTPS (Let's Encrypt).
+#
+# 1. Point a DNS A/AAAA record for sync.<domain> at this server.
+# 2. Replace sync.example.org below with your real subdomain.
+# 3. sudo cp Caddyfile.example /etc/caddy/Caddyfile && sudo systemctl reload caddy
+#
+# TLS is mandatory: the auth proof travels in the Authorization header, so the
+# server must only be reachable over HTTPS. dormsync itself listens on plain
+# HTTP on localhost:8787 and is never exposed directly.
+
+sync.example.org {
+	reverse_proxy localhost:8787
+
+	# The app already caps push bodies at 5 MB; mirror that at the edge so
+	# oversized requests are rejected before reaching the backend.
+	request_body {
+		max_size 5MB
+	}
+
+	encode gzip
+
+	# Optional per-IP rate limiting (defense-in-depth against online proof
+	# brute-force). Requires the caddy-ratelimit plugin:
+	#   xcaddy build --with github.com/mholt/caddy-ratelimit
+	# rate_limit {
+	# 	zone dormsync {
+	# 		key {remote_host}
+	# 		events 60
+	# 		window 1m
+	# 	}
+	# }
+
+	log {
+		output file /var/log/caddy/dormsync.log
+	}
+}

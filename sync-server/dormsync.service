@@ -1,0 +1,43 @@
+# systemd unit for the dormsync encrypted cloud sync server.
+#
+# Install:
+#   sudo install -d -o dormsync -g dormsync /var/lib/dormsync
+#   sudo install -m 0755 dormsync /usr/local/bin/dormsync
+#   sudo cp dormsync.service /etc/systemd/system/dormsync.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now dormsync
+#
+# Create the service user once (no login, no home):
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin dormsync
+
+[Unit]
+Description=dormsync encrypted cloud sync server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dormsync
+Group=dormsync
+
+Environment=PORT=8787
+Environment=DB_PATH=/var/lib/dormsync/sync.db
+ExecStart=/usr/local/bin/dormsync
+
+Restart=always
+RestartSec=2
+
+# Hardening — the server only needs to read its binary and write its data dir.
+StateDirectory=dormsync
+ReadWritePaths=/var/lib/dormsync
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+# Bind only to localhost in practice — Caddy terminates TLS and proxies in.
+
+[Install]
+WantedBy=multi-user.target
