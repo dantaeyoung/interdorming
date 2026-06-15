@@ -32,6 +32,7 @@ export interface UseSyncOptions {
   reload?: () => void
   debounceMs?: number
   pollMs?: number
+  changeCheckMs?: number
 }
 
 export function useSync(options: UseSyncOptions = {}) {
@@ -47,6 +48,7 @@ export function useSync(options: UseSyncOptions = {}) {
   const reload = options.reload ?? (() => location.reload())
   const debounceMs = options.debounceMs ?? 4000
   const pollMs = options.pollMs ?? 25000
+  const changeCheckMs = options.changeCheckMs ?? 2000
 
   let engine: SyncEngineLike | null = null
   // Held in memory after unlock so the workspace salt (minted on first push)
@@ -56,6 +58,11 @@ export function useSync(options: UseSyncOptions = {}) {
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let changeTimer: ReturnType<typeof setInterval> | null = null
   let lastPushedHash = ''
+  // The snapshot hash the change-detector saw on its previous tick. Used to
+  // (re)start the debounce only on an actual change, never on a still-pending
+  // one — otherwise the 2s poll would reset the 4s debounce forever and the
+  // auto-push would never fire.
+  let lastSeenHash = ''
   let focusHandler: (() => void) | null = null
 
   async function currentHash(): Promise<string> {
@@ -245,12 +252,16 @@ export function useSync(options: UseSyncOptions = {}) {
     if (typeof window !== 'undefined') window.addEventListener('focus', focusHandler)
     pollTimer = setInterval(() => void autoPull(), pollMs)
     // Light poll of the snapshot hash so local edits trigger a debounced push
-    // without wiring into every store's mutations.
+    // without wiring into every store's mutations. Only (re)debounce when the
+    // hash CHANGED since the last tick — re-calling notifyChange every tick on a
+    // still-pending edit would reset the debounce forever (starvation).
     changeTimer = setInterval(() => {
       void currentHash().then((h) => {
+        if (h === lastSeenHash) return // no change since last check
+        lastSeenHash = h
         if (h !== lastPushedHash) notifyChange()
       })
-    }, 2000)
+    }, changeCheckMs)
   }
 
   function stopAuto(): void {
@@ -260,6 +271,7 @@ export function useSync(options: UseSyncOptions = {}) {
     if (focusHandler && typeof window !== 'undefined')
       window.removeEventListener('focus', focusHandler)
     debounceTimer = pollTimer = changeTimer = null
+    lastSeenHash = ''
     focusHandler = null
   }
 

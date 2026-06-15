@@ -159,6 +159,28 @@ describe('useSync', () => {
     expect(store.status).toBe('idle')
   })
 
+  it('auto-detects a local edit and pushes it (change-timer must not starve the debounce)', async () => {
+    // Regression: the 2s change-poll calling notifyChange every tick used to
+    // reset the 4s debounce forever, so a pending edit never pushed. With a
+    // fast change-check (10ms) + debounce (40ms), one edit must produce exactly
+    // one push even though many checks see the still-pending change.
+    const engine = makeEngine()
+    const sync = track(
+      useSync({
+        createEngine: async () => engine,
+        debounceMs: 40,
+        changeCheckMs: 10,
+        pollMs: 9999,
+      }),
+    )
+    await sync.unlock('pw') // seeds once (push) + starts the auto loop
+    ;(engine.pushLocal as ReturnType<typeof vi.fn>).mockClear()
+    // A genuine local edit — the change-detector should pick it up on its own.
+    localStorage.setItem('dormAssignments-guests', '["edited"]')
+    await new Promise((r) => setTimeout(r, 200)) // >> several change-checks + the debounce
+    expect(engine.pushLocal).toHaveBeenCalledTimes(1)
+  })
+
   it('debounced auto-push fires once after several rapid local changes', async () => {
     // Real timers + a tiny debounce: the async snapshot hash (crypto.subtle)
     // doesn't resolve reliably under fake timers, so keep this deterministic.
