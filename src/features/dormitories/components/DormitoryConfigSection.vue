@@ -111,13 +111,33 @@ const dormitoryStore = useDormitoryStore()
  */
 function filterGuestIdsToCurrentConfigWindow(guestIds: string[]): string[] {
   const selectedId = dormitoryStore.selectedConfigurationId
-  if (!selectedId) return guestIds
+  // eslint-disable-next-line no-console
+  console.log('[dorm-deactivate-filter] selectedConfigurationId=', selectedId, 'guestIds=', guestIds)
+  if (!selectedId) {
+    console.log('[dorm-deactivate-filter] no selected config — passing through unfiltered')
+    return guestIds
+  }
   const window = dormitoryStore.configurationWindow(selectedId)
-  if (!window) return guestIds
+  console.log('[dorm-deactivate-filter] configurationWindow=', window)
+  if (!window) {
+    console.log('[dorm-deactivate-filter] no window — passing through unfiltered')
+    return guestIds
+  }
   return guestIds.filter(id => {
     const guest = guestStore.guests.find(g => g.id === id)
-    if (!guest) return false
-    return guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
+    if (!guest) {
+      console.log('[dorm-deactivate-filter]', id, 'no matching guest — excluded')
+      return false
+    }
+    const overlaps = guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
+    console.log(
+      '[dorm-deactivate-filter]',
+      `${guest.firstName} ${guest.lastName}`,
+      'stay=', guest.arrival, '→', guest.departure,
+      'window=', window.start, '→', window.endExclusive,
+      'overlaps=', overlaps,
+    )
+    return overlaps
   })
 }
 
