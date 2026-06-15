@@ -1,5 +1,10 @@
 # Build output
 /dormsync
+/dormsync-*
+
+# Locally-cached server binary used by the client integration test
+# (built/cross-compiled on demand; see src/features/sync/integration.test.ts)
+/.testbin/
 
 # Runtime SQLite database (+ WAL/SHM sidecars)
 *.db

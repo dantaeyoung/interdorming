@@ -95,6 +95,27 @@ The whole state is one SQLite file (`DB_PATH`). Two good options:
   to S3/Backblaze for point-in-time recovery. Recommended if losing a day of
   edits is unacceptable.
 
+## Client ↔ server integration test
+
+`src/features/sync/integration.test.ts` (run by `npm test`) boots this server as
+a child process and drives the **real** `SyncClient` over real `fetch` through a
+full encrypted round-trip, the 404 path, wrong-password isolation, and the
+revision seatbelt. It catches bugs that live in the client↔server seam — the
+exact blind spot of mock-based unit tests.
+
+It finds the server binary in this order: `$DORMSYNC_BIN` → `sync-server/.testbin/dormsync`
+→ `go build` (if `go` is on PATH). With none of those it **skips loudly** (a skip
+is never a pass). To run it where Go isn't installed locally, drop a binary at
+`sync-server/.testbin/dormsync` — e.g. cross-compiled from a Go host:
+
+```bash
+# on a machine with Go (matching your local OS/arch):
+GOOS=darwin GOARCH=arm64 go build -o dormsync ./sync-server   # adjust GOOS/GOARCH
+# then copy it to sync-server/.testbin/dormsync on the dev machine
+```
+
+(`.testbin/` is gitignored.)
+
 ## Operational notes
 
 - **Body cap:** 5 MB per push (`maxBodyBytes` in `handlers.go`). A full
