@@ -204,6 +204,11 @@ function handleAcceptRoomSuggestions() {
     background-color: #f3e8ff;
     color: #6b21a8;
   }
+
+  &.badge-gender-nb {
+    background-color: #ccfbf1;
+    color: #115e59;
+  }
 }
 
 .room-actions {

@@ -12,6 +12,7 @@
           <option value="M">M</option>
           <option value="F">F</option>
           <option value="Coed">Coed</option>
+          <option value="NB">NB</option>
         </select>
       </div>
       <div class="room-actions">
@@ -66,6 +67,8 @@ import BedConfigItem from './BedConfigItem.vue'
 import { ConfirmDialog } from '@/shared/components'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useGuestStore } from '@/stores/guestStore'
+import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { staysOverlap } from '@/shared/composables/useUtils'
 import { useHints } from '@/features/hints/composables/useHints'
 import type { Room, Bed } from '@/types'
 
@@ -82,6 +85,7 @@ const emit = defineEmits<{
 
 const assignmentStore = useAssignmentStore()
 const guestStore = useGuestStore()
+const dormitoryStore = useDormitoryStore()
 const { highlightedElement } = useHints()
 
 const localRoom = ref<Room>({ ...props.room, beds: [...props.room.beds] })
@@ -111,19 +115,55 @@ function getAssignedGuestNames(bedId: string): string[] {
   })
 }
 
+/**
+ * Filter guest IDs to those whose stays overlap the currently editing
+ * configuration's window. Edits to a configuration only affect that
+ * window — a guest whose stay falls entirely in an earlier (or later)
+ * configuration shouldn't be flagged as "affected" by the change.
+ *
+ * If no configuration is selected, falls back to the unfiltered list
+ * (legacy single-base behavior).
+ */
+function filterGuestIdsToCurrentConfigWindow(guestIds: string[]): string[] {
+  const selectedId = dormitoryStore.selectedConfigurationId
+  if (!selectedId) return guestIds
+  const window = dormitoryStore.configurationWindow(selectedId)
+  if (!window) return guestIds
+  const configStay = { arrival: window.start ?? undefined, departure: window.endExclusive ?? undefined }
+  return guestIds.filter(id => {
+    const guest = guestStore.guests.find(g => g.id === id)
+    if (!guest) return false
+    return staysOverlap(
+      configStay,
+      { arrival: guest.arrival ?? undefined, departure: guest.departure ?? undefined }
+    )
+  })
+}
+
+function namesFromGuestIds(guestIds: string[]): string[] {
+  return guestIds.map(id => {
+    const guest = guestStore.guests.find(g => g.id === id)
+    return guest ? `${guest.preferredName || guest.firstName} ${guest.lastName}` : 'Unknown'
+  })
+}
+
 function updateBed(index: number, updatedBed: Bed) {
   const originalBed = localRoom.value.beds[index]
 
-  // Check if bed is being deactivated and has assigned guests
+  // Check if bed is being deactivated and has assigned guests whose
+  // stays overlap the currently editing configuration.
   if (originalBed.active && !updatedBed.active) {
-    const assignedGuests = getAssignedGuestNames(updatedBed.bedId)
-    if (assignedGuests.length > 0) {
+    const affectedIds = filterGuestIdsToCurrentConfigWindow(
+      assignmentStore.getGuestsAssignedToBed(updatedBed.bedId)
+    )
+    const affected = namesFromGuestIds(affectedIds)
+    if (affected.length > 0) {
       confirmDialogTitle.value = 'Deactivate Bed'
-      confirmDialogMessage.value = 'Deactivate this bed?'
-      confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to this bed. Deactivating will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+      confirmDialogMessage.value = 'Deactivate this bed in this configuration?'
+      confirmDialogDescription.value = `${affected.join(', ')} ${affected.length === 1 ? 'is' : 'are'} assigned to this bed and ${affected.length === 1 ? 'their' : 'their'} stay overlaps this configuration. ${affected.length === 1 ? 'This guest' : 'These guests'} will show a "bed inactive during stay" warning until reassigned.`
       confirmDialogVariant.value = 'warning'
       pendingAction.value = () => {
-        assignmentStore.unassignGuestsFromBed(updatedBed.bedId)
+        // Cuts model: don't auto-unassign — see handleActiveChange.
         localRoom.value.beds[index] = updatedBed
         handleUpdate()
       }
@@ -138,6 +178,9 @@ function updateBed(index: number, updatedBed: Bed) {
 
 function removeBed(index: number) {
   const bed = localRoom.value.beds[index]
+  // Removing a bed is structural — it actually disappears. Affected
+  // guests are anyone assigned (no need to window-filter; the bed is
+  // gone forever, not just in this configuration).
   const assignedGuests = getAssignedGuestNames(bed.bedId)
 
   confirmDialogTitle.value = 'Remove Bed'
@@ -185,26 +228,39 @@ function getRoomBedIds(): string[] {
 function getAssignedGuestNamesForRoom(): string[] {
   const bedIds = getRoomBedIds()
   const guestIds = assignmentStore.getGuestsAssignedToRoom(bedIds)
-  return guestIds.map(id => {
-    const guest = guestStore.guests.find(g => g.id === id)
-    return guest ? `${guest.preferredName || guest.firstName} ${guest.lastName}` : 'Unknown'
-  })
+  return namesFromGuestIds(guestIds)
+}
+
+/**
+ * Affected = assigned to beds in this room AND stay overlaps the
+ * currently editing configuration's window. Deactivating a room in
+ * configuration C should only flag guests whose stay actually
+ * intersects C — guests in other configurations are untouched.
+ */
+function getAffectedGuestNamesForRoom(): string[] {
+  const bedIds = getRoomBedIds()
+  const guestIds = filterGuestIdsToCurrentConfigWindow(
+    assignmentStore.getGuestsAssignedToRoom(bedIds)
+  )
+  return namesFromGuestIds(guestIds)
 }
 
 function handleActiveChange() {
   previousActiveState.value = !localRoom.value.active // Store the opposite since it already changed
 
-  // Check if room is being deactivated and has assigned guests
+  // Check if room is being deactivated and has assigned guests whose
+  // stays overlap the currently editing configuration.
   if (!localRoom.value.active) {
-    const assignedGuests = getAssignedGuestNamesForRoom()
-    if (assignedGuests.length > 0) {
+    const affected = getAffectedGuestNamesForRoom()
+    if (affected.length > 0) {
       confirmDialogTitle.value = 'Deactivate Room'
-      confirmDialogMessage.value = 'Deactivate this room?'
-      confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to beds in this room. Deactivating will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+      confirmDialogMessage.value = 'Deactivate this room in this configuration?'
+      confirmDialogDescription.value = `${affected.join(', ')} ${affected.length === 1 ? 'is' : 'are'} assigned to beds in this room and ${affected.length === 1 ? 'their' : 'their'} stay overlaps this configuration. ${affected.length === 1 ? 'This guest' : 'These guests'} will show a "bed inactive during stay" warning until reassigned.`
       confirmDialogVariant.value = 'warning'
       pendingAction.value = () => {
-        const bedIds = getRoomBedIds()
-        assignmentStore.unassignGuestsFromRoom(bedIds)
+        // Cuts model: deactivation is per-configuration. Don't
+        // auto-unassign — the validation system surfaces the warning
+        // and the operator decides what to do.
         handleUpdate()
       }
       showConfirmDialog.value = true
