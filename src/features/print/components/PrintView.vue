@@ -4,16 +4,14 @@
       <h2>Room Assignment Report</h2>
     </div>
 
-    <!-- Date Range Filter - at the top -->
+    <!-- Arrival Date Filter - at the top -->
     <div class="date-filter-section no-print">
       <div class="date-range-filter">
         <label class="date-label">
-          Date range:
-          <input type="date" class="date-input" v-model="filterDateStart" />
-          <span>to</span>
-          <input type="date" class="date-input" v-model="filterDateEnd" />
+          Arrival date:
+          <input type="date" class="date-input" v-model="filterArrivalDate" />
         </label>
-        <button v-if="filterDateStart || filterDateEnd" class="btn-clear-dates" @click="filterDateStart = ''; filterDateEnd = ''">Clear</button>
+        <button v-if="filterArrivalDate" class="btn-clear-dates" @click="filterArrivalDate = ''">Clear</button>
       </div>
     </div>
 
@@ -301,7 +299,7 @@
               <th v-if="columns.arrival">Arrival</th>
               <th v-if="columns.departure">Departure</th>
               <th v-if="columns.indivGrp">Indiv/Grp?</th>
-              <th v-if="columns.notes">Notes</th>
+              <th v-if="columns.notes">Internal Notes</th>
               <th v-if="columns.retreat">Retreat</th>
               <th v-if="columns.ratePerNight">Rate/Night</th>
               <th v-if="columns.priceQuoted">Price Quoted</th>
@@ -323,7 +321,7 @@
               <td v-if="columns.arrival">{{ getGuestField(bed.guestId, 'arrival') }}</td>
               <td v-if="columns.departure">{{ getGuestField(bed.guestId, 'departure') }}</td>
               <td v-if="columns.indivGrp">{{ getGuestField(bed.guestId, 'indivGrp') }}</td>
-              <td v-if="columns.notes">{{ getGuestField(bed.guestId, 'notes') }}</td>
+              <td v-if="columns.notes">{{ getGuestField(bed.guestId, 'internalNotes') }}</td>
               <td v-if="columns.retreat">{{ getGuestField(bed.guestId, 'retreat') }}</td>
               <td v-if="columns.ratePerNight">{{ getGuestField(bed.guestId, 'ratePerNight') }}</td>
               <td v-if="columns.priceQuoted">{{ getGuestField(bed.guestId, 'priceQuoted') }}</td>
@@ -366,7 +364,7 @@
                   <th v-if="columns.arrival">Arrival</th>
                   <th v-if="columns.departure">Departure</th>
                   <th v-if="columns.indivGrp">Indiv/Grp?</th>
-                  <th v-if="columns.notes">Notes</th>
+                  <th v-if="columns.notes">Internal Notes</th>
                   <th v-if="columns.retreat">Retreat</th>
                   <th v-if="columns.ratePerNight">Rate/Night</th>
                   <th v-if="columns.priceQuoted">Price Quoted</th>
@@ -388,7 +386,7 @@
                   <td v-if="columns.arrival">{{ getGuestField(getPrintGuestIdForBed(bed), 'arrival') }}</td>
                   <td v-if="columns.departure">{{ getGuestField(getPrintGuestIdForBed(bed), 'departure') }}</td>
                   <td v-if="columns.indivGrp">{{ getGuestField(getPrintGuestIdForBed(bed), 'indivGrp') }}</td>
-                  <td v-if="columns.notes">{{ getGuestField(getPrintGuestIdForBed(bed), 'notes') }}</td>
+                  <td v-if="columns.notes">{{ getGuestField(getPrintGuestIdForBed(bed), 'internalNotes') }}</td>
                   <td v-if="columns.retreat">{{ getGuestField(getPrintGuestIdForBed(bed), 'retreat') }}</td>
                   <td v-if="columns.ratePerNight">{{ getGuestField(getPrintGuestIdForBed(bed), 'ratePerNight') }}</td>
                   <td v-if="columns.priceQuoted">{{ getGuestField(getPrintGuestIdForBed(bed), 'priceQuoted') }}</td>
@@ -420,7 +418,7 @@
               <th v-if="columns.arrival">Arrival</th>
               <th v-if="columns.departure">Departure</th>
               <th v-if="columns.indivGrp">Indiv/Grp?</th>
-              <th v-if="columns.notes">Notes</th>
+              <th v-if="columns.notes">Internal Notes</th>
               <th v-if="columns.retreat">Retreat</th>
               <th v-if="columns.ratePerNight">Rate/Night</th>
               <th v-if="columns.priceQuoted">Price Quoted</th>
@@ -439,7 +437,7 @@
               <td v-if="columns.arrival">{{ getGuestFieldById(guestId, 'arrival') }}</td>
               <td v-if="columns.departure">{{ getGuestFieldById(guestId, 'departure') }}</td>
               <td v-if="columns.indivGrp">{{ getGuestFieldById(guestId, 'indivGrp') }}</td>
-              <td v-if="columns.notes">{{ getGuestFieldById(guestId, 'notes') }}</td>
+              <td v-if="columns.notes">{{ getGuestFieldById(guestId, 'internalNotes') }}</td>
               <td v-if="columns.retreat">{{ getGuestFieldById(guestId, 'retreat') }}</td>
               <td v-if="columns.ratePerNight">{{ getGuestFieldById(guestId, 'ratePerNight') }}</td>
               <td v-if="columns.priceQuoted">{{ getGuestFieldById(guestId, 'priceQuoted') }}</td>
@@ -464,7 +462,7 @@
               <th v-if="columns.group">Group</th>
               <th v-if="columns.arrival">Arrival</th>
               <th v-if="columns.departure">Departure</th>
-              <th v-if="columns.notes">Notes</th>
+              <th v-if="columns.notes">Internal Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -476,7 +474,7 @@
               <td v-if="columns.group">{{ guest.groupName || '—' }}</td>
               <td v-if="columns.arrival">{{ formatGuestDate(guest.arrival) || '—' }}</td>
               <td v-if="columns.departure">{{ formatGuestDate(guest.departure) || '—' }}</td>
-              <td v-if="columns.notes">{{ guest.notes || '—' }}</td>
+              <td v-if="columns.notes">{{ guest.internalNotes || '—' }}</td>
             </tr>
           </tbody>
         </table>
@@ -498,7 +496,7 @@
               <th v-if="columns.group">Group</th>
               <th v-if="columns.arrival">Arrival</th>
               <th v-if="columns.departure">Departure</th>
-              <th v-if="columns.notes">Notes</th>
+              <th v-if="columns.notes">Internal Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -511,7 +509,7 @@
               <td v-if="columns.group">{{ guest.groupName || '' }}</td>
               <td v-if="columns.arrival">{{ formatGuestDate(guest.arrival) || '' }}</td>
               <td v-if="columns.departure">{{ formatGuestDate(guest.departure) || '' }}</td>
-              <td v-if="columns.notes">{{ guest.notes || '' }}</td>
+              <td v-if="columns.notes">{{ guest.internalNotes || '' }}</td>
             </tr>
           </tbody>
         </table>
@@ -1230,13 +1228,10 @@ const guestmasterPrintTimestamp = computed(() => {
  * header. Empty when no filter is active.
  */
 const printDateRangeSubtitle = computed(() => {
-  const start = filterDateStart.value
-  const end = filterDateEnd.value
-  if (!start && !end) return ''
+  const date = filterArrivalDate.value
+  if (!date) return ''
   const fmt = (s: string) => formatGuestDate(s) || s
-  if (start && end) return `Guests staying between ${fmt(start)} and ${fmt(end)}`
-  if (start) return `Guests staying on or after ${fmt(start)}`
-  return `Guests staying on or before ${fmt(end)}`
+  return `Guests arriving on ${fmt(date)}`
 })
 
 function bedTypeSuffix(bedType: string): string {
@@ -1323,51 +1318,55 @@ const alphabeticalGuests = computed(() => {
   })
 })
 
-// Date range filter — persisted across reloads so the operator doesn't
-// re-pick "May 22 to May 29" every time they reopen the Print tab.
+// Arrival-date filter — persisted across reloads so the operator
+// doesn't re-pick the retreat arrival date every time they reopen
+// the Print tab. Migrates a legacy { start, end } range payload to
+// the new single-arrival shape by adopting whatever `start` was.
 const PRINT_DATE_RANGE_KEY = 'dormAssignments-printDateRange'
-const _savedPrintDateRange = (() => {
+const _savedPrintArrivalDate = (() => {
   try {
     const raw = localStorage.getItem(PRINT_DATE_RANGE_KEY)
-    if (!raw) return { start: '', end: '' }
+    if (!raw) return ''
     const parsed = JSON.parse(raw)
-    return {
-      start: typeof parsed?.start === 'string' ? parsed.start : '',
-      end: typeof parsed?.end === 'string' ? parsed.end : '',
-    }
+    if (typeof parsed?.arrivalDate === 'string') return parsed.arrivalDate
+    if (typeof parsed?.start === 'string') return parsed.start
+    return ''
   } catch {
-    return { start: '', end: '' }
+    return ''
   }
 })()
-const filterDateStart = ref(_savedPrintDateRange.start)
-const filterDateEnd = ref(_savedPrintDateRange.end)
+const filterArrivalDate = ref(_savedPrintArrivalDate)
 
-watch([filterDateStart, filterDateEnd], ([start, end]) => {
+watch(filterArrivalDate, (arrivalDate) => {
   try {
     localStorage.setItem(
       PRINT_DATE_RANGE_KEY,
-      JSON.stringify({ start, end })
+      JSON.stringify({ arrivalDate })
     )
   } catch {
     /* localStorage unavailable — ignore */
   }
 })
 
+/**
+ * Match guests whose **arrival** equals the picked date. Operators
+ * print retreat-day rosters by the day people arrive; matching on
+ * arrival keeps the report focused on that day's check-in cohort,
+ * not anyone who happens to overlap the date range.
+ */
 function isGuestInDateRange(guestId: string | null): boolean {
   if (!guestId) return false
-  if (!filterDateStart.value && !filterDateEnd.value) return true
+  if (!filterArrivalDate.value) return true
   const guest = guestStore.getGuestById(guestId)
   if (!guest) return false
-  if (!guest.arrival || !guest.departure) return true // Show if no dates
-  const arrival = parseLocalDate(guest.arrival).getTime()
-  const departure = parseLocalDate(guest.departure).getTime()
-  const rangeStart = filterDateStart.value ? parseLocalDate(filterDateStart.value).getTime() : -Infinity
-  const rangeEnd = filterDateEnd.value ? parseLocalDate(filterDateEnd.value).getTime() : Infinity
-  // Guest overlaps range if arrival < rangeEnd and departure > rangeStart
-  return arrival <= rangeEnd && departure > rangeStart
+  if (!guest.arrival) return false
+  const arrivalMs = parseLocalDate(guest.arrival).getTime()
+  const filterMs = parseLocalDate(filterArrivalDate.value).getTime()
+  if (isNaN(arrivalMs) || isNaN(filterMs)) return true
+  return arrivalMs === filterMs
 }
 
-const hasDateFilter = computed(() => !!(filterDateStart.value || filterDateEnd.value))
+const hasDateFilter = computed(() => !!filterArrivalDate.value)
 
 /**
  * Shared filter for every print sub-tab. Drops cancelled reservations
