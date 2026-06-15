@@ -20,8 +20,9 @@
         <div class="source-options">
           <label class="source-option">
             <input type="radio" v-model="source" value="current" />
-            <span>Empty copy of the current configuration on that date</span>
+            <span>Copy of the current configuration on that date</span>
           </label>
+
           <label class="source-option">
             <input type="radio" v-model="source" value="copyFrom" :disabled="otherConfigurations.length === 0" />
             <span>Copy from another configuration on the timeline</span>
@@ -41,6 +42,11 @@
             <option value="" disabled>Pick a template…</option>
             <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
           </select>
+
+          <label class="source-option">
+            <input type="radio" v-model="source" value="empty" />
+            <span>Empty configuration (no dormitories yet)</span>
+          </label>
         </div>
       </div>
 
@@ -71,7 +77,7 @@ const dormitoryStore = useDormitoryStore()
 
 const effectiveFrom = ref('')
 const name = ref('')
-const source = ref<'current' | 'copyFrom' | 'template'>('current')
+const source = ref<'current' | 'copyFrom' | 'template' | 'empty'>('current')
 const copyFromId = ref('')
 const templateId = ref('')
 
@@ -114,10 +120,11 @@ const canCommit = computed(() => {
 
 function commit() {
   if (!canCommit.value) return
-  const opts: { name?: string; copyFrom?: string; templateId?: string } = {}
+  const opts: { name?: string; copyFrom?: string; templateId?: string; empty?: boolean } = {}
   if (name.value.trim()) opts.name = name.value.trim()
   if (source.value === 'copyFrom') opts.copyFrom = copyFromId.value
-  if (source.value === 'template') opts.templateId = templateId.value
+  else if (source.value === 'template') opts.templateId = templateId.value
+  else if (source.value === 'empty') opts.empty = true
   const created = dormitoryStore.cutAt(effectiveFrom.value, opts)
   if (created) {
     // Immediately select the new segment so the operator can edit it.
