@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260614-14:47</span>
+          <span class="version-tag">v260614-22:02</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -232,7 +232,7 @@
       </div>
 
       <div class="scrollable-content">
-        <PresetsAndOverridesSection />
+        <ConfigurationsSection />
         <ConfigRoomList
           empty-title="No rooms configured"
           empty-message="Add a dormitory to begin configuring rooms and beds."
@@ -303,7 +303,7 @@ import { HintBanner } from '@/features/hints/components'
 import { useHints } from '@/features/hints/composables/useHints'
 import { useTour } from '@/features/hints/composables/useTour'
 import { GuestList, GuestSearch, ColumnsDropdown } from '@/features/guests/components'
-import { RoomList, ConfigRoomList, LayoutSelector, PresetsAndOverridesSection, LayoutMigrationDialog } from '@/features/dormitories/components'
+import { RoomList, ConfigRoomList, LayoutSelector, ConfigurationsSection, LayoutMigrationDialog } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
@@ -419,6 +419,10 @@ onMounted(() => {
       showLayoutMigration.value = true
     }
   }
+
+  // Cuts-model migration: convert overrides/presets to configurations.
+  // Idempotent — runs once, flips the flag.
+  dormitoryStore.migrateToCutsModel()
 })
 
 const showLayoutMigration = ref(false)

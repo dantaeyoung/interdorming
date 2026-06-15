@@ -83,7 +83,7 @@ describe('useDropValidation — override-aware', () => {
     const { validateDrop } = useDropValidation()
     const result = validateDrop(guest.id, 'B01')
     expect(result.isValid).toBe(false)
-    expect(result.reason).toMatch(/inactive|override/i)
+    expect(result.reason).toMatch(/inactive/i)
   })
 
   it('accepts a drop when the stay falls outside the override window', () => {

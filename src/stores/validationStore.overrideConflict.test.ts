@@ -80,7 +80,7 @@ describe('validationStore — overrideConflict warning', () => {
       effectiveTo: '2026-07-14',
     })
     const warnings = useValidationStore().getWarningsForBed('B01')
-    expect(warnings.some(w => /inactive.*override/i.test(w))).toBe(true)
+    expect(warnings.some(w => /inactive during stay/i.test(w))).toBe(true)
   })
 
   it('does NOT flag when override window is outside the stay', () => {
@@ -92,7 +92,7 @@ describe('validationStore — overrideConflict warning', () => {
       effectiveTo: '2026-08-15',
     })
     const warnings = useValidationStore().getWarningsForBed('B01')
-    expect(warnings.some(w => /inactive.*override/i.test(w))).toBe(false)
+    expect(warnings.some(w => /inactive during stay/i.test(w))).toBe(false)
   })
 
   it('flags when a dormitory-level override cascades to close the bed during the stay', () => {
@@ -104,7 +104,7 @@ describe('validationStore — overrideConflict warning', () => {
       effectiveTo: '2026-07-13',
     })
     const warnings = useValidationStore().getWarningsForBed('B01')
-    expect(warnings.some(w => /inactive.*override/i.test(w))).toBe(true)
+    expect(warnings.some(w => /inactive during stay/i.test(w))).toBe(true)
   })
 
   it('does not unassign the guest — assignment persists despite the warning', () => {

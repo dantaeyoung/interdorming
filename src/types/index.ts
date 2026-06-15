@@ -43,7 +43,8 @@ export { DEFAULT_SETTINGS, GROUP_TYPE_LABELS, DEFAULT_GROUP_PLACEMENT_ORDER, DEF
 // Room Layout types
 export type { RoomLayout } from './RoomLayout'
 
-// Time-based override types
+// Time-based override types (deprecated — kept for one release as
+// the migration source for ConfigurationCuts).
 export type {
   ConfigOverride,
   OverridePreset,
@@ -51,6 +52,9 @@ export type {
   OverrideAttribute,
   PresetTemplateEntry,
 } from './Overrides'
+
+// Configuration cuts (current model — see specs/ConfigurationCuts.md)
+export type { TimelineConfiguration, ConfigurationTemplate } from './TimelineConfiguration'
 
 // Storage types
 export type { StorageData, LegacyStorageData } from './Storage'
