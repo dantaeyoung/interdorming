@@ -100,6 +100,14 @@
         </div>
 
         <div class="form-group">
+          <label for="isCancelled">Cancelled</label>
+          <select id="isCancelled" v-model="formData.isCancelled">
+            <option :value="false">No</option>
+            <option :value="true">Yes (faded + line-through, excluded from print views)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="arrival">Arrival Date</label>
           <input id="arrival" v-model="formData.arrival" type="date" />
         </div>
@@ -266,6 +274,7 @@ const initialFormData = {
   amountPaid: '',
   firstVisit: '',
   roomPreference: '',
+  isCancelled: false,
 }
 
 const formData = ref({
@@ -288,6 +297,7 @@ const formData = ref({
   amountPaid: '',
   firstVisit: '',
   roomPreference: '',
+  isCancelled: false,
 })
 
 const isEditMode = ref(false)
@@ -369,6 +379,7 @@ watch(
         amountPaid: newGuest.amountPaid || '',
         firstVisit: newGuest.firstVisit || '',
         roomPreference: newGuest.roomPreference || '',
+        isCancelled: !!newGuest.isCancelled,
       }
     } else {
       isEditMode.value = false
@@ -413,7 +424,8 @@ function hasUnsavedChanges(): boolean {
       formData.value.priceQuoted !== (props.guest.priceQuoted || '') ||
       formData.value.amountPaid !== (props.guest.amountPaid || '') ||
       formData.value.firstVisit !== (props.guest.firstVisit || '') ||
-      formData.value.roomPreference !== (props.guest.roomPreference || '')
+      formData.value.roomPreference !== (props.guest.roomPreference || '') ||
+      formData.value.isCancelled !== !!props.guest.isCancelled
     )
   } else {
     // In add mode, check if any field has been filled
@@ -436,7 +448,8 @@ function hasUnsavedChanges(): boolean {
       formData.value.priceQuoted !== '' ||
       formData.value.amountPaid !== '' ||
       formData.value.firstVisit !== '' ||
-      formData.value.roomPreference !== ''
+      formData.value.roomPreference !== '' ||
+      formData.value.isCancelled !== false
     )
   }
 }
@@ -499,6 +512,7 @@ function handleSubmit() {
     amountPaid: formData.value.amountPaid || undefined,
     firstVisit: formData.value.firstVisit || undefined,
     roomPreference: formData.value.roomPreference || undefined,
+    isCancelled: formData.value.isCancelled,
   }
 
   if (props.guest) {
