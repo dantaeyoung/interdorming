@@ -1127,6 +1127,30 @@ export const useDormitoryStore = defineStore(
       return configurationCovering(null)
     })
 
+    /**
+     * The half-open window `[start, endExclusive)` a configuration
+     * covers, in ISO `YYYY-MM-DD` strings. `start` is null for the
+     * initial configuration ("from the start of time"); `endExclusive`
+     * is null when the configuration is the last one ("runs forever
+     * forward"). Used by edit-time guards (e.g. "is this guest in the
+     * window of the configuration I'm editing?") so we only warn about
+     * guests actually affected by a per-segment change.
+     */
+    function configurationWindow(configurationId: string): { start: string | null; endExclusive: string | null } | null {
+      const sorted = [...configurations.value].sort((a, b) => {
+        if (a.effectiveFrom === b.effectiveFrom) return 0
+        if (a.effectiveFrom === null) return -1
+        if (b.effectiveFrom === null) return 1
+        return a.effectiveFrom < b.effectiveFrom ? -1 : 1
+      })
+      const idx = sorted.findIndex(c => c.id === configurationId)
+      if (idx === -1) return null
+      return {
+        start: sorted[idx].effectiveFrom,
+        endExclusive: sorted[idx + 1]?.effectiveFrom ?? null,
+      }
+    }
+
     /** Set the editing target by id. No-op if id is unknown. */
     function selectConfiguration(configurationId: string | null) {
       if (configurationId === null) {
@@ -1320,11 +1344,39 @@ export const useDormitoryStore = defineStore(
     // --- Editing-target syncing ---
 
     /**
-     * When the editing target changes, load that configuration's snapshot
-     * into the working `dormitories` ref. Suppress the autosave watcher
-     * during the load so the swap doesn't immediately write back.
+     * Both the load-on-switch watcher and the debounced auto-save share
+     * a single pending timer + target id. The id is captured at edit
+     * time so a fast switch can't make the timer write into the wrong
+     * configuration. When the operator switches configurations, any
+     * pending save is FLUSHED synchronously to the old target first,
+     * then the new target's snapshot is loaded.
      */
-    watch(selectedConfigurationId, (newId) => {
+    let _cutsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null
+    let _cutsAutoSaveTargetId: string | null = null
+
+    function _flushPendingConfigSave() {
+      if (!_cutsAutoSaveTimer || !_cutsAutoSaveTargetId) return
+      clearTimeout(_cutsAutoSaveTimer)
+      _cutsAutoSaveTimer = null
+      const target = configurations.value.find(x => x.id === _cutsAutoSaveTargetId)
+      _cutsAutoSaveTargetId = null
+      if (!target) return
+      target.dormitories = _cloneDormitories(dormitories.value)
+      target.updatedAt = new Date().toISOString()
+    }
+
+    /**
+     * When the editing target changes, flush any pending save to the
+     * OLD target, then load the new target's snapshot. Suppress the
+     * autosave watcher during the load so the swap doesn't immediately
+     * write back.
+     */
+    watch(selectedConfigurationId, (newId, oldId) => {
+      // Pending edits to the previous configuration must land BEFORE we
+      // overwrite the working `dormitories` ref with the new snapshot.
+      if (oldId && _cutsAutoSaveTargetId === oldId) {
+        _flushPendingConfigSave()
+      }
       if (!newId) return
       const c = configurations.value.find(x => x.id === newId)
       if (!c) return
@@ -1336,18 +1388,23 @@ export const useDormitoryStore = defineStore(
     /**
      * Auto-save the working `dormitories` ref back to the selected
      * configuration's snapshot. Debounced so a flurry of edits collapses
-     * into a single write.
+     * into a single write. Captures the target id at trigger time so a
+     * mid-debounce switch can be flushed to the right target rather
+     * than overwriting the new selection.
      */
-    let _cutsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null
     watch(
       dormitories,
       () => {
         if (_suppressAutoSave) return
         if (configurations.value.length === 0) return
-        if (!selectedConfigurationId.value) return
+        const targetId = selectedConfigurationId.value
+        if (!targetId) return
         if (_cutsAutoSaveTimer) clearTimeout(_cutsAutoSaveTimer)
+        _cutsAutoSaveTargetId = targetId
         _cutsAutoSaveTimer = setTimeout(() => {
-          const c = configurations.value.find(x => x.id === selectedConfigurationId.value)
+          const c = configurations.value.find(x => x.id === targetId)
+          _cutsAutoSaveTimer = null
+          _cutsAutoSaveTargetId = null
           if (!c) return
           c.dormitories = _cloneDormitories(dormitories.value)
           c.updatedAt = new Date().toISOString()
@@ -1439,6 +1496,7 @@ export const useDormitoryStore = defineStore(
       cutsModelMigrationComplete,
       currentConfiguration,
       configurationCovering,
+      configurationWindow,
       cutAt,
       deleteCut,
       updateConfigurationDormitories,

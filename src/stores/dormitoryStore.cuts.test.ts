@@ -236,6 +236,34 @@ describe('cuts: deleteCut', () => {
   })
 })
 
+describe('cuts: configurationWindow', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorageMock.clear()
+  })
+
+  it('returns null start for the initial configuration; endExclusive matches the next cut', () => {
+    const dorm = seedBase()
+    dorm.migrateToCutsModel()
+    const initial = dorm.configurations[0]
+    const cut = dorm.cutAt('2026-08-01')!
+    const w = dorm.configurationWindow(initial.id)
+    expect(w).toEqual({ start: null, endExclusive: '2026-08-01' })
+    const wCut = dorm.configurationWindow(cut.id)
+    expect(wCut).toEqual({ start: '2026-08-01', endExclusive: null })
+  })
+
+  it('middle cut has both start and endExclusive set', () => {
+    const dorm = seedBase()
+    dorm.migrateToCutsModel()
+    dorm.cutAt('2026-07-04')
+    dorm.cutAt('2026-08-01')
+    const middle = dorm.configurations[1]
+    const w = dorm.configurationWindow(middle.id)
+    expect(w).toEqual({ start: '2026-07-04', endExclusive: '2026-08-01' })
+  })
+})
+
 describe('cuts: dormitoriesAt routes through configurations after migration', () => {
   beforeEach(() => {
     setActivePinia(createPinia())

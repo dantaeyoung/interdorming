@@ -25,7 +25,7 @@ export const DEFAULT_COLORS = {
  * Bed and room configuration
  */
 export const BED_TYPES: BedType[] = ['upper', 'lower', 'single']
-export const ROOM_GENDERS: RoomGender[] = ['M', 'F', 'Coed']
+export const ROOM_GENDERS: RoomGender[] = ['M', 'F', 'Coed', 'NB']
 
 /**
  * Coerce a raw string from a CSV cell to a valid `RoomGender`.
@@ -41,6 +41,12 @@ export function parseRoomGender(val: string | undefined | null): RoomGender {
   if (lower === 'm' || lower === 'male') return 'M'
   if (lower === 'f' || lower === 'female') return 'F'
   if (lower === 'coed' || lower === 'mixed' || lower === 'co-ed') return 'Coed'
+  if (
+    lower === 'nb' ||
+    lower === 'non-binary' ||
+    lower === 'nonbinary' ||
+    lower === 'enby'
+  ) return 'NB'
   return 'M'
 }
 
