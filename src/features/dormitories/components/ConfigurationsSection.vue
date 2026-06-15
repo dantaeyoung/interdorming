@@ -18,11 +18,18 @@
       <div class="editing-actions">
         <button class="btn-small" @click="rename">Rename</button>
         <button class="btn-small" @click="saveAsTemplate">Save as template…</button>
+        <button class="btn-small" @click="loadFromOpen = true">Load from…</button>
         <button v-if="selectedConfiguration.effectiveFrom !== null" class="btn-small btn-danger" @click="deleteCurrentCut">
           Delete this cut
         </button>
       </div>
     </div>
+
+    <LoadFromModal
+      :is-open="loadFromOpen"
+      :target-configuration-id="selectedConfiguration?.id ?? null"
+      @close="loadFromOpen = false"
+    />
 
     <div class="card">
       <div class="card-header">
@@ -45,9 +52,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import ConfigurationTimelineBar from './ConfigurationTimelineBar.vue'
+import LoadFromModal from './LoadFromModal.vue'
 import type { TimelineConfiguration } from '@/types'
 
 const dormitoryStore = useDormitoryStore()
@@ -58,6 +66,8 @@ const selectedConfiguration = computed<TimelineConfiguration | null>(() => {
   if (!id) return null
   return dormitoryStore.configurations.find(c => c.id === id) ?? null
 })
+
+const loadFromOpen = ref(false)
 
 function rename() {
   if (!selectedConfiguration.value) return
