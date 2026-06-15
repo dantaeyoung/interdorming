@@ -15,6 +15,7 @@
           <th
             v-for="col in visibleColumns"
             :key="col.key"
+            :data-col-key="col.key"
             :class="{
               'dragging-column': draggedColumnKey === col.key,
               'drag-over-column': dragOverColumnKey === col.key,
@@ -441,10 +442,15 @@ const overlayStyle = computed(() => ({
 function updateOverlayPosition() {
   if (!tableRef.value) return
 
-  // Find the group-lines-header column to get its position
-  const header = tableRef.value.querySelector('.group-lines-header') as HTMLElement
-  if (header) {
-    overlayLeft.value = header.offsetLeft
+  // Anchor the group-lines + suggestion pills to the **Group column**
+  // so the lines visually originate from where each row's group name
+  // sits. Falls back to the legacy `.group-lines-header` column when
+  // the Group column is hidden by the operator's column toggles.
+  const groupTh = tableRef.value.querySelector('[data-col-key="groupName"]') as HTMLElement | null
+  const fallback = tableRef.value.querySelector('.group-lines-header') as HTMLElement | null
+  const anchor = groupTh || fallback
+  if (anchor) {
+    overlayLeft.value = anchor.offsetLeft
   }
 
   // Get the thead height for top offset
