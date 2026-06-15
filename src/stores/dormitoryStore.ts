@@ -24,6 +24,7 @@ import type {
 } from '@/types'
 import { DEFAULT_COLORS } from '@/types'
 import { parseLocalDate } from '@/shared/composables/useUtils'
+import { useAssignmentStore } from './assignmentStore'
 
 /**
  * Bed-shape schema version. Bump when changing bed structure so migration
@@ -667,10 +668,14 @@ export const useDormitoryStore = defineStore(
       return (date: string | null): Dormitory[] => {
         // New cuts model: each date resolves to the configuration whose
         // window covers it. Once we've migrated, configurations is the
-        // sole source of truth.
+        // sole source of truth FOR STRUCTURE. Bed assignments live in
+        // assignmentStore — overlay them onto the snapshot so Table
+        // View / Print views / etc. see assignments made in any
+        // configuration's editing session, not just the one whose
+        // editing target captured the snapshot.
         if (configurations.value.length > 0) {
           const c = configurationCovering(date)
-          if (c) return c.dormitories
+          if (c) return _withLiveAssignments(c.dormitories)
         }
 
         // Pre-migration / legacy fallback to the override-resolution
@@ -981,8 +986,48 @@ export const useDormitoryStore = defineStore(
 
     // --- Configuration Cuts (specs/ConfigurationCuts.md) ---
 
+    /**
+     * Deep clone of a dormitories tree. `structuredClone(toRaw(...))`
+     * doesn't recursively unwrap Vue's nested reactive proxies — most
+     * notably `bed.assignments` arrays, which throw
+     * "DataCloneError: [object Array] could not be cloned" the moment
+     * the operator edits one in the cuts model. `JSON.parse(JSON.stringify(...))`
+     * is bulletproof for this tree shape (plain data, no Dates / fns /
+     * Maps) and was the approach the layout system used in production
+     * for months, so it's the safer choice here too.
+     */
     function _cloneDormitories(tree: Dormitory[]): Dormitory[] {
-      return structuredClone(toRaw(tree))
+      return JSON.parse(JSON.stringify(tree))
+    }
+
+    /**
+     * Wrap a configuration snapshot so reading any `bed.assignments`
+     * returns the LIVE list from assignmentStore rather than whatever
+     * was baked into the snapshot.
+     *
+     * Why: configurations now store structural state (dorm/room/bed
+     * active, gender) but bed assignments are global — they don't
+     * belong to one configuration's window. Without this overlay, a
+     * drag-drop on bed X in one configuration only shows up in Table
+     * View when the view date falls in that same configuration; in
+     * any other configuration's window the snapshot's stale
+     * `assignments: []` wins and the guest visually disappears.
+     *
+     * Returns a freshly-cloned tree so callers can safely mutate it.
+     */
+    function _withLiveAssignments(tree: Dormitory[]): Dormitory[] {
+      const cloned = _cloneDormitories(tree)
+      const assignmentStore = useAssignmentStore()
+      const bedToGuests = assignmentStore.bedToGuestsMap
+      for (const dorm of cloned) {
+        for (const room of dorm.rooms) {
+          for (const bed of room.beds) {
+            const liveGuestIds = bedToGuests.get(bed.bedId) ?? []
+            bed.assignments = liveGuestIds.map(guestId => ({ guestId }))
+          }
+        }
+      }
+      return cloned
     }
 
     /**
