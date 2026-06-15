@@ -187,12 +187,22 @@ export const useGuestStore = defineStore(
     const hasGroupSuggestions = computed(() => suggestedGroups.value.size > 0)
     const groupSuggestionCount = computed(() => suggestedGroups.value.size)
 
-    // Group suggestion actions
-    function suggestGroupsByEmail(): number {
+    /**
+     * Group-by-email suggestion engine.
+     *
+     * Default: scan every guest in the store. Pass `eligibleGuests` to
+     * scope the scan — used by Table View's "Suggest Groups" so it only
+     * considers unassigned-as-of-the-view-date guests.
+     *
+     * Returns the number of group suggestions produced (0 if nothing
+     * new was found).
+     */
+    function suggestGroupsByEmail(eligibleGuests?: Guest[]): number {
       const emailMap = new Map<string, Guest[]>()
+      const pool = eligibleGuests ?? guests.value
 
       // Build email → guests map
-      guests.value.forEach(guest => {
+      pool.forEach(guest => {
         if (guest.email && guest.email.trim()) {
           const normalizedEmail = guest.email.trim().toLowerCase()
           let bucket = emailMap.get(normalizedEmail)

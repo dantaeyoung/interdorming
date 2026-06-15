@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260614-22:33</span>
+          <span class="version-tag">v260614-22:39</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -80,6 +80,14 @@
               <!-- Controls row: actions on the left, search on the right -->
               <div class="search-section">
                 <button class="btn-add-guest-sm" @click="handleAddGuestClick">+ Add</button>
+                <button
+                  class="btn-suggest-groups-sm"
+                  :disabled="unassignedAtViewDate.length === 0 || !guestStore.hasGuestsWithEmail"
+                  :title="`Suggest groups for ${unassignedAtViewDate.length} unassigned guest${unassignedAtViewDate.length === 1 ? '' : 's'} on this date`"
+                  @click="handleSuggestGroupsForView"
+                >
+                  Suggest Groups
+                </button>
                 <button class="btn-sort" @click="showSortModal = true" :title="sortDescription">
                   <span class="sort-icon">↕</span>
                   Sort
@@ -297,6 +305,7 @@ import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal, OverlapConfirmDialog, GroupConflictDialog, ImportSummaryDialog } from '@/shared/components'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 
 // Feature components
 import { HintBanner } from '@/features/hints/components'
@@ -472,6 +481,34 @@ const confirmDialog = ref({
 // Computed properties
 const unassignedCount = computed(() => assignmentStore.unassignedCount)
 const assignedCount = computed(() => assignmentStore.assignedCount)
+
+/**
+ * Unassigned guests whose stay covers the current View Date. Used by
+ * Table View's "Suggest Groups" so suggestions are scoped to the
+ * cohort the operator is actually looking at — same filter as
+ * `GuestList` with `:show-assigned="false"` + `:view-date="viewDate"`.
+ */
+const unassignedAtViewDate = computed(() => {
+  const vd = viewDate.value?.getTime()
+  return guestStore.guests.filter(g => {
+    if (assignmentStore.assignments.has(g.id)) return false
+    if (vd === undefined) return true
+    if (!g.arrival || !g.departure) return true
+    const arrival = parseLocalDate(g.arrival).getTime()
+    const departure = parseLocalDate(g.departure).getTime()
+    return vd >= arrival && vd < departure
+  })
+})
+
+function handleSuggestGroupsForView() {
+  const eligible = unassignedAtViewDate.value
+  const count = guestStore.suggestGroupsByEmail(eligible)
+  if (count > 0) {
+    showStatus(`Found ${count} group suggestion${count === 1 ? '' : 's'} among ${eligible.length} unassigned guest${eligible.length === 1 ? '' : 's'} on this date`, 'success')
+  } else {
+    showStatus('No new group suggestions among unassigned guests on this date', 'info')
+  }
+}
 
 // Guest list ref for add guest modal
 const guestListRef = ref<InstanceType<typeof GuestList> | null>(null)
@@ -1287,6 +1324,28 @@ function stopResize() {
 
   &:hover {
     background: #2563eb;
+  }
+}
+
+.btn-suggest-groups-sm {
+  padding: 6px 10px;
+  background: white;
+  color: #4f46e5;
+  border: 1px solid #4f46e5;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover { background: #eef2ff; }
+
+  &:disabled {
+    color: #9ca3af;
+    border-color: #d1d5db;
+    background: #f9fafb;
+    cursor: not-allowed;
   }
 }
 
