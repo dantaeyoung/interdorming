@@ -83,7 +83,6 @@
       <td v-else-if="col.key === 'notes'" class="notes-cell">
         <span
           v-if="guest.notes || guest.internalNotes"
-          ref="notesCellRef"
           class="notes-text"
           @mouseenter="handleNotesCellMouseEnter"
           @mouseleave="showActionNotesTooltip = false"
@@ -367,11 +366,14 @@ function handleNotesMouseEnter() {
 /**
  * Notes-cell hover uses the same combined Notes + Internal popover as
  * the action-column 📝 button so the experience is consistent. Anchored
- * to the notes cell instead of the action button.
+ * to the cell itself via `event.currentTarget` rather than a template
+ * ref — `ref` attributes inside `v-for` become arrays in Vue 3, which
+ * would break `.getBoundingClientRect()` here.
  */
-function handleNotesCellMouseEnter() {
-  if (!notesCellRef.value) return
-  const rect = notesCellRef.value.getBoundingClientRect()
+function handleNotesCellMouseEnter(event: MouseEvent) {
+  const target = event.currentTarget as HTMLElement | null
+  if (!target) return
+  const rect = target.getBoundingClientRect()
   const tooltipWidth = 320
   const left = Math.max(
     8,
