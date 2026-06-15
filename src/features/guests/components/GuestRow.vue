@@ -161,11 +161,11 @@
       >
         <div v-if="guest.notes && guest.notes.trim()" class="notes-tooltip-section">
           <div class="notes-tooltip-label">Notes from guest</div>
-          <div class="notes-tooltip-body">{{ guest.notes }}</div>
+          <div class="notes-tooltip-body" v-html="formatNotes(guest.notes)"></div>
         </div>
         <div v-if="guest.internalNotes && guest.internalNotes.trim()" class="notes-tooltip-section">
           <div class="notes-tooltip-label">Internal</div>
-          <div class="notes-tooltip-body">{{ guest.internalNotes }}</div>
+          <div class="notes-tooltip-body" v-html="formatNotes(guest.internalNotes)"></div>
         </div>
       </div>
     </Teleport>
