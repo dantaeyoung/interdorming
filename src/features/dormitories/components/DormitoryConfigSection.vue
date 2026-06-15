@@ -101,24 +101,35 @@ const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 
 /**
- * See RoomConfigCard's same-named helper. Filter guest IDs to those
- * whose stays overlap the currently editing configuration's window so
- * deactivation warnings don't flag guests in other configurations.
+ * See RoomConfigCard's same-named helper for the bug context: this
+ * filters assigned guests to those whose stays actually fall in the
+ * editing configuration's window so deactivation warnings ignore
+ * guests in other configurations (including the common case of a
+ * configuration with a `null` end bound — "from this date forever" —
+ * which `staysOverlap` would otherwise treat as missing → always
+ * overlapping).
  */
 function filterGuestIdsToCurrentConfigWindow(guestIds: string[]): string[] {
   const selectedId = dormitoryStore.selectedConfigurationId
   if (!selectedId) return guestIds
   const window = dormitoryStore.configurationWindow(selectedId)
   if (!window) return guestIds
-  const configStay = { arrival: window.start ?? undefined, departure: window.endExclusive ?? undefined }
   return guestIds.filter(id => {
     const guest = guestStore.guests.find(g => g.id === id)
     if (!guest) return false
-    return staysOverlap(
-      configStay,
-      { arrival: guest.arrival ?? undefined, departure: guest.departure ?? undefined }
-    )
+    return guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
   })
+}
+
+function guestStayOverlapsConfigWindow(
+  arrival: string | undefined | null,
+  departure: string | undefined | null,
+  window: { start: string | null; endExclusive: string | null }
+): boolean {
+  if (!arrival || !departure) return true
+  if (window.start !== null && departure <= window.start) return false
+  if (window.endExclusive !== null && arrival >= window.endExclusive) return false
+  return true
 }
 
 function namesFromGuestIds(guestIds: string[]): string[] {

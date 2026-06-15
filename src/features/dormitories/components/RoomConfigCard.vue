@@ -121,6 +121,13 @@ function getAssignedGuestNames(bedId: string): string[] {
  * window — a guest whose stay falls entirely in an earlier (or later)
  * configuration shouldn't be flagged as "affected" by the change.
  *
+ * The configuration window uses `null` bounds for "open-ended in this
+ * direction" (initial config = `start: null`, last config =
+ * `endExclusive: null`). `staysOverlap` interprets missing dates as
+ * "always present" which would make every guest match a configuration
+ * with an open end — so we use a dedicated overlap check here that
+ * treats null bounds as ±infinity instead.
+ *
  * If no configuration is selected, falls back to the unfiltered list
  * (legacy single-base behavior).
  */
@@ -129,15 +136,30 @@ function filterGuestIdsToCurrentConfigWindow(guestIds: string[]): string[] {
   if (!selectedId) return guestIds
   const window = dormitoryStore.configurationWindow(selectedId)
   if (!window) return guestIds
-  const configStay = { arrival: window.start ?? undefined, departure: window.endExclusive ?? undefined }
   return guestIds.filter(id => {
     const guest = guestStore.guests.find(g => g.id === id)
     if (!guest) return false
-    return staysOverlap(
-      configStay,
-      { arrival: guest.arrival ?? undefined, departure: guest.departure ?? undefined }
-    )
+    return guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
   })
+}
+
+/**
+ * Half-open overlap of a guest stay `[arrival, departure)` against a
+ * configuration window `[start, endExclusive)` where `null` bounds on
+ * the window mean ±infinity. Missing guest dates remain "always
+ * present" (existing convention) — a guest without arrival/departure
+ * affects every configuration's window.
+ */
+function guestStayOverlapsConfigWindow(
+  arrival: string | undefined | null,
+  departure: string | undefined | null,
+  window: { start: string | null; endExclusive: string | null }
+): boolean {
+  if (!arrival || !departure) return true
+  // Compare ISO YYYY-MM-DD strings lexically — sort-correct for dates.
+  if (window.start !== null && departure <= window.start) return false
+  if (window.endExclusive !== null && arrival >= window.endExclusive) return false
+  return true
 }
 
 function namesFromGuestIds(guestIds: string[]): string[] {
