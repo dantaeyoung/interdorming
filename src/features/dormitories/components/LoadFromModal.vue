@@ -1,28 +1,13 @@
 <template>
-  <Modal :model-value="isOpen" title="Add a cut" max-width="520px" @update:model-value="(v) => !v && cancel()">
+  <Modal :model-value="isOpen" title="Load snapshot into this configuration" max-width="520px" @update:model-value="(v) => !v && cancel()">
     <div class="form">
       <p class="hint">
-        A cut splits the timeline. The new segment starts on the date you pick and runs forward until the next cut (or forever). It begins as a copy of an existing configuration — you can edit it independently.
+        This <strong>replaces</strong> the currently editing configuration's snapshot with the one you pick. The window (date range) stays the same — only the dormitory tree is overwritten.
       </p>
 
-      <label class="field">
-        <span class="field-label">Date</span>
-        <input type="date" v-model="effectiveFrom" />
-      </label>
-
-      <label class="field">
-        <span class="field-label">Name (optional)</span>
-        <input type="text" v-model="name" placeholder="e.g. Women's Retreat" />
-      </label>
-
       <div class="field">
-        <span class="field-label">Start from</span>
+        <span class="field-label">Source</span>
         <div class="source-options">
-          <label class="source-option">
-            <input type="radio" v-model="source" value="current" />
-            <span>Copy of the current configuration on that date</span>
-          </label>
-
           <label class="source-option">
             <input type="radio" v-model="source" value="copyFrom" :disabled="otherConfigurations.length === 0" />
             <span>Copy from another configuration on the timeline</span>
@@ -42,20 +27,19 @@
             <option value="" disabled>Pick a template…</option>
             <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
           </select>
-
-          <label class="source-option">
-            <input type="radio" v-model="source" value="empty" />
-            <span>Empty configuration (no dormitories yet)</span>
-          </label>
         </div>
       </div>
 
-      <div v-if="dateError" class="warning">{{ dateError }}</div>
+      <div v-if="targetHasContent" class="warning-banner">
+        ⚠ The current configuration is not empty — loading will overwrite its dorms / rooms / beds.
+      </div>
     </div>
 
     <template #footer>
       <button class="btn" @click="cancel">Cancel</button>
-      <button class="btn btn-primary" :disabled="!canCommit" @click="commit">Add cut</button>
+      <button class="btn btn-primary" :disabled="!canCommit" @click="commit">
+        {{ targetHasContent ? 'Overwrite' : 'Load' }}
+      </button>
     </template>
   </Modal>
 </template>
@@ -67,17 +51,16 @@ import { useDormitoryStore } from '@/stores/dormitoryStore'
 
 interface Props {
   isOpen: boolean
-  initialDate?: string | null
+  /** The configuration whose snapshot will be replaced. */
+  targetConfigurationId: string | null
 }
 
-const props = withDefaults(defineProps<Props>(), { initialDate: null })
+const props = defineProps<Props>()
 const emit = defineEmits<{ close: [] }>()
 
 const dormitoryStore = useDormitoryStore()
 
-const effectiveFrom = ref('')
-const name = ref('')
-const source = ref<'current' | 'copyFrom' | 'template' | 'empty'>('current')
+const source = ref<'copyFrom' | 'template'>('copyFrom')
 const copyFromId = ref('')
 const templateId = ref('')
 
@@ -85,51 +68,55 @@ watch(
   () => props.isOpen,
   open => {
     if (!open) return
-    effectiveFrom.value = props.initialDate ?? todayIso()
-    name.value = ''
-    source.value = 'current'
+    // Default to whichever is available first.
+    source.value = dormitoryStore.configurations.length > 1 ? 'copyFrom' : 'template'
     copyFromId.value = ''
     templateId.value = ''
   },
   { immediate: true }
 )
 
-function todayIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 const otherConfigurations = computed(() => {
-  return dormitoryStore.configurations.filter(c => c.effectiveFrom !== effectiveFrom.value)
+  return dormitoryStore.configurations.filter(c => c.id !== props.targetConfigurationId)
 })
 const templates = computed(() => dormitoryStore.configurationTemplates)
 
-const dateError = computed<string | null>(() => {
-  if (!effectiveFrom.value) return 'Pick a date.'
-  const existing = dormitoryStore.configurations.find(c => c.effectiveFrom === effectiveFrom.value)
-  if (existing) return `A cut already exists on ${formatDate(effectiveFrom.value)}.`
-  return null
+const targetHasContent = computed<boolean>(() => {
+  if (!props.targetConfigurationId) return false
+  const c = dormitoryStore.configurations.find(x => x.id === props.targetConfigurationId)
+  if (!c) return false
+  return c.dormitories.length > 0
 })
 
 const canCommit = computed(() => {
-  if (dateError.value) return false
-  if (source.value === 'copyFrom' && !copyFromId.value) return false
-  if (source.value === 'template' && !templateId.value) return false
-  return true
+  if (!props.targetConfigurationId) return false
+  if (source.value === 'copyFrom') return !!copyFromId.value
+  return !!templateId.value
 })
 
 function commit() {
-  if (!canCommit.value) return
-  const opts: { name?: string; copyFrom?: string; templateId?: string; empty?: boolean } = {}
-  if (name.value.trim()) opts.name = name.value.trim()
-  if (source.value === 'copyFrom') opts.copyFrom = copyFromId.value
-  else if (source.value === 'template') opts.templateId = templateId.value
-  else if (source.value === 'empty') opts.empty = true
-  const created = dormitoryStore.cutAt(effectiveFrom.value, opts)
-  if (created) {
-    // Immediately select the new segment so the operator can edit it.
-    dormitoryStore.selectConfiguration(created.id)
+  if (!canCommit.value || !props.targetConfigurationId) return
+
+  let sourceDorms = null
+  if (source.value === 'copyFrom') {
+    const src = dormitoryStore.configurations.find(c => c.id === copyFromId.value)
+    if (src) sourceDorms = src.dormitories
+  } else {
+    const tpl = dormitoryStore.configurationTemplates.find(t => t.id === templateId.value)
+    if (tpl) sourceDorms = tpl.dormitories
   }
+  if (!sourceDorms) return
+
+  if (targetHasContent.value) {
+    if (!window.confirm('This replaces the current configuration\'s dormitories, rooms, and beds with the picked source. The change can be undone only by editing again — proceed?')) {
+      return
+    }
+  }
+
+  dormitoryStore.updateConfigurationDormitories(props.targetConfigurationId, sourceDorms)
+  // Re-select to force the watcher to reload the working `dormitories` ref
+  // from the newly-replaced snapshot.
+  dormitoryStore.selectConfiguration(props.targetConfigurationId)
   emit('close')
 }
 
@@ -150,8 +137,9 @@ function formatDate(iso: string): string {
 .hint { margin: 0; font-size: 0.85rem; color: #6b7280; line-height: 1.4; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: 0.8rem; font-weight: 500; color: #374151; }
-input[type="text"], input[type="date"], select.sub-select {
+select.sub-select {
   padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.9rem;
+  max-width: 320px; margin-left: 24px;
 }
 .source-options {
   display: flex; flex-direction: column; gap: 6px;
@@ -159,11 +147,10 @@ input[type="text"], input[type="date"], select.sub-select {
     display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #374151;
     input[type="radio"]:disabled + span { color: #9ca3af; }
   }
-  .sub-select { margin-left: 24px; max-width: 320px; }
 }
-.warning {
-  padding: 8px 12px; background: #fee2e2; border: 1px solid #fca5a5;
-  border-radius: 6px; color: #991b1b; font-size: 0.85rem;
+.warning-banner {
+  padding: 8px 12px; background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: 6px; color: #92400e; font-size: 0.85rem;
 }
 .btn { padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 4px; font-size: 0.9rem; cursor: pointer; }
 .btn:hover { background: #f3f4f6; }

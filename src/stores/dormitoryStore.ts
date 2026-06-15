@@ -1004,11 +1004,13 @@ export const useDormitoryStore = defineStore(
       /**
        * Source for the new segment's snapshot. Default: clone the
        * configuration covering `date`. Pass another configuration id
-       * to copy from elsewhere on the timeline, or a templateId to
-       * paste a template.
+       * to copy from elsewhere on the timeline, a templateId to
+       * paste a template, or `empty: true` for a blank (no dorms)
+       * starting point.
        */
       copyFrom?: string
       templateId?: string
+      empty?: boolean
     }
 
     /**
@@ -1024,7 +1026,9 @@ export const useDormitoryStore = defineStore(
       if (existing) return null
 
       let source: Dormitory[] | null = null
-      if (options.templateId) {
+      if (options.empty) {
+        source = []
+      } else if (options.templateId) {
         const tpl = configurationTemplates.value.find(t => t.id === options.templateId)
         if (tpl) source = _cloneDormitories(tpl.dormitories)
       } else if (options.copyFrom) {
@@ -1034,7 +1038,7 @@ export const useDormitoryStore = defineStore(
         const covering = configurationCovering(date)
         if (covering) source = _cloneDormitories(covering.dormitories)
       }
-      if (!source) source = _cloneDormitories(dormitories.value)
+      if (source === null) source = _cloneDormitories(dormitories.value)
 
       const now = new Date().toISOString()
       const config: TimelineConfiguration = {

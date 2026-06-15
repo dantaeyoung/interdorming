@@ -188,6 +188,15 @@ describe('cuts: cutAt', () => {
     expect(first.dormitories[0].active).toBe(false)
   })
 
+  it('empty: true creates a configuration with no dormitories', () => {
+    const dorm = seedBase()
+    dorm.migrateToCutsModel()
+    const created = dorm.cutAt('2026-07-04', { empty: true, name: 'Blank' })
+    expect(created).not.toBeNull()
+    expect(created!.dormitories).toEqual([])
+    expect(created!.name).toBe('Blank')
+  })
+
   it('templateId pastes a template snapshot', () => {
     const dorm = seedBase()
     dorm.migrateToCutsModel()
