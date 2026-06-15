@@ -43,6 +43,8 @@
           :family-position="getFamilyPosition(guest, index)"
           :readonly="props.readonly"
           :pill-unassigned="props.pillUnassigned"
+          :suggested-group-name="guestStore.getSuggestedGroupForGuest(guest.id)"
+          :suggested-group-index="getSuggestedGroupIndexFor(guest.id)"
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
@@ -245,7 +247,32 @@ const guests = computed(() => {
   function tier(g: typeof filtered[0]): number {
     return guestStore.isGuestAssignable(g) ? 0 : 1
   }
-  return filtered.slice().sort((a, b) => tier(a) - tier(b))
+  const tiered = filtered.slice().sort((a, b) => tier(a) - tier(b))
+
+  /*
+   * Suggested-group temporary sort: when `Suggest Groups` is active,
+   * surface every suggested member to the top, members of the same
+   * group adjacent, group order alphabetical. The rest of the list
+   * keeps its tier + sort-config order beneath. Once suggestions are
+   * accepted or cleared, the list re-renders without this re-order.
+   */
+  if (guestStore.suggestedGroups.size === 0) return tiered
+
+  const suggested: typeof tiered = []
+  const rest: typeof tiered = []
+  for (const g of tiered) {
+    if (guestStore.getSuggestedGroupForGuest(g.id)) suggested.push(g)
+    else rest.push(g)
+  }
+  suggested.sort((a, b) => {
+    const ag = guestStore.getSuggestedGroupForGuest(a.id) ?? ''
+    const bg = guestStore.getSuggestedGroupForGuest(b.id) ?? ''
+    const cmp = ag.localeCompare(bg)
+    if (cmp !== 0) return cmp
+    // Within a group, preserve upstream order from `tiered`.
+    return tiered.indexOf(a) - tiered.indexOf(b)
+  })
+  return [...suggested, ...rest]
 })
 
 const visibleColumns = computed(() => props.columns.filter(c => c.visible))
@@ -480,6 +507,17 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateOverlayPosition)
   resizeObserver?.disconnect()
 })
+
+/**
+ * For a guest who's in an active suggested group, return that group's
+ * stable color slot (0..N). Returned null for guests outside any
+ * suggestion so GuestRow can skip the row-tint.
+ */
+function getSuggestedGroupIndexFor(guestId: string): number | null {
+  const name = guestStore.getSuggestedGroupForGuest(guestId)
+  if (!name) return null
+  return guestStore.getSuggestedGroupIndex(name)
+}
 
 // Family grouping logic
 function getFamilyPosition(guest: Guest, index: number): 'none' | 'first' | 'middle' | 'last' | 'only' {

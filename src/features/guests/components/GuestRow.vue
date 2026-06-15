@@ -1,6 +1,6 @@
 <template>
   <tr
-    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': pillUnassigned && isUnassigned, 'non-assignable': !isAssignable, 'is-cancelled': guest.isCancelled }]"
+    :class="['guest-row', { 'picked-up': isPickedUp, 'is-picked': isPicked, 'is-pick-target': isPickTarget, 'has-suggestion': hasSuggestion, 'link-target': isLinkTarget, 'selected-for-linking': isSelectedForLinking, 'group-highlight': isGroupHighlighted, 'group-dimmed': isGroupDimmed, 'is-unassigned': pillUnassigned && isUnassigned, 'non-assignable': !isAssignable, 'is-cancelled': guest.isCancelled }, suggestedGroupRowClass]"
     v-bind="draggableProps"
     @click="handleRowClick"
   >
@@ -65,24 +65,30 @@
 
       <td v-else-if="col.key === 'groupName'"
         class="group-cell"
-        :class="{ 'has-group': !!guest.groupName && !readonly }"
-        :title="guest.groupName || ''"
+        :class="{ 'has-group': !!guest.groupName && !readonly, 'has-suggested-group': showSuggestedGroupOverride }"
+        :title="showSuggestedGroupOverride ? `Suggested: ${suggestedGroupName}` : (guest.groupName || '')"
         @mouseenter="handleGroupCellMouseEnter"
         @mouseleave="handleGroupCellMouseLeave"
         @click.stop="handleGroupCellClick"
       >
-        {{ guest.groupName || '-' }}
+        <template v-if="showSuggestedGroupOverride">
+          <em class="suggested-group-name">{{ suggestedGroupName }}</em>
+          <span class="suggested-badge">suggested</span>
+        </template>
+        <template v-else>
+          {{ guest.groupName || '-' }}
+        </template>
       </td>
 
       <td v-else-if="col.key === 'notes'" class="notes-cell">
         <span
-          v-if="guest.notes"
+          v-if="guest.notes || guest.internalNotes"
           ref="notesCellRef"
           class="notes-text"
-          @mouseenter="handleNotesMouseEnter"
-          @mouseleave="showNotesModal = false"
+          @mouseenter="handleNotesCellMouseEnter"
+          @mouseleave="showActionNotesTooltip = false"
         >
-          {{ truncateNotes(guest.notes) }}
+          {{ guest.notes ? truncateNotes(guest.notes) : '—' }}
         </span>
         <span v-else>-</span>
       </td>
@@ -190,6 +196,15 @@ interface Props {
   // Reservations table opts out — assigned/unassigned isn't the first
   // question there and the pill leaks visual noise into a dense table.
   pillUnassigned?: boolean
+  // When the Suggest-Groups feature has an active suggestion that
+  // includes this guest, the parent passes the suggested group name
+  // (rendered in the Group column when the guest has no real group)
+  // and a stable color slot (0..N) used for a temporary row-background
+  // tint so adjacent members of the same suggestion read as a block.
+  // Both go to null/null when the operator clears or accepts the
+  // suggestion.
+  suggestedGroupName?: string | null
+  suggestedGroupIndex?: number | null
 }
 
 interface Emits {
@@ -200,6 +215,8 @@ const props = withDefaults(defineProps<Props>(), {
   familyPosition: 'none',
   readonly: false,
   pillUnassigned: true,
+  suggestedGroupName: null,
+  suggestedGroupIndex: null,
 })
 
 const emit = defineEmits<Emits>()
@@ -215,6 +232,29 @@ const { isLinking, linkingGuestIds, hoveredGroupName, startLinking, toggleLinkin
 const visibleColumns = computed(() => props.columns.filter(c => c.visible))
 
 const displayName = computed(() => createDisplayName(props.guest))
+
+/**
+ * Row tint class for "this guest is in an active Suggest-Groups
+ * suggestion" — one of `is-suggested-group-0..7`. Null prop → no class
+ * (and therefore no tint), so the row falls back to its normal styling
+ * once the operator clears or accepts every suggestion.
+ */
+const suggestedGroupRowClass = computed(() => {
+  if (props.suggestedGroupIndex === null || props.suggestedGroupIndex === undefined) return null
+  return `is-suggested-group-${props.suggestedGroupIndex % 8}`
+})
+
+/**
+ * Show the suggested group name in the Group column only when the
+ * guest has no real groupName yet — accepting the suggestion later
+ * writes the name into `groupName` and this override goes away.
+ */
+const showSuggestedGroupOverride = computed(() => {
+  if (!props.suggestedGroupName) return false
+  return !props.guest.groupName || !props.guest.groupName.trim()
+})
+
+const suggestedGroupName = computed(() => props.suggestedGroupName ?? null)
 
 // Gender badge style from settings
 const genderBadgeStyle = computed(() => {
@@ -322,6 +362,26 @@ function handleNotesMouseEnter() {
     }
   }
   showNotesModal.value = true
+}
+
+/**
+ * Notes-cell hover uses the same combined Notes + Internal popover as
+ * the action-column 📝 button so the experience is consistent. Anchored
+ * to the notes cell instead of the action button.
+ */
+function handleNotesCellMouseEnter() {
+  if (!notesCellRef.value) return
+  const rect = notesCellRef.value.getBoundingClientRect()
+  const tooltipWidth = 320
+  const left = Math.max(
+    8,
+    Math.min(window.innerWidth - tooltipWidth - 8, rect.left)
+  )
+  actionNotesTooltipPosition.value = {
+    top: `${rect.bottom + 6}px`,
+    left: `${left}px`,
+  }
+  showActionNotesTooltip.value = true
 }
 
 function handleLongTextMouseEnter(event: MouseEvent, text: string) {
@@ -433,6 +493,20 @@ function handleUnlink() {
       background-color: inherit;
     }
   }
+
+  /* Suggest-Groups temporary tint. Eight rotating pastel hues so two
+     adjacent groups never share a color. The classes only get applied
+     when an active suggestion includes the guest; the moment the
+     operator accepts or clears every suggestion, the props go null and
+     the row falls back to its normal styling. */
+  &.is-suggested-group-0 td { background-color: #fef3c7; }
+  &.is-suggested-group-1 td { background-color: #dbeafe; }
+  &.is-suggested-group-2 td { background-color: #dcfce7; }
+  &.is-suggested-group-3 td { background-color: #fce7f3; }
+  &.is-suggested-group-4 td { background-color: #ede9fe; }
+  &.is-suggested-group-5 td { background-color: #ccfbf1; }
+  &.is-suggested-group-6 td { background-color: #ffe4e6; }
+  &.is-suggested-group-7 td { background-color: #fef9c3; }
 
   &.picked-up {
     opacity: 0.5;
@@ -681,6 +755,25 @@ tr.guest-row {
 .group-cell {
   &.long-group-name {
     font-size: 0.7rem;
+  }
+
+  /* Suggested-group temporary text override — italic name + tiny
+     pill so it reads as provisional rather than committed. */
+  &.has-suggested-group {
+    .suggested-group-name {
+      font-style: italic;
+      color: #6d28d9;
+    }
+    .suggested-badge {
+      margin-left: 4px;
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: #6d28d9;
+      background: #ede9fe;
+      padding: 1px 6px;
+      border-radius: 8px;
+      vertical-align: middle;
+    }
   }
 
   &.has-group {

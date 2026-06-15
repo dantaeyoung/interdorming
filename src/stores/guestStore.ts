@@ -188,6 +188,36 @@ export const useGuestStore = defineStore(
     const groupSuggestionCount = computed(() => suggestedGroups.value.size)
 
     /**
+     * Reverse lookup of `suggestedGroups`: guestId → suggested group
+     * name. Rebuilt whenever `suggestedGroups` mutates. Used by lists
+     * that want to highlight or re-sort suggested-group members.
+     */
+    const guestIdToSuggestedGroup = computed<Map<string, string>>(() => {
+      const out = new Map<string, string>()
+      for (const [groupName, memberIds] of suggestedGroups.value.entries()) {
+        for (const id of memberIds) out.set(id, groupName)
+      }
+      return out
+    })
+
+    /**
+     * Stable order of suggested group names — alphabetical so the same
+     * suggestion always lands in the same color slot across reloads.
+     */
+    const suggestedGroupOrder = computed<string[]>(() => {
+      return [...suggestedGroups.value.keys()].sort((a, b) => a.localeCompare(b))
+    })
+
+    function getSuggestedGroupForGuest(guestId: string): string | null {
+      return guestIdToSuggestedGroup.value.get(guestId) ?? null
+    }
+
+    function getSuggestedGroupIndex(groupName: string): number {
+      const idx = suggestedGroupOrder.value.indexOf(groupName)
+      return idx === -1 ? 0 : idx
+    }
+
+    /**
      * Group-by-email suggestion engine.
      *
      * Default: scan every guest in the store. Pass `eligibleGuests` to
@@ -324,6 +354,10 @@ export const useGuestStore = defineStore(
       hasGuestsWithEmail,
       hasGroupSuggestions,
       groupSuggestionCount,
+      guestIdToSuggestedGroup,
+      suggestedGroupOrder,
+      getSuggestedGroupForGuest,
+      getSuggestedGroupIndex,
 
       // Actions
       addGuest,
