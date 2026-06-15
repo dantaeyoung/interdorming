@@ -3,6 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { createApp } from 'vue'
 import { useSyncStore } from '@/stores/syncStore'
 import { useSync } from './useSync'
+import { DecryptError } from './crypto'
 import { installLocalStorageMock } from './testLocalStorage'
 
 installLocalStorageMock()
@@ -10,6 +11,7 @@ installLocalStorageMock()
 interface FakeEngine {
   currentSaltHex: string | null
   lastRevision: number
+  setBaseRevision: (n: number) => void
   pullRemote: () => Promise<{ applied: boolean; revision: number }>
   pushLocal: () => Promise<
     { ok: true; revision: number } | { ok: false; conflict: true; currentRevision: number }
@@ -17,13 +19,24 @@ interface FakeEngine {
 }
 
 function makeEngine(overrides: Partial<FakeEngine> = {}): FakeEngine {
-  return {
+  const e: FakeEngine = {
     currentSaltHex: null,
     lastRevision: 0,
+    setBaseRevision(n: number) {
+      e.lastRevision = n
+    },
     pullRemote: vi.fn(async () => ({ applied: false, revision: 0 })),
     pushLocal: vi.fn(async () => ({ ok: true as const, revision: 1 })),
     ...overrides,
   }
+  return e
+}
+
+// Track instances so their auto-loop timers/listeners are torn down per test.
+const liveSyncs: Array<ReturnType<typeof useSync>> = []
+function track(s: ReturnType<typeof useSync>): ReturnType<typeof useSync> {
+  liveSyncs.push(s)
+  return s
 }
 
 describe('useSync', () => {
@@ -37,10 +50,12 @@ describe('useSync', () => {
   })
 
   afterEach(() => {
+    liveSyncs.forEach((s) => s.stopAuto())
+    liveSyncs.length = 0
     vi.useRealTimers()
   })
 
-  it('unlock pulls first (to discover an existing salt) before any push', async () => {
+  it('unlock pulls FIRST, then seeds a fresh workspace with a push', async () => {
     const calls: string[] = []
     const engine = makeEngine({
       pullRemote: vi.fn(async () => {
@@ -52,15 +67,29 @@ describe('useSync', () => {
         return { ok: true as const, revision: 1 }
       }),
     })
-    const sync = useSync({ createEngine: async () => engine })
+    const sync = track(useSync({ createEngine: async () => engine, pollMs: 9999 }))
     await sync.unlock('pw')
-    expect(calls).toEqual(['pull'])
+    // Pull happens before the seed push (discover-then-seed); first device seeds
+    // so a second device has something to pull (review issue #2).
+    expect(calls[0]).toBe('pull')
+    expect(calls).toContain('push')
     expect(useSyncStore().status).toBe('idle')
+  })
+
+  it('starts the background auto-loop on manual unlock (review issue #1)', async () => {
+    const engine = makeEngine({ pullRemote: vi.fn(async () => ({ applied: false, revision: 0 })) })
+    const sync = track(useSync({ createEngine: async () => engine, pollMs: 30 }))
+    await sync.unlock('pw')
+    const afterUnlock = (engine.pullRemote as ReturnType<typeof vi.fn>).mock.calls.length
+    // The poll (pollMs=30) must keep pulling without any manual call.
+    await new Promise((r) => setTimeout(r, 80))
+    const later = (engine.pullRemote as ReturnType<typeof vi.fn>).mock.calls.length
+    expect(later).toBeGreaterThan(afterUnlock)
   })
 
   it('a rejected pull sets status=offline and never throws', async () => {
     const engine = makeEngine()
-    const sync = useSync({ createEngine: async () => engine })
+    const sync = track(useSync({ createEngine: async () => engine, pollMs: 9999 }))
     await sync.unlock('pw')
     engine.pullRemote = vi.fn(async () => {
       throw new Error('network down')
@@ -69,11 +98,27 @@ describe('useSync', () => {
     expect(useSyncStore().status).toBe('offline')
   })
 
+  it('a decrypt failure surfaces as error, not offline (review issue #3)', async () => {
+    const engine = makeEngine()
+    const sync = track(useSync({ createEngine: async () => engine, pollMs: 9999 }))
+    await sync.unlock('pw')
+    engine.pullRemote = vi.fn(async () => {
+      throw new DecryptError()
+    })
+    await sync.pullNow()
+    expect(useSyncStore().status).toBe('error')
+    expect(useSyncStore().lastError).toMatch(/decrypt/i)
+  })
+
   it('a push conflict sets status=conflict and stashes the current revision', async () => {
     const engine = makeEngine()
-    const sync = useSync({ createEngine: async () => engine })
+    const sync = track(useSync({ createEngine: async () => engine, pollMs: 9999 }))
     await sync.unlock('pw')
-    engine.pushLocal = vi.fn(async () => ({ ok: false as const, conflict: true as const, currentRevision: 7 }))
+    engine.pushLocal = vi.fn(async () => ({
+      ok: false as const,
+      conflict: true as const,
+      currentRevision: 7,
+    }))
     await sync.pushNow()
     const store = useSyncStore()
     expect(store.status).toBe('conflict')
@@ -89,7 +134,7 @@ describe('useSync', () => {
       currentSaltHex: '00112233445566778899aabbccddeeff',
       pullRemote: vi.fn(async () => ({ applied: false, revision: 0 })),
     })
-    const sync = useSync({ createEngine: async () => engine })
+    const sync = track(useSync({ createEngine: async () => engine, pollMs: 9999 }))
     await sync.unlock('pw')
     const km = store.keyMaterial
     expect(km).not.toBeNull()
@@ -99,12 +144,15 @@ describe('useSync', () => {
 
     // A fresh useSync should auto-unlock from the cached material (no password).
     let materialUsed: unknown = null
-    const sync2 = useSync({
-      createEngineFromMaterial: (material) => {
-        materialUsed = material
-        return makeEngine({ currentSaltHex: material.saltHex })
-      },
-    })
+    const sync2 = track(
+      useSync({
+        pollMs: 9999,
+        createEngineFromMaterial: (material) => {
+          materialUsed = material
+          return makeEngine({ currentSaltHex: material.saltHex })
+        },
+      }),
+    )
     const ok = await sync2.tryAutoUnlock()
     expect(ok).toBe(true)
     expect((materialUsed as { saltHex: string }).saltHex).toBe('00112233445566778899aabbccddeeff')
@@ -115,8 +163,10 @@ describe('useSync', () => {
     // Real timers + a tiny debounce: the async snapshot hash (crypto.subtle)
     // doesn't resolve reliably under fake timers, so keep this deterministic.
     const engine = makeEngine()
-    const sync = useSync({ createEngine: async () => engine, debounceMs: 20 })
+    const sync = track(useSync({ createEngine: async () => engine, debounceMs: 20, pollMs: 9999 }))
     await sync.unlock('pw')
+    // Unlock seeds a fresh workspace with one push — ignore that for this test.
+    ;(engine.pushLocal as ReturnType<typeof vi.fn>).mockClear()
     // A real local change so the hash differs from what unlock recorded.
     localStorage.setItem('dormAssignments-guests', '["changed"]')
     sync.notifyChange()

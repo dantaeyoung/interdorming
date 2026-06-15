@@ -77,7 +77,7 @@ func TestPullUnknownWorkspace(t *testing.T) {
 func TestPushThenPull(t *testing.T) {
 	srv := NewServer(mustStore(t))
 	proof := "deadbeef"
-	rr := doJSON(srv, "POST", "/v1/push", proof, `{"baseRevision":0,"salt":"s","iv":"i","ciphertext":"c"}`)
+	rr := doJSON(srv, "POST", "/v1/push", proof, `{"baseRevision":0,"salt":"aa","iv":"bb","ciphertext":"cc"}`)
 	if rr.Code != 200 {
 		t.Fatalf("push code %d body %s", rr.Code, rr.Body.String())
 	}
@@ -89,8 +89,8 @@ func TestPushThenPull(t *testing.T) {
 		t.Fatalf("pull code %d", rr.Code)
 	}
 	body := rr.Body.String()
-	if !strings.Contains(body, `"revision":1`) || !strings.Contains(body, `"ciphertext":"c"`) ||
-		!strings.Contains(body, `"salt":"s"`) || !strings.Contains(body, `"iv":"i"`) {
+	if !strings.Contains(body, `"revision":1`) || !strings.Contains(body, `"ciphertext":"cc"`) ||
+		!strings.Contains(body, `"salt":"aa"`) || !strings.Contains(body, `"iv":"bb"`) {
 		t.Fatalf("pull body missing fields: %s", body)
 	}
 }
@@ -98,8 +98,8 @@ func TestPushThenPull(t *testing.T) {
 func TestPushConflict(t *testing.T) {
 	srv := NewServer(mustStore(t))
 	proof := "deadbeef"
-	doJSON(srv, "POST", "/v1/push", proof, `{"baseRevision":0,"salt":"s","iv":"i","ciphertext":"c"}`)
-	rr := doJSON(srv, "POST", "/v1/push", proof, `{"baseRevision":0,"salt":"s","iv":"i","ciphertext":"c2"}`)
+	doJSON(srv, "POST", "/v1/push", proof, `{"baseRevision":0,"salt":"aa","iv":"bb","ciphertext":"cc"}`)
+	rr := doJSON(srv, "POST", "/v1/push", proof, `{"baseRevision":0,"salt":"aa","iv":"bb","ciphertext":"dd"}`)
 	if rr.Code != 409 {
 		t.Fatalf("want 409 got %d", rr.Code)
 	}
@@ -132,6 +132,23 @@ func TestCORSHeaderOnResponse(t *testing.T) {
 	rr := doReq(srv, "POST", "/v1/pull", "deadbeef", "")
 	if rr.Header().Get("Access-Control-Allow-Origin") == "" {
 		t.Fatal("response missing Access-Control-Allow-Origin")
+	}
+}
+
+func TestPushRejectsMalformedFields(t *testing.T) {
+	srv := NewServer(mustStore(t))
+	cases := []string{
+		`{"baseRevision":0,"salt":"","iv":"bb","ciphertext":"cc"}`,        // empty salt
+		`{"baseRevision":0,"salt":"aa","iv":"","ciphertext":"cc"}`,        // empty iv
+		`{"baseRevision":0,"salt":"aa","iv":"bb","ciphertext":""}`,        // empty ciphertext
+		`{"baseRevision":0,"salt":"zz","iv":"bb","ciphertext":"cc"}`,      // non-hex salt
+		`{"baseRevision":0,"salt":"aa","iv":"bb","ciphertext":"nothex"}`,  // odd-length / non-hex
+	}
+	for _, body := range cases {
+		rr := doJSON(srv, "POST", "/v1/push", "deadbeef", body)
+		if rr.Code != 400 {
+			t.Fatalf("want 400 for %s, got %d", body, rr.Code)
+		}
 	}
 }
 

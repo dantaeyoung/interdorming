@@ -104,4 +104,10 @@ The whole state is one SQLite file (`DB_PATH`). Two good options:
   on a ~25 s poll. Tune there, not here.
 - **No silent clobber:** the revision guard plus the in-app conflict banner are
   the entire safety story — do not add an auto-overwrite path on `409`.
+- **Rate limiting is deliberately left to the edge (Caddy), not the app.** A
+  successful response still requires the auth proof, and each guess costs the
+  attacker a full 600k-iteration PBKDF2 *client-side*, so an online brute force
+  is already impractical. Adding a per-IP limit at Caddy (see the commented
+  block in `Caddyfile.example`) is cheap defense-in-depth and recommended for a
+  public deployment; the Go server intentionally stays minimal.
 ```

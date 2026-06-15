@@ -19,6 +19,17 @@ sync.example.org {
 
 	encode gzip
 
+	# Optional per-IP rate limiting (defense-in-depth against online proof
+	# brute-force). Requires the caddy-ratelimit plugin:
+	#   xcaddy build --with github.com/mholt/caddy-ratelimit
+	# rate_limit {
+	# 	zone dormsync {
+	# 		key {remote_host}
+	# 		events 60
+	# 		window 1m
+	# 	}
+	# }
+
 	log {
 		output file /var/log/caddy/dormsync.log
 	}

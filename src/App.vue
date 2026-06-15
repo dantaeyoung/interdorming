@@ -444,12 +444,10 @@ onMounted(() => {
   dormitoryStore.migrateToCutsModel()
 
   // Cloud sync (opt-in). If a device is remembered, auto-unlock from cached
-  // key material and start the background pull/push loop. Any failure here is
-  // non-fatal — the app stays fully usable offline.
+  // key material; tryAutoUnlock starts the background pull/push loop itself.
+  // Any failure here is non-fatal — the app stays fully usable offline.
   if (syncStore.enabled) {
-    void sync.tryAutoUnlock().then((unlocked) => {
-      if (unlocked) sync.startAuto()
-    })
+    void sync.tryAutoUnlock()
   }
 })
 

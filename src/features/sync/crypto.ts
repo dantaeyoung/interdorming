@@ -82,15 +82,34 @@ export async function encryptJSON(
   return { ivHex: toHex(iv), ciphertextHex: toHex(new Uint8Array(ct)) }
 }
 
+// Thrown when a pulled blob cannot be decrypted — wrong password/key or a
+// tampered/corrupt ciphertext (GCM auth failure). Distinct from a network
+// failure so the UI can say "wrong password" instead of "offline".
+export class DecryptError extends Error {
+  constructor(message = 'Could not decrypt the synced data — wrong password or corrupted data.') {
+    super(message)
+    this.name = 'DecryptError'
+  }
+}
+
 export async function decryptJSON(
   key: CryptoKey,
   ivHex: string,
   ciphertextHex: string,
 ): Promise<unknown> {
-  const pt = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: fromHex(ivHex) },
-    key,
-    fromHex(ciphertextHex),
-  )
-  return JSON.parse(new TextDecoder().decode(pt))
+  let pt: ArrayBuffer
+  try {
+    pt = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromHex(ivHex) },
+      key,
+      fromHex(ciphertextHex),
+    )
+  } catch {
+    throw new DecryptError()
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(pt))
+  } catch {
+    throw new DecryptError('Decrypted data was not valid JSON — corrupted blob.')
+  }
 }

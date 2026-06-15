@@ -66,6 +66,11 @@ func idFromAuth(r *http.Request) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func isHex(s string) bool {
+	_, err := hex.DecodeString(s)
+	return err == nil
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -125,6 +130,14 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	// Reject malformed blobs up front: salt/iv/ciphertext must be present and
+	// valid hex. A buggy or hostile client (even with a valid proof) shouldn't
+	// be able to store garbage that breaks decryption for every other device.
+	if !isHex(body.Salt) || !isHex(body.IV) || !isHex(body.Ciphertext) ||
+		body.Salt == "" || body.IV == "" || body.Ciphertext == "" {
+		http.Error(w, "salt, iv and ciphertext must be non-empty hex", http.StatusBadRequest)
 		return
 	}
 	rev, conflict, err := s.store.Put(id, body.BaseRevision, body.Salt, body.IV, body.Ciphertext)

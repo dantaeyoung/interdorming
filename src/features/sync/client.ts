@@ -16,21 +16,35 @@ export type PushResult =
 
 type FetchFn = typeof fetch
 
+const DEFAULT_TIMEOUT_MS = 12_000
+
 export class SyncClient {
   constructor(
     private baseUrl: string,
     private fetchFn: FetchFn = fetch,
+    private timeoutMs: number = DEFAULT_TIMEOUT_MS,
   ) {}
 
   private url(path: string) {
     return this.baseUrl.replace(/\/$/, '') + path
   }
 
+  // Fetch with an abort-based timeout so a black-hole server (accepts the
+  // connection but never responds) rejects instead of hanging forever — the
+  // caller then degrades to offline as designed.
+  private async fetchWithTimeout(path: string, init: RequestInit): Promise<Response> {
+    const doFetch = this.fetchFn // local ref: keep `this` off the global fetch
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    try {
+      return await doFetch(this.url(path), { ...init, signal: controller.signal })
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
   async pull(authProofHex: string): Promise<StoredRecord | null> {
-    // Call through a local ref so `this` isn't the SyncClient — the browser's
-    // real fetch throws "Illegal invocation" unless its `this` is window.
-    const doFetch = this.fetchFn
-    const res = await doFetch(this.url('/v1/pull'), {
+    const res = await this.fetchWithTimeout('/v1/pull', {
       method: 'POST',
       headers: { Authorization: `Bearer ${authProofHex}` },
     })
@@ -40,8 +54,7 @@ export class SyncClient {
   }
 
   async push(authProofHex: string, body: PushBody): Promise<PushResult> {
-    const doFetch = this.fetchFn
-    const res = await doFetch(this.url('/v1/push'), {
+    const res = await this.fetchWithTimeout('/v1/push', {
       method: 'POST',
       headers: { Authorization: `Bearer ${authProofHex}`, 'content-type': 'application/json' },
       body: JSON.stringify(body),

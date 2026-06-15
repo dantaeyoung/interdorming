@@ -13,12 +13,13 @@
 import { useSyncStore } from '@/stores/syncStore'
 import { SyncEngine, type CachedMaterial } from './engine'
 import { SyncClient } from './client'
-import { deriveAuth, deriveEncKeyHex, importEncKey, fromHex } from './crypto'
+import { deriveAuth, deriveEncKeyHex, importEncKey, fromHex, DecryptError } from './crypto'
 import { gatherSnapshot, hashSnapshot } from './snapshot'
 
 export interface SyncEngineLike {
   currentSaltHex: string | null
   lastRevision: number
+  setBaseRevision(revision: number): void
   pullRemote(): Promise<{ applied: boolean; revision: number }>
   pushLocal(): Promise<
     { ok: true; revision: number } | { ok: false; conflict: true; currentRevision: number }
@@ -61,13 +62,23 @@ export function useSync(options: UseSyncOptions = {}) {
     return hashSnapshot(gatherSnapshot())
   }
 
-  /** Run a network op so failures degrade to offline instead of throwing. */
+  /**
+   * Run a network op so failures never throw to the UI. A decrypt failure
+   * (wrong password / tampered blob) is surfaced as 'error' with a clear
+   * message; everything else degrades to 'offline'. Returns null on failure.
+   */
   async function safeNetwork<T>(fn: () => Promise<T>): Promise<T | null> {
     try {
       return await fn()
     } catch (e) {
-      store.setStatus('offline')
-      store.lastError = String(e)
+      if (e instanceof DecryptError) {
+        store.setStatus('error')
+        store.lastError = e.message
+      } else {
+        store.setStatus('offline')
+        // Friendly, leak-free message (raw errors can contain the server URL).
+        store.lastError = 'Network unavailable — your changes are saved on this device.'
+      }
       return null
     }
   }
@@ -81,10 +92,55 @@ export function useSync(options: UseSyncOptions = {}) {
     store.rememberKeyMaterial({ saltHex, authProofHex, encKeyHex })
   }
 
+  /**
+   * Pull the remote record and apply it. Reloads ONLY when the applied data
+   * actually changed local state (so re-pulling identical data doesn't loop the
+   * page). Returns true if a record existed, false on 404, null on failure.
+   */
+  async function pullAndApply(): Promise<boolean | null> {
+    if (!engine) return null
+    const before = await currentHash()
+    const result = await safeNetwork(() => engine!.pullRemote())
+    if (result === null) return null // offline / decrypt error — status already set
+    store.currentRevision = engine.lastRevision
+    if (result.applied) {
+      const after = await currentHash()
+      // Remote state is now our synced baseline — don't re-push it back.
+      lastPushedHash = after
+      store.lastSyncedAt = Date.now()
+      store.setStatus('idle')
+      if (after !== before) reload() // re-hydrate Pinia only if something changed
+      return true
+    }
+    if (store.status === 'offline' || store.status === 'syncing') store.setStatus('idle')
+    return false
+  }
+
+  /**
+   * Bring a freshly-built engine online: pull/apply, seed a brand-new workspace
+   * with local data, then start the live sync loop. Shared by unlock and
+   * tryAutoUnlock.
+   */
+  async function bringOnline(): Promise<boolean> {
+    const applied = await pullAndApply()
+    if (applied === null) return false // offline; status set
+    if (applied === false) {
+      // No remote record yet — we're the first device. Seed our local data so
+      // other devices can pull it (without this, nothing syncs until an edit).
+      await pushNow()
+    } else {
+      await cacheIfRemembering()
+    }
+    startAuto() // begin auto-push (debounced) + auto-pull (focus/poll)
+    return true
+  }
+
   async function unlock(pw: string): Promise<boolean> {
     password = pw
     store.setStatus('syncing')
     try {
+      // Pull happens inside bringOnline; deriveAuth here is deterministic so any
+      // device finds the same workspace with no discovery step.
       engine = await createEngine(pw, store.serverUrl)
     } catch (e) {
       engine = null
@@ -92,19 +148,7 @@ export function useSync(options: UseSyncOptions = {}) {
       store.lastError = String(e)
       return false
     }
-    // Pull FIRST: discovers an existing workspace + its salt before we ever
-    // mint one. A 404 (applied:false) just means we're the first device.
-    const result = await safeNetwork(() => engine!.pullRemote())
-    if (result === null) return false // offline; status already set
-    store.currentRevision = engine.lastRevision
-    lastPushedHash = await currentHash()
-    await cacheIfRemembering()
-    store.setStatus('idle')
-    if (result.applied) {
-      store.lastSyncedAt = Date.now()
-      reload() // re-hydrate Pinia from the freshly-applied snapshot
-    }
-    return true
+    return bringOnline()
   }
 
   /** Auto-unlock at app start from cached material (no password prompt). */
@@ -124,30 +168,26 @@ export function useSync(options: UseSyncOptions = {}) {
       { authProofHex: km.authProofHex, saltHex: km.saltHex, encKey },
       store.serverUrl,
     )
-    const result = await safeNetwork(() => engine!.pullRemote())
-    if (result === null) return false
-    store.currentRevision = engine.lastRevision
-    lastPushedHash = await currentHash()
-    store.setStatus('idle')
-    if (result.applied) {
-      store.lastSyncedAt = Date.now()
-      reload()
-    }
-    return true
+    return bringOnline()
   }
 
+  /** Manual "Pull now" — explicit user intent, so always apply theirs. */
   async function pullNow(): Promise<void> {
+    await pullAndApply()
+  }
+
+  /**
+   * Background pull (focus/poll). Unlike a manual pull, this must NOT silently
+   * overwrite unsynced local edits — if the local hash has diverged, push
+   * instead so any real divergence surfaces as a conflict, not lost work.
+   */
+  async function autoPull(): Promise<void> {
     if (!engine) return
-    const result = await safeNetwork(() => engine!.pullRemote())
-    if (result === null) return // offline
-    store.currentRevision = engine.lastRevision
-    if (result.applied) {
-      store.lastSyncedAt = Date.now()
-      store.setStatus('idle')
-      reload()
-    } else if (store.status === 'offline' || store.status === 'syncing') {
-      store.setStatus('idle')
+    if ((await currentHash()) !== lastPushedHash) {
+      notifyChange()
+      return
     }
+    await pullAndApply()
   }
 
   async function pushNow(): Promise<void> {
@@ -192,16 +232,18 @@ export function useSync(options: UseSyncOptions = {}) {
     if (choice === 'reload') {
       await pullNow()
     } else {
-      engine.lastRevision = store.currentRevision
+      // Re-push local against the server's current revision (user-initiated).
+      engine.setBaseRevision(store.currentRevision)
       await pushNow()
     }
   }
 
   function startAuto(): void {
-    void pullNow()
-    focusHandler = () => void pullNow()
+    if (pollTimer) return // idempotent: already running (e.g. unlock + App mount)
+    void autoPull()
+    focusHandler = () => void autoPull()
     if (typeof window !== 'undefined') window.addEventListener('focus', focusHandler)
-    pollTimer = setInterval(() => void pullNow(), pollMs)
+    pollTimer = setInterval(() => void autoPull(), pollMs)
     // Light poll of the snapshot hash so local edits trigger a debounced push
     // without wiring into every store's mutations.
     changeTimer = setInterval(() => {

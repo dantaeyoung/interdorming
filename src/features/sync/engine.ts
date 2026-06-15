@@ -1,4 +1,12 @@
-import { deriveAuth, deriveEncKey, encryptJSON, decryptJSON, fromHex, toHex, randomBytes } from './crypto'
+import {
+  deriveAuth,
+  deriveEncKey,
+  encryptJSON,
+  decryptJSON,
+  fromHex,
+  toHex,
+  randomBytes,
+} from './crypto'
 import { gatherSnapshot, applySnapshot, type Snapshot } from './snapshot'
 import type { StoredRecord, PushBody, PushResult } from './client'
 
@@ -65,6 +73,15 @@ export class SyncEngine {
   /** The workspace salt currently in use (null until first push/pull). */
   get currentSaltHex(): string | null {
     return this.saltHex
+  }
+
+  /**
+   * Override the base revision the next push will assert. Used only by the
+   * user-initiated "Keep mine" conflict resolution to re-push against the
+   * server's current revision. Never call this to auto-defeat the seatbelt.
+   */
+  setBaseRevision(revision: number): void {
+    this.lastRevision = revision
   }
 
   async pushLocal(): Promise<PushResult> {
