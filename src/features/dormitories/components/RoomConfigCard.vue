@@ -68,7 +68,7 @@ import { ConfirmDialog } from '@/shared/components'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useGuestStore } from '@/stores/guestStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
-import { staysOverlap } from '@/shared/composables/useUtils'
+import { staysOverlap, parseLocalDate } from '@/shared/composables/useUtils'
 import { useHints } from '@/features/hints/composables/useHints'
 import type { Room, Bed } from '@/types'
 
@@ -133,33 +133,13 @@ function getAssignedGuestNames(bedId: string): string[] {
  */
 function filterGuestIdsToCurrentConfigWindow(guestIds: string[]): string[] {
   const selectedId = dormitoryStore.selectedConfigurationId
-  // eslint-disable-next-line no-console
-  console.log('[deactivate-filter] selectedConfigurationId=', selectedId, 'guestIds=', guestIds)
-  if (!selectedId) {
-    console.log('[deactivate-filter] no selected config — passing through unfiltered')
-    return guestIds
-  }
+  if (!selectedId) return guestIds
   const window = dormitoryStore.configurationWindow(selectedId)
-  console.log('[deactivate-filter] configurationWindow=', window)
-  if (!window) {
-    console.log('[deactivate-filter] no window — passing through unfiltered')
-    return guestIds
-  }
+  if (!window) return guestIds
   return guestIds.filter(id => {
     const guest = guestStore.guests.find(g => g.id === id)
-    if (!guest) {
-      console.log('[deactivate-filter]', id, 'no matching guest — excluded')
-      return false
-    }
-    const overlaps = guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
-    console.log(
-      '[deactivate-filter]',
-      `${guest.firstName} ${guest.lastName}`,
-      'stay=', guest.arrival, '→', guest.departure,
-      'window=', window.start, '→', window.endExclusive,
-      'overlaps=', overlaps,
-    )
-    return overlaps
+    if (!guest) return false
+    return guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
   })
 }
 
@@ -169,6 +149,12 @@ function filterGuestIdsToCurrentConfigWindow(guestIds: string[]): string[] {
  * the window mean ±infinity. Missing guest dates remain "always
  * present" (existing convention) — a guest without arrival/departure
  * affects every configuration's window.
+ *
+ * Critical: guest dates are stored in mixed formats — Planyo CSVs
+ * come in as `"Jun 19, 2026"` while configuration windows are ISO
+ * `"2026-06-18"`. Lexical comparison would wrongly conclude
+ * `"Jun 19, 2026" >= "2026-12-14"` (because 'J' > '2'), so we parse
+ * both sides through `parseLocalDate` and compare epoch ms.
  */
 function guestStayOverlapsConfigWindow(
   arrival: string | undefined | null,
@@ -176,9 +162,17 @@ function guestStayOverlapsConfigWindow(
   window: { start: string | null; endExclusive: string | null }
 ): boolean {
   if (!arrival || !departure) return true
-  // Compare ISO YYYY-MM-DD strings lexically — sort-correct for dates.
-  if (window.start !== null && departure <= window.start) return false
-  if (window.endExclusive !== null && arrival >= window.endExclusive) return false
+  const arrivalMs = parseLocalDate(arrival).getTime()
+  const departureMs = parseLocalDate(departure).getTime()
+  if (isNaN(arrivalMs) || isNaN(departureMs)) return true
+  if (window.start !== null) {
+    const startMs = parseLocalDate(window.start).getTime()
+    if (!isNaN(startMs) && departureMs <= startMs) return false
+  }
+  if (window.endExclusive !== null) {
+    const endMs = parseLocalDate(window.endExclusive).getTime()
+    if (!isNaN(endMs) && arrivalMs >= endMs) return false
+  }
   return true
 }
 

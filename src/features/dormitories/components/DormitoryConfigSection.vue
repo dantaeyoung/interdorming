@@ -74,7 +74,7 @@ import { ConfirmDialog } from '@/shared/components'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useGuestStore } from '@/stores/guestStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
-import { staysOverlap } from '@/shared/composables/useUtils'
+import { staysOverlap, parseLocalDate } from '@/shared/composables/useUtils'
 import { useHints } from '@/features/hints/composables/useHints'
 import type { Dormitory, Room } from '@/types'
 
@@ -111,44 +111,40 @@ const dormitoryStore = useDormitoryStore()
  */
 function filterGuestIdsToCurrentConfigWindow(guestIds: string[]): string[] {
   const selectedId = dormitoryStore.selectedConfigurationId
-  // eslint-disable-next-line no-console
-  console.log('[dorm-deactivate-filter] selectedConfigurationId=', selectedId, 'guestIds=', guestIds)
-  if (!selectedId) {
-    console.log('[dorm-deactivate-filter] no selected config — passing through unfiltered')
-    return guestIds
-  }
+  if (!selectedId) return guestIds
   const window = dormitoryStore.configurationWindow(selectedId)
-  console.log('[dorm-deactivate-filter] configurationWindow=', window)
-  if (!window) {
-    console.log('[dorm-deactivate-filter] no window — passing through unfiltered')
-    return guestIds
-  }
+  if (!window) return guestIds
   return guestIds.filter(id => {
     const guest = guestStore.guests.find(g => g.id === id)
-    if (!guest) {
-      console.log('[dorm-deactivate-filter]', id, 'no matching guest — excluded')
-      return false
-    }
-    const overlaps = guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
-    console.log(
-      '[dorm-deactivate-filter]',
-      `${guest.firstName} ${guest.lastName}`,
-      'stay=', guest.arrival, '→', guest.departure,
-      'window=', window.start, '→', window.endExclusive,
-      'overlaps=', overlaps,
-    )
-    return overlaps
+    if (!guest) return false
+    return guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
   })
 }
 
+/**
+ * See RoomConfigCard's same-named helper. Important: guest dates come
+ * from CSVs in mixed formats ("Jun 19, 2026" vs ISO "2026-06-18"), so
+ * lexical string comparison breaks the moment a guest date has a
+ * non-numeric leading char. `parseLocalDate` normalizes everything to
+ * epoch ms before comparing.
+ */
 function guestStayOverlapsConfigWindow(
   arrival: string | undefined | null,
   departure: string | undefined | null,
   window: { start: string | null; endExclusive: string | null }
 ): boolean {
   if (!arrival || !departure) return true
-  if (window.start !== null && departure <= window.start) return false
-  if (window.endExclusive !== null && arrival >= window.endExclusive) return false
+  const arrivalMs = parseLocalDate(arrival).getTime()
+  const departureMs = parseLocalDate(departure).getTime()
+  if (isNaN(arrivalMs) || isNaN(departureMs)) return true
+  if (window.start !== null) {
+    const startMs = parseLocalDate(window.start).getTime()
+    if (!isNaN(startMs) && departureMs <= startMs) return false
+  }
+  if (window.endExclusive !== null) {
+    const endMs = parseLocalDate(window.endExclusive).getTime()
+    if (!isNaN(endMs) && arrivalMs >= endMs) return false
+  }
   return true
 }
 
