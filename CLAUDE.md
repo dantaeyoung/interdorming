@@ -213,7 +213,7 @@ Each store persists independently under its own key. The `assignmentStore` manag
 ### Bed ID Generation
 - Format: `[RoomPrefix][BedNumber]` (e.g., "MA01", "FR03")
 - Auto-generated based on room name abbreviations
-- Must be unique across all dormitories
+- **INVARIANT: `bed.bedId` must be globally unique within a layout tree.** `assignmentStore.guestToBed`, `bedLookupMap`, validation, and print views all key on `bedId`; a collision silently collapses two beds into one slot and makes one guest appear in multiple rooms. **Always generate via `useBedIdGenerator.generateUniqueBedId(roomName, existingIds)`** (seed `existingIds` with every bedId across the active config plus any pending in-flight beds). Never inline a prefix+position scheme — `dormitoryStore.healDuplicateBedIds` exists to repair legacy collisions and `bedLookupMap` logs a `console.warn` on detection, but the only correct preventive path is the helper.
 
 ## Important Implementation Notes
 

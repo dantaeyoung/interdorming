@@ -127,20 +127,45 @@ export const useDormitoryStore = defineStore(
       return allBeds
     })
 
-    // Pre-built lookup maps for O(1) bed lookups (rebuilt when dormitories change)
+    // Pre-built lookup maps for O(1) bed lookups (rebuilt when dormitories change).
+    //
+    // INVARIANT: bed.bedId must be globally unique within `dormitories.value`.
+    // Two beds with the same ID silently collapse into one Map entry, which
+    // is exactly the bug that produced the "guest appears in two rooms"
+    // symptom historically — see healDuplicateBedIds + the dedicated test.
+    // Bed creation must go through useBedIdGenerator.generateUniqueBedId.
+    // We log a console.warn here so any future regression surfaces in the
+    // browser console the first time the lookup map is rebuilt, instead of
+    // showing up as a UX weirdness in another tab much later.
     const bedLookupMap = computed(() => {
       const bedMap = new Map<string, Bed>()
       const roomMap = new Map<string, FlatRoom>()
       const dormMap = new Map<string, Dormitory>()
+      const duplicates: Array<{ bedId: string; rooms: string[] }> = []
+      const seenRooms = new Map<string, string[]>()
       for (const dormitory of dormitories.value) {
         for (const room of dormitory.rooms) {
           const flatRoom: FlatRoom = { ...room, dormitoryName: dormitory.dormitoryName }
           for (const bed of room.beds) {
+            if (bedMap.has(bed.bedId)) {
+              const prior = seenRooms.get(bed.bedId) ?? []
+              prior.push(`${dormitory.dormitoryName} / ${room.roomName}`)
+              seenRooms.set(bed.bedId, prior)
+              duplicates.push({ bedId: bed.bedId, rooms: prior })
+            } else {
+              seenRooms.set(bed.bedId, [`${dormitory.dormitoryName} / ${room.roomName}`])
+            }
             bedMap.set(bed.bedId, bed)
             roomMap.set(bed.bedId, flatRoom)
             dormMap.set(bed.bedId, dormitory)
           }
         }
+      }
+      if (duplicates.length > 0) {
+        console.warn(
+          `[dormitoryStore] Duplicate bedId(s) detected in lookup map — assignments will collide. Bed creation must use useBedIdGenerator.generateUniqueBedId; the auto-heal pass should also have caught this. Duplicates:`,
+          duplicates,
+        )
       }
       return { bedMap, roomMap, dormMap }
     })
