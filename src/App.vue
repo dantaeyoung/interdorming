@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-<span class="version-tag">v260618-08:52</span>
+<span class="version-tag">v260618-09:04</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -35,6 +35,34 @@
         />
         <!-- <AssignmentStats class="header-stats" data-tour="header-stats" /> -->
       </div>
+    </div>
+
+    <!-- Bed ID heal notice: shown once after the auto-heal renames any
+         duplicate bedIds from legacy data. Dismiss persists. -->
+    <div
+      v-if="dormitoryStore.bedIdHealRenames.length > 0"
+      class="bedid-heal-banner"
+      role="alert"
+    >
+      <div class="bedid-heal-banner__body">
+        <strong>Duplicate bed IDs were detected and renamed.</strong>
+        Two or more beds shared the same internal ID, which made one guest
+        appear in multiple rooms. The following beds were given fresh
+        unique IDs. Any assignments stay pinned to the original ID, so
+        you may need to re-verify which bed each guest belongs in:
+        <ul class="bedid-heal-banner__list">
+          <li v-for="r in dormitoryStore.bedIdHealRenames" :key="`${r.dormitoryName}-${r.oldId}-${r.newId}`">
+            {{ r.dormitoryName }} / {{ r.roomName }}: <code>{{ r.oldId }}</code> → <code>{{ r.newId }}</code>
+          </li>
+        </ul>
+      </div>
+      <button
+        class="bedid-heal-banner__dismiss"
+        @click="dormitoryStore.dismissBedIdHealNotice"
+        title="Dismiss"
+      >
+        ✕
+      </button>
     </div>
 
     <!-- Tab Navigation -->
@@ -951,6 +979,52 @@ function stopResize() {
       font-weight: 400;
       margin-left: 6px;
       letter-spacing: 0.02em;
+    }
+  }
+}
+
+.bedid-heal-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 8px 16px;
+  padding: 12px 14px;
+  background-color: #fff7ed;
+  border: 1px solid #fdba74;
+  border-left: 4px solid #ea580c;
+  border-radius: 6px;
+  color: #7c2d12;
+  font-size: 0.85rem;
+  line-height: 1.4;
+
+  &__body {
+    flex: 1;
+  }
+
+  &__list {
+    margin: 6px 0 0;
+    padding-left: 18px;
+
+    code {
+      background: rgba(124, 45, 18, 0.08);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+  }
+
+  &__dismiss {
+    background: transparent;
+    border: none;
+    color: #7c2d12;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(124, 45, 18, 0.1);
     }
   }
 }
