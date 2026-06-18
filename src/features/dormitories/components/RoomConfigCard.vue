@@ -70,6 +70,7 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { staysOverlap, parseLocalDate } from '@/shared/composables/useUtils'
 import { useHints } from '@/features/hints/composables/useHints'
+import { useBedIdGenerator } from '@/shared/composables/useBedIdGenerator'
 import type { Room, Bed } from '@/types'
 
 interface Props {
@@ -87,6 +88,7 @@ const assignmentStore = useAssignmentStore()
 const guestStore = useGuestStore()
 const dormitoryStore = useDormitoryStore()
 const { highlightedElement } = useHints()
+const { generateUniqueBedId } = useBedIdGenerator()
 
 const localRoom = ref<Room>({ ...props.room, beds: [...props.room.beds] })
 
@@ -332,9 +334,20 @@ function handleRemoveRoom() {
 
 function addBed() {
   const newPosition = localRoom.value.beds.length + 1
-  const roomPrefix = localRoom.value.roomName.substring(0, 2).toUpperCase()
+  const existingIds = new Set<string>()
+  for (const dorm of dormitoryStore.dormitories) {
+    for (const room of dorm.rooms) {
+      for (const bed of room.beds) {
+        existingIds.add(bed.bedId)
+      }
+    }
+  }
+  for (const bed of localRoom.value.beds) {
+    existingIds.add(bed.bedId)
+  }
+  const newBedId = generateUniqueBedId(localRoom.value.roomName, Array.from(existingIds))
   const newBed: Bed = {
-    bedId: `${roomPrefix}${String(newPosition).padStart(2, '0')}`,
+    bedId: newBedId,
     bedType: 'single',
     position: newPosition,
     assignments: [],
