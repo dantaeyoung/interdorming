@@ -24,7 +24,15 @@ import type {
 } from '@/types'
 import { DEFAULT_COLORS } from '@/types'
 import { parseLocalDate } from '@/shared/composables/useUtils'
+import { useBedIdGenerator } from '@/shared/composables/useBedIdGenerator'
 import { useAssignmentStore } from './assignmentStore'
+
+export interface BedIdRename {
+  oldId: string
+  newId: string
+  roomName: string
+  dormitoryName: string
+}
 
 /**
  * Bed-shape schema version. Bump when changing bed structure so migration
@@ -119,20 +127,45 @@ export const useDormitoryStore = defineStore(
       return allBeds
     })
 
-    // Pre-built lookup maps for O(1) bed lookups (rebuilt when dormitories change)
+    // Pre-built lookup maps for O(1) bed lookups (rebuilt when dormitories change).
+    //
+    // INVARIANT: bed.bedId must be globally unique within `dormitories.value`.
+    // Two beds with the same ID silently collapse into one Map entry, which
+    // is exactly the bug that produced the "guest appears in two rooms"
+    // symptom historically — see healDuplicateBedIds + the dedicated test.
+    // Bed creation must go through useBedIdGenerator.generateUniqueBedId.
+    // We log a console.warn here so any future regression surfaces in the
+    // browser console the first time the lookup map is rebuilt, instead of
+    // showing up as a UX weirdness in another tab much later.
     const bedLookupMap = computed(() => {
       const bedMap = new Map<string, Bed>()
       const roomMap = new Map<string, FlatRoom>()
       const dormMap = new Map<string, Dormitory>()
+      const duplicates: Array<{ bedId: string; rooms: string[] }> = []
+      const seenRooms = new Map<string, string[]>()
       for (const dormitory of dormitories.value) {
         for (const room of dormitory.rooms) {
           const flatRoom: FlatRoom = { ...room, dormitoryName: dormitory.dormitoryName }
           for (const bed of room.beds) {
+            if (bedMap.has(bed.bedId)) {
+              const prior = seenRooms.get(bed.bedId) ?? []
+              prior.push(`${dormitory.dormitoryName} / ${room.roomName}`)
+              seenRooms.set(bed.bedId, prior)
+              duplicates.push({ bedId: bed.bedId, rooms: prior })
+            } else {
+              seenRooms.set(bed.bedId, [`${dormitory.dormitoryName} / ${room.roomName}`])
+            }
             bedMap.set(bed.bedId, bed)
             roomMap.set(bed.bedId, flatRoom)
             dormMap.set(bed.bedId, dormitory)
           }
         }
+      }
+      if (duplicates.length > 0) {
+        console.warn(
+          `[dormitoryStore] Duplicate bedId(s) detected in lookup map — assignments will collide. Bed creation must use useBedIdGenerator.generateUniqueBedId; the auto-heal pass should also have caught this. Duplicates:`,
+          duplicates,
+        )
       }
       return { bedMap, roomMap, dormMap }
     })
@@ -428,6 +461,121 @@ export const useDormitoryStore = defineStore(
 
     function importDormitories(importedDormitories: Dormitory[]) {
       dormitories.value = importedDormitories
+    }
+
+    /**
+     * Renames performed by the most recent `healDuplicateBedIds()` run.
+     * Surfaced in a one-time banner so the operator can verify which
+     * beds were touched. Cleared once the banner is dismissed.
+     */
+    const bedIdHealRenames = ref<BedIdRename[]>([])
+
+    /**
+     * Dedupe `bedId` strings within each independent layout tree.
+     *
+     * The pre-fix `addBed()` used a 2-char room-name prefix plus the
+     * local bed position with no uniqueness check, so two rooms whose
+     * names shared their first two characters (e.g. "Mountain House" /
+     * "Mosquito Hall" → both `MO`) produced colliding bed IDs. Because
+     * `assignmentStore.guestToBed` keys by `bedId`, a colliding bed made
+     * one guest appear in two rooms simultaneously.
+     *
+     * This routine walks every layout tree (the live `dormitories` ref,
+     * each configuration's snapshot, each layout's snapshot, each
+     * template's snapshot) and renames any duplicate found WITHIN a
+     * given tree to a fresh unique ID via `generateUniqueBedId`. Each
+     * tree is deduped independently — bed IDs are expected to be shared
+     * across configurations / templates by design (same physical bed,
+     * preserved through cuts) so we do not dedupe across trees.
+     *
+     * Returns the list of renames performed. Existing assignments stay
+     * pinned to the OLD bedId, so they remain with whichever bed kept
+     * the original ID; the renamed bed loses its prior (incorrectly
+     * shared) assignment.
+     */
+    function healDuplicateBedIds(): BedIdRename[] {
+      const { generateUniqueBedId } = useBedIdGenerator()
+      const renames: BedIdRename[] = []
+
+      const dedupeTree = (tree: Dormitory[] | undefined) => {
+        if (!Array.isArray(tree)) return
+        const seen = new Set<string>()
+        for (const dorm of tree) {
+          if (!Array.isArray(dorm.rooms)) continue
+          for (const room of dorm.rooms) {
+            if (!Array.isArray(room.beds)) continue
+            for (const bed of room.beds) {
+              if (!bed.bedId) continue
+              if (seen.has(bed.bedId)) {
+                const oldId = bed.bedId
+                const newId = generateUniqueBedId(room.roomName || '', Array.from(seen))
+                bed.bedId = newId
+                seen.add(newId)
+                renames.push({
+                  oldId,
+                  newId,
+                  roomName: room.roomName,
+                  dormitoryName: dorm.dormitoryName,
+                })
+              } else {
+                seen.add(bed.bedId)
+              }
+            }
+          }
+        }
+      }
+
+      _suppressAutoSave = true
+      dedupeTree(dormitories.value)
+      for (const layout of layouts.value) {
+        dedupeTree(layout.dormitories)
+      }
+      for (const config of configurations.value) {
+        dedupeTree(config.dormitories)
+      }
+      for (const template of configurationTemplates.value) {
+        dedupeTree(template.dormitories)
+      }
+      nextTick(() => {
+        _suppressAutoSave = false
+      })
+
+      return renames
+    }
+
+    /**
+     * One-shot heal pass mirroring the `migrateBedAssignments` watcher:
+     * runs as soon as data is non-empty (after hydration or default
+     * init), records any renames on `bedIdHealRenames` for the banner,
+     * and disposes itself.
+     */
+    let _healDone = false
+    const _stopHealWatch = watch(
+      [dormitories, layouts, configurations, configurationTemplates],
+      () => {
+        if (_healDone) return
+        const hasData =
+          dormitories.value.length > 0 ||
+          layouts.value.length > 0 ||
+          configurations.value.length > 0 ||
+          configurationTemplates.value.length > 0
+        if (!hasData) return
+        // Guard BEFORE the heal call: with flush:'sync' + deep:true,
+        // renaming bedIds inside heal would otherwise re-trigger this
+        // very watcher synchronously and partially overwrite the
+        // rename list with a smaller second-pass result.
+        _healDone = true
+        const renames = healDuplicateBedIds()
+        if (renames.length > 0) {
+          bedIdHealRenames.value = renames
+        }
+        _stopHealWatch()
+      },
+      { immediate: true, deep: true, flush: 'sync' }
+    )
+
+    function dismissBedIdHealNotice() {
+      bedIdHealRenames.value = []
     }
 
     // --- Layout Management ---
@@ -1506,6 +1654,9 @@ export const useDormitoryStore = defineStore(
       initializeDefaultDormitories,
       importDormitories,
       migrateBedAssignments,
+      healDuplicateBedIds,
+      bedIdHealRenames,
+      dismissBedIdHealNotice,
 
       // Layout actions
       ensureLayoutsInitialized,
@@ -1569,6 +1720,7 @@ export const useDormitoryStore = defineStore(
         'configurationTemplates',
         'selectedConfigurationId',
         'cutsModelMigrationComplete',
+        'bedIdHealRenames',
       ],
     },
   }
