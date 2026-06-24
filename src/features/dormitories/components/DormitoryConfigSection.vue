@@ -189,15 +189,6 @@ function getDormitoryBedIds(): string[] {
   return bedIds
 }
 
-function getAssignedGuestNames(): string[] {
-  const bedIds = getDormitoryBedIds()
-  const guestIds = assignmentStore.getGuestsAssignedToDormitory(bedIds)
-  return guestIds.map(id => {
-    const guest = guestStore.guests.find(g => g.id === id)
-    return guest ? `${guest.preferredName || guest.firstName} ${guest.lastName}` : 'Unknown'
-  })
-}
-
 function handleConfirm() {
   if (pendingAction.value) {
     pendingAction.value()
@@ -244,22 +235,49 @@ function handleActiveChange() {
 }
 
 function handleRemoveDormitory() {
-  const assignedGuests = getAssignedGuestNames()
+  // Cuts model: removal scopes the dormitory out of THIS configuration
+  // only. BedIds that still exist in another cut keep their assignments
+  // (validation surfaces "no bed during stay" for window-overlapping
+  // guests); bedIds that disappear everywhere trigger unassign.
+  const bedIds = getDormitoryBedIds()
+  const selectedId = dormitoryStore.selectedConfigurationId
+  const otherCutBedIds = dormitoryStore.getBedIdsInOtherConfigurations(selectedId)
+  const trulyGoneBedIds = bedIds.filter(id => !otherCutBedIds.has(id))
+
+  const affectedIds = filterGuestIdsToCurrentConfigWindow(
+    assignmentStore.getGuestsAssignedToDormitory(bedIds)
+  )
+  const affected = namesFromGuestIds(affectedIds)
+  const trulyGoneGuestIds = trulyGoneBedIds.length > 0
+    ? assignmentStore.getGuestsAssignedToDormitory(trulyGoneBedIds)
+    : []
+  const trulyGoneGuests = namesFromGuestIds(trulyGoneGuestIds)
 
   confirmDialogTitle.value = 'Remove Dormitory'
-  if (assignedGuests.length > 0) {
-    confirmDialogMessage.value = `Remove "${localDormitory.value.dormitoryName}"?`
-    confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to beds in this dormitory. Removing will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
-  } else {
-    confirmDialogMessage.value = `Remove "${localDormitory.value.dormitoryName}"?`
-    confirmDialogDescription.value = 'This will also remove all rooms and beds in this dormitory. This action cannot be undone.'
+  confirmDialogMessage.value = trulyGoneBedIds.length === bedIds.length
+    ? `Remove "${localDormitory.value.dormitoryName}"?`
+    : `Remove "${localDormitory.value.dormitoryName}" from this configuration?`
+
+  const parts: string[] = []
+  if (affected.length > 0) {
+    parts.push(`${affected.join(', ')} ${affected.length === 1 ? 'is' : 'are'} assigned to beds in this dormitory and ${affected.length === 1 ? 'their' : 'their'} stay overlaps this configuration. ${affected.length === 1 ? 'This guest' : 'These guests'} will show a "no bed during stay" warning until reassigned.`)
   }
+  if (trulyGoneGuests.length > 0) {
+    parts.push(`${trulyGoneGuests.join(', ')} ${trulyGoneGuests.length === 1 ? 'is' : 'are'} assigned to beds that don't exist in any other configuration — ${trulyGoneGuests.length === 1 ? 'this guest' : 'these guests'} will be unassigned.`)
+  }
+  if (parts.length === 0) {
+    parts.push(trulyGoneBedIds.length === bedIds.length
+      ? 'This will also remove all rooms and beds in this dormitory. This action cannot be undone.'
+      : 'This dormitory will remain in other configurations. This action cannot be undone for this configuration.')
+  } else if (trulyGoneBedIds.length < bedIds.length) {
+    parts.push('Other configurations are unchanged.')
+  }
+  confirmDialogDescription.value = parts.join(' ')
   confirmDialogVariant.value = 'danger'
 
   pendingAction.value = () => {
-    if (assignedGuests.length > 0) {
-      const bedIds = getDormitoryBedIds()
-      assignmentStore.unassignGuestsFromDormitory(bedIds)
+    if (trulyGoneBedIds.length > 0) {
+      assignmentStore.unassignGuestsFromDormitory(trulyGoneBedIds)
     }
     emit('remove')
   }

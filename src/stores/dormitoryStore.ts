@@ -1344,6 +1344,30 @@ export const useDormitoryStore = defineStore(
       }
     }
 
+    /**
+     * Collect every bedId present in any configuration's dormitory tree
+     * EXCEPT the one identified by `excludeConfigurationId`. Used by the
+     * structural-remove handlers (remove bed/room/dormitory) to decide
+     * whether a removal in the currently-edited cut truly nukes a bedId
+     * everywhere (→ unassign affected guests) or merely scopes it out of
+     * this cut (→ leave assignments alone; the date-overlap validation
+     * will surface the warning the same way it does for deactivation).
+     */
+    function getBedIdsInOtherConfigurations(excludeConfigurationId: string | null): Set<string> {
+      const ids = new Set<string>()
+      for (const c of configurations.value) {
+        if (c.id === excludeConfigurationId) continue
+        for (const d of c.dormitories) {
+          for (const r of d.rooms) {
+            for (const b of r.beds) {
+              ids.add(b.bedId)
+            }
+          }
+        }
+      }
+      return ids
+    }
+
     /** Set the editing target by id. No-op if id is unknown. */
     function selectConfiguration(configurationId: string | null) {
       if (configurationId === null) {
@@ -1693,6 +1717,7 @@ export const useDormitoryStore = defineStore(
       currentConfiguration,
       configurationCovering,
       configurationWindow,
+      getBedIdsInOtherConfigurations,
       cutAt,
       deleteCut,
       updateConfigurationDormitories,
