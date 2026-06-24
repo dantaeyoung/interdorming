@@ -5,7 +5,7 @@
         <h4>Configuration timeline</h4>
         <span class="header-hint">Click a configuration to edit it. Add a cut to split the timeline.</span>
       </div>
-      <button class="btn-small" @click="openCut()">+ Cut here…</button>
+      <button class="btn-small" @click="openCut()">+ Add Cut / new configuration</button>
     </div>
 
     <div class="controls">
