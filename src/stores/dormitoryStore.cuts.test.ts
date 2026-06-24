@@ -74,6 +74,95 @@ describe('cuts: migration from override-free initial state', () => {
     dorm.migrateToCutsModel()
     expect(dorm.configurations.length).toBe(after1)
   })
+
+  // Regression: a user reported that after importing a backup, refreshing
+  // showed "No rooms configured". Their localStorage had legacy `layouts`
+  // with 7 dorms, but `dormitories` was empty at the moment cuts migration
+  // ran on refresh — so the initial configuration captured an empty tree
+  // and `cutsModelMigrationComplete=true` then locked the bad state in.
+  it('seeds the initial cut from the active legacy layout when dormitories is empty', () => {
+    const dorm = useDormitoryStore()
+    const layoutDorms = [
+      {
+        dormitoryName: 'Crystal Sunshine',
+        active: true,
+        rooms: [
+          {
+            roomName: 'Room 1',
+            roomGender: 'F' as const,
+            active: true,
+            beds: [{ bedId: 'C1', bedType: 'single' as const, position: 1, assignments: [] }],
+          },
+        ],
+      },
+    ]
+    dorm.layouts = [
+      {
+        id: 'layout-active',
+        name: 'Default Layout',
+        description: '',
+        dormitories: layoutDorms,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'layout-other',
+        name: 'Variant',
+        description: '',
+        dormitories: [],
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+    dorm.activeLayoutId = 'layout-active'
+    // Simulate the transient empty state seen in the bug report.
+    dorm.importDormitories([])
+
+    dorm.migrateToCutsModel()
+
+    expect(dorm.configurations.length).toBe(1)
+    expect(dorm.configurations[0].dormitories.length).toBe(1)
+    expect(dorm.configurations[0].dormitories[0].dormitoryName).toBe('Crystal Sunshine')
+    expect(dorm.dormitories.length).toBe(1)
+    expect(dorm.dormitories[0].dormitoryName).toBe('Crystal Sunshine')
+  })
+
+  // If the active layout itself is empty but another layout has data,
+  // fall back to the first non-empty layout rather than sealing in
+  // empty state.
+  it('falls back to first non-empty layout if the active layout is empty', () => {
+    const dorm = useDormitoryStore()
+    dorm.layouts = [
+      {
+        id: 'layout-empty',
+        name: 'Empty Active',
+        description: '',
+        dormitories: [],
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'layout-data',
+        name: 'Has Data',
+        description: '',
+        dormitories: [
+          {
+            dormitoryName: 'Backup Dorm',
+            active: true,
+            rooms: [],
+          },
+        ],
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+    dorm.activeLayoutId = 'layout-empty'
+    dorm.importDormitories([])
+
+    dorm.migrateToCutsModel()
+
+    expect(dorm.configurations[0].dormitories[0].dormitoryName).toBe('Backup Dorm')
+  })
 })
 
 describe('cuts: migration from overrides + presets', () => {

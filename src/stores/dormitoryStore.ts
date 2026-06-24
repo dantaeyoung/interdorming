@@ -1406,6 +1406,29 @@ export const useDormitoryStore = defineStore(
         return
       }
 
+      // Defensive source-selection: if the working `dormitories` ref is
+      // empty but a legacy layout still holds data, lift the active
+      // (or first non-empty) layout's tree back into `dormitories`
+      // BEFORE we snapshot it. Without this, a transiently empty
+      // `dormitories.value` at migration time — possible during the
+      // backup-restore handoff between `importDormitories` and
+      // `importLayouts`, or after any code path that leaves the ref
+      // momentarily desynced from the active layout — would seal an
+      // empty initial configuration and lock the user out of their
+      // dorms (cutsModelMigrationComplete then prevents re-running).
+      if (dormitories.value.length === 0 && layouts.value.length > 0) {
+        const active = layouts.value.find(l => l.id === activeLayoutId.value)
+        const source =
+          (active && active.dormitories.length > 0 ? active : null) ??
+          layouts.value.find(l => l.dormitories.length > 0) ??
+          null
+        if (source) {
+          _suppressAutoSave = true
+          dormitories.value = _cloneDormitories(source.dormitories)
+          nextTick(() => { _suppressAutoSave = false })
+        }
+      }
+
       // Collect all override boundary dates.
       const boundarySet = new Set<string>()
       for (const o of overrides.value) {

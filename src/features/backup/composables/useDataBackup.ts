@@ -310,6 +310,19 @@ export function useDataBackup() {
       }
     }
 
+    // Cuts-model state is not yet in the BackupData schema, so any
+    // pre-existing `configurations` left in the store from prior use
+    // is stale relative to the imported dormitories. Wipe it and
+    // re-run migration so the imported tree becomes the seed for the
+    // initial cut. Without this, the next page load would silently
+    // honor the stale configurations and the imported dormitories
+    // would appear empty in the cuts UI.
+    dormitoryStore.configurations = []
+    dormitoryStore.configurationTemplates = []
+    dormitoryStore.selectedConfigurationId = null
+    dormitoryStore.cutsModelMigrationComplete = false
+    dormitoryStore.migrateToCutsModel()
+
     // Restore assignments
     assignmentStore.assignments.clear()
     if (data.assignments) {
