@@ -45,25 +45,35 @@ if (typeof globalThis.crypto === 'undefined') {
 describe('useBedIdGenerator.generateUniqueBedId', () => {
   const { generateBedId, generateUniqueBedId } = useBedIdGenerator()
 
-  it('produces matching prefix for prefix-colliding room names', () => {
-    // Documents the underlying behavior that made the original bug
-    // possible: two distinct room names map to the same prefix.
-    expect(generateBedId('Mountain House', 0)).toBe('MH01')
-    expect(generateBedId('Mosquito Hall', 0)).toBe('MH01')
+  it('produces distinct prefixes under the v2 format for previously-colliding names', () => {
+    // The v2 format takes 2 chars per word instead of 1, so the
+    // pre-fix collision pairs no longer share a prefix.
+    expect(generateBedId('Mountain House', 0)).toBe('MOHO-01')
+    expect(generateBedId('Mosquito Hall', 0)).toBe('MOHA-01')
   })
 
   it('iterates the suffix to avoid a collision with existing IDs', () => {
-    // The seed represents beds already created in "Mountain House".
-    // Adding a bed in "Mosquito Hall" (same MH prefix) must NOT reuse
-    // MH01–MH03.
-    const seed = ['MH01', 'MH02', 'MH03']
+    // Residual collisions still possible (e.g. names sharing first
+    // 2 chars per word) — generator must iterate the suffix.
+    const seed = ['MOHA-01', 'MOHA-02', 'MOHA-03']
     const next = generateUniqueBedId('Mosquito Hall', seed)
-    expect(next).toBe('MH04')
+    expect(next).toBe('MOHA-04')
   })
 
-  it('still hands out the natural ID when nothing collides', () => {
-    expect(generateUniqueBedId('Big Dorm', [])).toBe('BD01')
-    expect(generateUniqueBedId('Big Dorm', ['MA01', 'FR03'])).toBe('BD01')
+  it('hands out the natural ID when nothing collides', () => {
+    expect(generateUniqueBedId('Big Dorm', [])).toBe('BIDO-01')
+    expect(generateUniqueBedId('Big Dorm', ['MAHA-01', 'FRRO-03'])).toBe('BIDO-01')
+  })
+
+  it('handles single-word names with first 4 chars', () => {
+    expect(generateBedId('Library', 0)).toBe('LIBR-01')
+    expect(generateBedId('Garden', 0)).toBe('GARD-01')
+    expect(generateBedId('Hub', 0)).toBe('HUB-01') // shorter than 4
+  })
+
+  it('falls back to a placeholder prefix for empty/whitespace names', () => {
+    expect(generateBedId('', 0)).toBe('RM-01')
+    expect(generateBedId('   ', 0)).toBe('RM-01')
   })
 })
 

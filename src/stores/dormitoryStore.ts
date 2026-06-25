@@ -91,6 +91,12 @@ export const useDormitoryStore = defineStore(
     const selectedConfigurationId = ref<string | null>(null)
     /** Flipped true after migrating from overrides/presets to configurations. */
     const cutsModelMigrationComplete = ref<boolean>(false)
+    /**
+     * Flipped true after migrating bed IDs to the v2 format
+     * (richer prefix + dash separator, e.g. `MAHA-01` instead of `MH01`).
+     * See `migrateToBedIdFormatV2` for the full story.
+     */
+    const bedIdFormatV2Complete = ref<boolean>(false)
 
     // Internal flag to suppress auto-save during layout switch
     let _suppressAutoSave = false
@@ -1368,6 +1374,37 @@ export const useDormitoryStore = defineStore(
       return ids
     }
 
+    /**
+     * Collect every bedId across every tree the store knows about:
+     *   - the active `dormitories` ref
+     *   - every cut's `dormitories` snapshot
+     *   - every template's `dormitories` snapshot
+     *
+     * Used as the seed set when minting new bedIds (addBed, CSV import).
+     * Without this, a new bed in cut B can mint an ID that already
+     * exists in cut A — and because `assignmentStore.guestToBed` is
+     * keyed globally on bedId, those two beds would silently fuse.
+     */
+    function getAllBedIdsAcrossTrees(): Set<string> {
+      const ids = new Set<string>()
+      const walk = (tree: Dormitory[] | undefined) => {
+        if (!Array.isArray(tree)) return
+        for (const d of tree) {
+          if (!Array.isArray(d.rooms)) continue
+          for (const r of d.rooms) {
+            if (!Array.isArray(r.beds)) continue
+            for (const b of r.beds) {
+              if (b.bedId) ids.add(b.bedId)
+            }
+          }
+        }
+      }
+      walk(dormitories.value)
+      for (const c of configurations.value) walk(c.dormitories)
+      for (const t of configurationTemplates.value) walk(t.dormitories)
+      return ids
+    }
+
     /** Set the editing target by id. No-op if id is unknown. */
     function selectConfiguration(configurationId: string | null) {
       if (configurationId === null) {
@@ -1522,6 +1559,115 @@ export const useDormitoryStore = defineStore(
       overrides.value = []
       presets.value = []
       cutsModelMigrationComplete.value = true
+    }
+
+    /**
+     * One-shot migration from the legacy bedId format (`MH01`, single
+     * char per word, no separator) to the v2 format (`MAHA-01`, two
+     * chars per word, dash separator).
+     *
+     * The format change was driven by collision risk under cuts: rooms
+     * whose names share leading characters (e.g. "Maple Hall" vs
+     * "Magnolia House" — both → MH) collided structurally. The richer
+     * prefix reduces that risk.
+     *
+     * Migration walks every tree (active dormitories + every cut +
+     * every template), renames each bed in place, and rewrites
+     * `assignmentStore.guestToBed` to follow the renames. Numeric
+     * suffixes are preserved when present in the old bedId so existing
+     * bed numbering stays meaningful (`MH03` → `MAHA-03`, not `MAHA-01`).
+     *
+     * If the same physical bed has different room names across cuts
+     * (rename drift), the active dormitories tree's mapping wins in the
+     * assignment map. Cuts with divergent room names get cut-local
+     * bedIds; affected guests with cross-cut stays may lose visibility
+     * in the diverged cut. This is the same trade-off discussed in the
+     * cuts-model README for any bedId-mutating operation.
+     *
+     * Surfaces renames via the existing `bedIdHealRenames` banner.
+     */
+    function migrateToBedIdFormatV2() {
+      if (bedIdFormatV2Complete.value) return
+
+      const { computePrefix } = useBedIdGenerator()
+
+      const deriveNew = (oldId: string, roomName: string, position: number): string => {
+        const prefix = computePrefix(roomName)
+        const numMatch = oldId.match(/(\d+)$/)
+        const number = numMatch
+          ? numMatch[1].padStart(2, '0')
+          : (position + 1).toString().padStart(2, '0')
+        return `${prefix}-${number}`
+      }
+
+      const renames: BedIdRename[] = []
+      // oldBedId → newBedId, used to rewrite the assignment map.
+      // Built so the active dormitories tree's mapping wins when cuts
+      // diverge — last write to the map sticks.
+      const assignmentRewrite = new Map<string, string>()
+
+      const migrateTree = (tree: Dormitory[] | undefined, isActive: boolean): void => {
+        if (!Array.isArray(tree)) return
+        for (const dorm of tree) {
+          if (!Array.isArray(dorm.rooms)) continue
+          for (const room of dorm.rooms) {
+            if (!Array.isArray(room.beds)) continue
+            const usedInRoom = new Set<string>()
+            for (let i = 0; i < room.beds.length; i++) {
+              const bed = room.beds[i]
+              if (!bed.bedId) continue
+              const oldId = bed.bedId
+              let newId = deriveNew(oldId, room.roomName || '', i)
+              // Dedupe within room — protects against pre-existing
+              // collisions that share the same numeric suffix.
+              let counter = parseInt(newId.split('-')[1] ?? '1', 10)
+              while (usedInRoom.has(newId)) {
+                counter++
+                newId = `${computePrefix(room.roomName || '')}-${counter.toString().padStart(2, '0')}`
+              }
+              bed.bedId = newId
+              usedInRoom.add(newId)
+              if (oldId !== newId) {
+                renames.push({
+                  oldId,
+                  newId,
+                  roomName: room.roomName,
+                  dormitoryName: dorm.dormitoryName,
+                })
+              }
+              if (isActive || !assignmentRewrite.has(oldId)) {
+                assignmentRewrite.set(oldId, newId)
+              }
+            }
+          }
+        }
+      }
+
+      _suppressAutoSave = true
+      // Cuts and templates first; active last so its mapping wins.
+      for (const c of configurations.value) migrateTree(c.dormitories, false)
+      for (const t of configurationTemplates.value) migrateTree(t.dormitories, false)
+      migrateTree(dormitories.value, true)
+
+      // Rewrite the assignment map. `bed.assignments[].guestId` is
+      // keyed on guestId so it needs no update.
+      const assignmentStore = useAssignmentStore()
+      const newMap = new Map<string, string>()
+      for (const [guestId, oldBedId] of assignmentStore.assignments.entries()) {
+        newMap.set(guestId, assignmentRewrite.get(oldBedId) ?? oldBedId)
+      }
+      assignmentStore.assignments.clear()
+      for (const [guestId, newBedId] of newMap.entries()) {
+        assignmentStore.assignments.set(guestId, newBedId)
+      }
+
+      bedIdFormatV2Complete.value = true
+
+      if (renames.length > 0) {
+        bedIdHealRenames.value = [...bedIdHealRenames.value, ...renames]
+      }
+
+      nextTick(() => { _suppressAutoSave = false })
     }
 
     /** Same logic as `dormitoriesAt` was before the cuts-model branch. */
@@ -1741,6 +1887,7 @@ export const useDormitoryStore = defineStore(
       configurationCovering,
       configurationWindow,
       getBedIdsInOtherConfigurations,
+      getAllBedIdsAcrossTrees,
       cutAt,
       deleteCut,
       updateConfigurationDormitories,
@@ -1750,6 +1897,10 @@ export const useDormitoryStore = defineStore(
       renameConfigurationTemplate,
       selectConfiguration,
       migrateToCutsModel,
+
+      // BedId format v2 migration
+      bedIdFormatV2Complete,
+      migrateToBedIdFormatV2,
     }
   },
   {
@@ -1769,6 +1920,7 @@ export const useDormitoryStore = defineStore(
         'selectedConfigurationId',
         'cutsModelMigrationComplete',
         'bedIdHealRenames',
+        'bedIdFormatV2Complete',
       ],
     },
   }

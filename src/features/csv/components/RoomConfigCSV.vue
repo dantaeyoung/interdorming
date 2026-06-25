@@ -324,7 +324,22 @@ function parseRoomConfigCSV(csvText: string): Dormitory[] {
 
   const headers = lines[startLine].split(',').map(h => h.trim().replace(/"/g, ''))
   const dormitoriesMap = new Map<string, Dormitory>()
+  // Seed with bedIds from every OTHER tree (cuts + templates) so the
+  // CSV's bedIds don't silently collide with another cut's beds and
+  // fuse them in the global assignment map. The active dormitories
+  // tree is being replaced by this import, so its existing bedIds are
+  // not relevant — only the cuts/templates that survive.
   const seenBedIds = new Set<string>()
+  for (const c of dormitoryStore.configurations) {
+    for (const d of c.dormitories) for (const r of d.rooms) for (const b of r.beds) {
+      seenBedIds.add(b.bedId)
+    }
+  }
+  for (const t of dormitoryStore.configurationTemplates) {
+    for (const d of t.dormitories) for (const r of d.rooms) for (const b of r.beds) {
+      seenBedIds.add(b.bedId)
+    }
+  }
   const renamedBedIds: Array<{ oldId: string; newId: string; roomName: string }> = []
 
   for (let i = startLine + 1; i < lines.length; i++) {
@@ -336,9 +351,9 @@ function parseRoomConfigCSV(csvText: string): Dormitory[] {
 
     if (!dormitoryName || !roomName || !rawBedId) continue
 
-    // Dedupe bedId in case the CSV has collisions (legacy export from
-    // before the addBed uniqueness fix, or a hand-edited file). Same
-    // helper used everywhere else so the renaming rule is consistent.
+    // Dedupe bedId against everything reserved across the system — both
+    // bedIds seen earlier in this CSV AND bedIds in other cuts/templates.
+    // Same helper used everywhere else so the renaming rule is consistent.
     let bedId = rawBedId
     if (seenBedIds.has(bedId)) {
       const newId = generateUniqueBedId(roomName, Array.from(seenBedIds))

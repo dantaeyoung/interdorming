@@ -359,14 +359,11 @@ function handleRemoveRoom() {
 
 function addBed() {
   const newPosition = localRoom.value.beds.length + 1
-  const existingIds = new Set<string>()
-  for (const dorm of dormitoryStore.dormitories) {
-    for (const room of dorm.rooms) {
-      for (const bed of room.beds) {
-        existingIds.add(bed.bedId)
-      }
-    }
-  }
+  // Seed across EVERY tree (active + every cut + every template) +
+  // local in-flight beds. Without the cross-tree seed, a new bed in
+  // cut B could mint an ID that exists in cut A and silently fuse
+  // them in the global assignment map.
+  const existingIds = dormitoryStore.getAllBedIdsAcrossTrees()
   for (const bed of localRoom.value.beds) {
     existingIds.add(bed.bedId)
   }

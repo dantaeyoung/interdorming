@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useDormitoryStore } from './dormitoryStore'
+import { useAssignmentStore } from './assignmentStore'
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -369,5 +370,141 @@ describe('cuts: dormitoriesAt routes through configurations after migration', ()
     const inCut = dorm.dormitoriesAt('2026-07-05')
     expect(beforeCut[0].active).toBe(true)
     expect(inCut[0].active).toBe(false)
+  })
+})
+
+describe('bedId format v2 migration', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorageMock.clear()
+  })
+
+  it('rewrites bedIds in the active tree, every cut, and every template', () => {
+    const dorm = useDormitoryStore()
+    dorm.importDormitories([
+      {
+        dormitoryName: 'Main',
+        active: true,
+        rooms: [
+          {
+            roomName: 'Maple Hall',
+            roomGender: 'M',
+            active: true,
+            beds: [
+              { bedId: 'MH01', bedType: 'single', position: 1, assignments: [] },
+              { bedId: 'MH02', bedType: 'single', position: 2, assignments: [] },
+            ],
+          },
+        ],
+      },
+    ])
+    dorm.configurations = [
+      {
+        id: 'cut-a',
+        effectiveFrom: null,
+        name: 'Initial',
+        dormitories: [
+          {
+            dormitoryName: 'Main',
+            active: true,
+            rooms: [
+              {
+                roomName: 'Maple Hall',
+                roomGender: 'M' as const,
+                active: true,
+                beds: [
+                  { bedId: 'MH01', bedType: 'single' as const, position: 1, assignments: [] },
+                ],
+              },
+            ],
+          },
+        ],
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+    dorm.configurationTemplates = [
+      {
+        id: 'tpl-a',
+        name: 'Template',
+        dormitories: [
+          {
+            dormitoryName: 'Main',
+            active: true,
+            rooms: [
+              {
+                roomName: 'Birch Suite',
+                roomGender: 'F' as const,
+                active: true,
+                beds: [
+                  { bedId: 'BS01', bedType: 'single' as const, position: 1, assignments: [] },
+                ],
+              },
+            ],
+          },
+        ],
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ]
+
+    dorm.migrateToBedIdFormatV2()
+
+    expect(dorm.dormitories[0].rooms[0].beds[0].bedId).toBe('MAHA-01')
+    expect(dorm.dormitories[0].rooms[0].beds[1].bedId).toBe('MAHA-02')
+    expect(dorm.configurations[0].dormitories[0].rooms[0].beds[0].bedId).toBe('MAHA-01')
+    expect(dorm.configurationTemplates[0].dormitories[0].rooms[0].beds[0].bedId).toBe('BISU-01')
+    expect(dorm.bedIdFormatV2Complete).toBe(true)
+  })
+
+  it('rewrites the assignment map in lockstep with the active tree renames', () => {
+    const dorm = useDormitoryStore()
+    const assign = useAssignmentStore()
+    dorm.importDormitories([
+      {
+        dormitoryName: 'Main',
+        active: true,
+        rooms: [
+          {
+            roomName: 'Maple Hall',
+            roomGender: 'M',
+            active: true,
+            beds: [
+              { bedId: 'MH01', bedType: 'single', position: 1, assignments: [{ guestId: 'alice' }] },
+            ],
+          },
+        ],
+      },
+    ])
+    assign.assignments.set('alice', 'MH01')
+
+    dorm.migrateToBedIdFormatV2()
+
+    expect(assign.assignments.get('alice')).toBe('MAHA-01')
+  })
+
+  it('is idempotent — re-running does not rename already-migrated IDs', () => {
+    const dorm = useDormitoryStore()
+    dorm.importDormitories([
+      {
+        dormitoryName: 'Main',
+        active: true,
+        rooms: [
+          {
+            roomName: 'Maple Hall',
+            roomGender: 'M',
+            active: true,
+            beds: [
+              { bedId: 'MH03', bedType: 'single', position: 1, assignments: [] },
+            ],
+          },
+        ],
+      },
+    ])
+    dorm.migrateToBedIdFormatV2()
+    const first = dorm.dormitories[0].rooms[0].beds[0].bedId
+    dorm.migrateToBedIdFormatV2()
+    const second = dorm.dormitories[0].rooms[0].beds[0].bedId
+    expect(first).toBe(second)
+    expect(first).toBe('MAHA-03') // numeric suffix preserved
   })
 })

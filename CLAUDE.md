@@ -211,9 +211,13 @@ Each store persists independently under its own key. The `assignmentStore` manag
 - Assignment history for undo/redo (10-action limit)
 
 ### Bed ID Generation
-- Format: `[RoomPrefix][BedNumber]` (e.g., "MA01", "FR03")
-- Auto-generated based on room name abbreviations
-- **INVARIANT: `bed.bedId` must be globally unique within a layout tree.** `assignmentStore.guestToBed`, `bedLookupMap`, validation, and print views all key on `bedId`; a collision silently collapses two beds into one slot and makes one guest appear in multiple rooms. **Always generate via `useBedIdGenerator.generateUniqueBedId(roomName, existingIds)`** (seed `existingIds` with every bedId across the active config plus any pending in-flight beds). Never inline a prefix+position scheme — `dormitoryStore.healDuplicateBedIds` exists to repair legacy collisions and `bedLookupMap` logs a `console.warn` on detection, but the only correct preventive path is the helper.
+- Format: `[RoomPrefix]-[BedNumber]` (e.g., `MAHA-01`, `LIBR-03`)
+  - **Multi-word room name:** first 2 chars of each word — `"Maple Hall"` → `MAHA`, `"Heavenly Grace"` → `HEGR`.
+  - **Single-word room name:** first 4 chars (or the whole name if shorter) — `"Library"` → `LIBR`, `"Hub"` → `HUB`.
+  - **Empty/whitespace name:** placeholder prefix `RM`.
+  - **Bed number:** 1-based, zero-padded to 2 digits.
+- The dash separator + 2-char-per-word scheme replaced the legacy 1-char-per-word format (`MH01`) in v2 to reduce structural collisions like `"Maple Hall"` vs `"Magnolia House"` both → `MH`. Migration: `dormitoryStore.migrateToBedIdFormatV2()` runs once on app mount, rewrites every tree (active + cuts + templates), updates the assignment map in lockstep, and surfaces renames in the `bedIdHealRenames` banner.
+- **INVARIANT: `bed.bedId` must be globally unique within a layout tree.** `assignmentStore.guestToBed`, `bedLookupMap`, validation, and print views all key on `bedId`; a collision silently collapses two beds into one slot and makes one guest appear in multiple rooms. **Always generate via `useBedIdGenerator.generateUniqueBedId(roomName, existingIds)`** and seed `existingIds` from **`dormitoryStore.getAllBedIdsAcrossTrees()`** plus any pending in-flight beds — i.e. every bedId across the active dormitories, every cut, and every template, not just the active config. Never inline a prefix+position scheme — `dormitoryStore.healDuplicateBedIds` exists to repair legacy collisions and `bedLookupMap` logs a `console.warn` on detection, but the only correct preventive path is the helper.
 
 ## Important Implementation Notes
 
