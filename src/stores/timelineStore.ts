@@ -199,7 +199,10 @@ export const useTimelineStore = defineStore(
   {
     persist: {
       key: 'dormAssignments-timeline',
-      paths: ['config', 'columnWidth'],
+      // v4 renamed `paths` to `pick`; the old key is ignored and the
+      // fallback persists the whole store. These two are the only refs
+      // here, so honoring the list changes nothing.
+      pick: ['config', 'columnWidth'],
       serializer: {
         serialize: state => {
           return JSON.stringify({

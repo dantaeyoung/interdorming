@@ -376,7 +376,18 @@ export const useGuestStore = defineStore(
   {
     persist: {
       key: 'dormAssignments-guests',
-      paths: ['guests'],
+      // v4 renamed `paths` to `pick`; the ignored key meant the whole
+      // store was written. searchQuery and savedScrollTop persisted
+      // that way and are worth keeping, so they are listed explicitly.
+      //
+      // suggestedGroups is deliberately excluded. It is a
+      // Map<string, Set<string>>, which the default serializer turns
+      // into `{}` — so it never actually round-tripped, it just came
+      // back as a plain object and needed the defensive Map-shape
+      // watcher to avoid crashing the group hover. Same visible
+      // behavior (suggestions don't survive a reload), minus the
+      // corruption. The watcher stays for legacy localStorage.
+      pick: ['guests', 'searchQuery', 'savedScrollTop'],
     },
   }
 )
