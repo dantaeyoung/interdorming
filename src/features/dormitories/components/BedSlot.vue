@@ -144,7 +144,7 @@ import { useValidationStore } from '@/stores/validationStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useDragDrop } from '@/features/assignments/composables/useDragDrop'
 import { useGroupLinking } from '@/features/guests/composables/useGroupLinking'
-import { useUtils } from '@/shared/composables/useUtils'
+import { useUtils, requiresLowerBunk } from '@/shared/composables/useUtils'
 import { useDropValidation } from '@/shared/composables/useDropValidation'
 import { parseLocalDate, formatGuestDate, formatGuestDateShort } from '@/shared/composables/useUtils'
 import { useOverlapConfirm } from '@/shared/composables/useOverlapConfirm'
@@ -305,7 +305,7 @@ const hasWarning = computed(() => warnings.value.length > 0)
 const bedTypeClass = computed(() => `bed-${props.bed.bedType}`)
 
 // Lower bunk indicator
-const needsLowerBunk = computed(() => assignedGuest.value?.lowerBunk === true)
+const needsLowerBunk = computed(() => requiresLowerBunk(assignedGuest.value))
 
 // Notes
 const hasNotes = computed(

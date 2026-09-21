@@ -347,7 +347,7 @@ import RoomGroupLinesOverlay from '@/features/dormitories/components/RoomGroupLi
 import { GuestFormModal } from '@/features/guests/components'
 import type { GuestBlobData } from '../types/timeline'
 import type { Guest } from '@/types'
-import { parseLocalDate } from '@/shared/composables/useUtils'
+import { parseLocalDate, requiresLowerBunk } from '@/shared/composables/useUtils'
 
 const timelineStore = useTimelineStore()
 const guestStore = useGuestStore()
@@ -809,7 +809,7 @@ function getPlacementWarnings(bedId: string): string[] {
   }
 
   // Check bunk type compatibility
-  if (guest.lowerBunk && bed.bedType === 'upper') {
+  if (requiresLowerBunk(guest) && bed.bedType === 'upper') {
     warnings.push('Needs lower bunk')
   }
 
@@ -878,7 +878,7 @@ function isValidDropTarget(bedId: string): boolean {
   }
 
   // Check bunk type compatibility
-  if (guest.lowerBunk && bed.bedType === 'upper') {
+  if (requiresLowerBunk(guest) && bed.bedType === 'upper') {
     return false
   }
 

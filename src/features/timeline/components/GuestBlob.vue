@@ -73,6 +73,7 @@
 </template>
 
 <script setup lang="ts">
+import { requiresLowerBunk } from '@/shared/composables/useUtils'
 import { computed, ref } from 'vue'
 import { useValidationStore } from '@/stores/validationStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
@@ -147,7 +148,7 @@ const genderBadgeColor = computed(() => {
 })
 
 const needsLowerBunk = computed(() => {
-  return props.guestBlob.guest.lowerBunk === true
+  return requiresLowerBunk(props.guestBlob.guest)
 })
 
 const hasNotes = computed(() => {

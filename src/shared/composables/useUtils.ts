@@ -136,6 +136,41 @@ export function formatGuestDateShort(value: string | null | undefined): string {
  *
  * Stays with missing dates are considered to cover every date.
  */
+/**
+ * Strings that count as "yes" for a boolean-ish CSV field. Same set
+ * `parseBoolean` in useCSV accepts, deliberately — two different
+ * notions of truthiness for the same column is how the lower-bunk
+ * checks drifted apart in the first place.
+ */
+const TRUTHY_STRINGS = ['yes', 'true', '1', 'on', 'y']
+
+/**
+ * Whether a guest needs a lower or single bunk (a mobility constraint,
+ * never relaxed by auto-placement).
+ *
+ * `Guest.lowerBunk` is typed `boolean` and CSV import coerces it via
+ * `parseBoolean`, so in practice it IS a boolean. This helper still
+ * accepts strings and numbers because the field can arrive from places
+ * the type doesn't police — legacy localStorage, a restored backup, a
+ * hand-edited export.
+ *
+ * It exists to be the ONLY such check. Previously there were three,
+ * which agreed for booleans and diverged for everything else: a
+ * four-way `=== 'Yes' || === true || === 'TRUE' || === 'true'`
+ * comparison duplicated across two composables, a plain truthiness test
+ * in the timeline, and a strict `=== true` on the blob icon. The
+ * four-way version notably did NOT match `'YES'` — the exact casing the
+ * monastery's own CSV uses — so on string data auto-placement would put
+ * someone in an upper bunk while the timeline refused the same drop.
+ */
+export function requiresLowerBunk(guest: { lowerBunk?: unknown } | null | undefined): boolean {
+  const value = guest?.lowerBunk
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value === 1
+  if (typeof value !== 'string') return false
+  return TRUTHY_STRINGS.includes(value.trim().toLowerCase())
+}
+
 export function stayCoversDate(stay: StayLike, date: Date): boolean {
   if (hasMissingDates(stay)) return true
   const start = toLocalDate(stay.arrival as string | Date)

@@ -11,7 +11,7 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { staysOverlap, stayCoversDate } from '@/shared/composables/useUtils'
+import { staysOverlap, stayCoversDate, requiresLowerBunk } from '@/shared/composables/useUtils'
 import { classifyGuests } from './useGroupClassification'
 import type { ClassifiedGroup } from './useGroupClassification'
 import type { Guest, Bed, Room, FlatRoom } from '@/types'
@@ -45,18 +45,6 @@ export function useAutoPlacement() {
   const dormitoryStore = useDormitoryStore()
   const assignmentStore = useAssignmentStore()
   const settingsStore = useSettingsStore()
-
-  /**
-   * Helper function to check if guest requires lower bunk (hard constraint)
-   */
-  function requiresLowerBunk(guest: Guest): boolean {
-    return (
-      guest.lowerBunk === 'Yes' ||
-      guest.lowerBunk === true ||
-      guest.lowerBunk === 'TRUE' ||
-      guest.lowerBunk === 'true'
-    )
-  }
 
   /**
    * A bed is "available for guest" iff it's active for the guest's entire
@@ -561,11 +549,7 @@ export function useAutoPlacement() {
    */
   function scoreBunkRequirement(guest: Guest, bed: Bed): number {
     // Check if guest requires lower bunk
-    const needsLowerBunk =
-      guest.lowerBunk === 'Yes' ||
-      guest.lowerBunk === true ||
-      guest.lowerBunk === 'TRUE' ||
-      guest.lowerBunk === 'true'
+    const needsLowerBunk = requiresLowerBunk(guest)
 
     if (!needsLowerBunk) return 0 // No requirement - any bed is acceptable
 
