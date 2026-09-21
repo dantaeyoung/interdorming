@@ -83,14 +83,18 @@ Dormitories (top level) → Rooms → Beds → Bed Assignments → Guest
 A bed can hold multiple `BedAssignment`s as long as their derived stays don't overlap (date-aware bed sharing).
 
 ### State Management (Pinia Stores)
-- **`guestStore`**: Guest data from CSV import. Includes derived `assignableGuests` (excludes camping/commuter housing types).
+- **`guestStore`**: Guest data from CSV import. Includes derived `assignableGuests` (excludes `Camping` / `Commuter` housing types — `Dorm` and `Canvas Tent` are assignable).
 - **`dormitoryStore`**: Dormitory/room/bed configuration. Beds use the new `assignments: BedAssignment[]` shape; legacy `assignedGuestId` is migrated on first load via the eager `migrateBedAssignments` watcher.
 - **`assignmentStore`**: Guest-to-bed assignments map (`Map<guestId, bedId>`, kept in sync with `bed.assignments`), undo/redo history, suggestion accept/clear, swap helpers, and `getOverlappingAssignments` / `getAllOverlapConflicts` for the date-aware drop dialogs.
 - **`settingsStore`**: User preferences (warnings, display, gender colors, auto-placement, group placement order, couple splitting, table column visibility per view)
 - **`validationStore`**: Computed validation warnings (`dateOverlap`, gender, bunk, age, etc.). Date-scoped — only roommates whose stays overlap the candidate's stay count. Bed-level warnings are also **cohort-scoped** at the slot via `getWarningsForBed(bedId, displayedGuestId?)` so a bed-sharer in a different (non-overlapping) cohort can't surface their gender/bunk/age warning on the displayed guest's slot.
 - **`timelineStore`**: Timeline view state
 
-All stores use `pinia-plugin-persistedstate` for automatic localStorage sync.
+All stores use `pinia-plugin-persistedstate` (v4) for automatic localStorage sync.
+
+- **Use `pick`, never `paths`.** v4 renamed the option; an unrecognized `paths` key is silently ignored and the fallback persists the *entire* store. All five stores were on `paths` until v260921 — every allowlist was decorative. `pick` also filters on hydration, so anything omitted is not restored.
+- **A `Map` or `Set` in state needs a custom serializer** — `JSON.stringify` renders a `Map` as `{}`. `assignmentStore` has one; `guestStore` does not, which is why `suggestedGroups` is excluded from its `pick`.
+- **Migrations must run in `afterHydrate`, not just the setup body.** The plugin hydrates *after* setup returns and replaces the refs wholesale, so a migration in the setup body only ever migrates the defaults and its result is discarded. `settingsStore` calls `runMigrations()` from both. The hook lives in the options object, outside the setup closure, so reach setup-scoped functions via `ctx.store`, not by name. See `settingsStore.migration.test.ts` — note it mounts an app, because pinia doesn't install plugins until `app.use(pinia)`.
 
 ## File Structure
 
@@ -131,11 +135,15 @@ src/
 - **Status-based filtering** (`isActiveReservationStatus` / `isCancelledStatus` in `Constants.ts`): active = status contains `reserved` AND does NOT contain `cancel` (both case-insensitive substring rules). This catches Planyo variants — `Reserved`, `Reserved + Email address verified`, `Reserved + Email address verified + confirmed`, `Reserved (rebooked)`, etc. — without an explicit whitelist. Cancellation takes precedence so a hybrid like `Reserved → Cancelled` classifies as cancelled. Anything else (`Not completed`, `Pending`, `Added to waiting list`) is OTHER → skipped on import.
 - **Add & Update is the only merge mode** — the old "Reset & Replace" choice was removed because operators have continuous data; a single misclick was wiping manual assignments. Full-wipe still exists in Settings → Danger Zone.
 - **Match by Planyo `ID`** (or common variants in `CSV_FIELD_MAPPINGS.planyoId`), name as fallback. Same person across multiple retreats no longer collides.
-- **Diff & surface**: re-uploads report four categories in the combined `ImportSummaryDialog`:
+- **Diff & surface**: re-uploads report five categories in the combined `ImportSummaryDialog`:
   1. Cancellations (was active, now cancelled)
   2. Date changes (arrival or departure shifted)
   3. Bed conflicts (a date shift broke an existing assignment)
   4. Skipped new rows (new rows whose status isn't active — listed by name + Planyo ID + actual status so a misspelled status or unexpected variant doesn't quietly orphan a guest)
+  5. Housing/Room disagreements (stated `Housing type` conflicts with the category implied by `Room`; the stated value wins)
+- **Room column → Housing category** (`resolveHousingType` in `Constants.ts`, spec: `specs/RoomColumnAndHousing.md`): the newer Planyo export has a `Room` column (stored as `Guest.roomRequest`, labeled **"Room Chosen"** in the UI) and leaves `Housing type` blank on exactly those rows. Housing is always populated from four canonical categories — `Dorm`, `Camping`, `Commuter`, `Canvas Tent` — derived from Room when blank. Ordered rules, first match wins: `^comm+uter` → Commuter (tolerates "Commmuter"), `^camping` → Camping (`CampingMen`/`Women`/`Couples`), `^canvas\s*tent` → Canvas Tent, anything else → Dorm (including `RV Daffodil-*` and unknown rooms, so they stay visible rather than vanish). Both blank → Dorm.
+  - **Planyo multi-select commas land on either side**: `","` = nothing, `"Dorm,"` = first slot, `",Camping"` = second slot. `cleanHousingCell` strips both ends. A leftover `",Camping"` once matched no category and made a camper assignable.
+  - **`roomRequest` never assigns a bed.** The registration form's bed numbers come from a different source than the room config's `Bed Position`, so they can't be mapped. It is operator-facing information only.
 
 ### Drag-and-Drop + Click-to-Pick (`src/features/assignments/composables/useDragDrop.ts`)
 - Singleton shared state for drag tracking across components
@@ -176,8 +184,11 @@ Gender / bunk / age warnings are date-scoped — only roommates whose stays over
 - **Group classification** (`useGroupClassification.ts`): 5-tier system — families with minors → groups with minors → families (adults) → groups (adults) → individuals. Tier order is configurable in settings.
 - **Couple handling**: Mixed-gender pairs of 2 adults are split into gendered dorms by default; elderly couples (configurable age threshold) and those with mobility needs stay together in coed rooms
 - **Coed room preservation**: Same-gender groups are penalized for using coed rooms, reserving them for mixed-gender families
-- **3-pass constraint relaxation**: Strict → relaxed → emergency, each running both stages
+- **3-pass constraint relaxation**: Strict → relaxed → emergency, each running both stages. Gender and lower-bunk are never relaxed. Note pass 1 is skipped entirely if `settings.autoPlacement.enabled` is false — which has **no UI toggle**, so a `false` in saved settings silently disables auto-place.
 - **Room-specific auto-place** (`autoPlaceGuestsInRoom`): Individual-only, unchanged from original algorithm
+- **Scoped to the Table View "View Date"**: both entry points take the date (`assignmentStore.autoPlace(viewDate)`, `autoPlaceGuestsInRoom(room, viewDate)`) and consider only guests whose stay covers it (`stayCoversDate`). Null date = all dates. `AutoPlaceResult.candidateCount` is what "N could not be placed" counts against. TimelineView's per-room button stays unscoped — the timeline shows a range, not a single date.
+- **NB rooms**: guest genders are `'M' | 'F' | 'Non-binary/Other'`, room genders are `'M' | 'F' | 'Coed' | 'NB'` — always compare via `guestGenderAsRoomGender()`. NB rooms accept non-binary guests only (mirror of M/F); non-binary guests prefer NB (1.0) over Coed (0.5) and are never placed in M/F. Before v260921 an NB room rejected every guest, so auto-place on one silently did nothing.
+- **Lower bunk**: always use `requiresLowerBunk()` from `useUtils` — never test `guest.lowerBunk` directly. It shares `parseBoolean`'s truthy set; six divergent checks existed before, and the defensive ones missed `'YES'`, the monastery CSV's actual casing.
 
 ### Hints System (`src/features/hints/`)
 - Contextual hints that highlight UI elements based on current state
@@ -189,10 +200,13 @@ Gender / bunk / age warnings are date-scoped — only roommates whose stays over
 ```bash
 npm install       # Install dependencies
 npm run dev       # Start dev server (http://localhost:5173)
-npm run build     # Type-check (vue-tsc) and build for production
+npm run build     # Build for production — NOTE: its vue-tsc step checks nothing (see below)
 npm run preview   # Preview production build (http://localhost:4173)
 npm run test      # Run tests with Vitest
+npx vue-tsc -b --noEmit   # The REAL type-check
 ```
+
+**`npm run build` does not type-check.** The root `tsconfig.json` has `"files": []` and only project references, so plain `vue-tsc` has nothing to check — a deliberate undefined identifier still exits 0. Use `vue-tsc -b --noEmit`. There are ~67 pre-existing errors (mostly `noUnusedLocals`), so grep its output for the files you touched and diff the error set before/after rather than expecting zero. Don't switch the build script to `-b` until those are cleaned up — it would fail the build.
 
 ### Git Workflow
 ```bash
@@ -249,7 +263,7 @@ This applies even when the user just says "push to dev" or "merge to main" witho
 ### Guest CSV Fields (Flexible)
 Required: `firstName`, `lastName`, `gender`, `age`
 Optional: `preferredName`, `groupName`, `lowerBunk`, `arrival`, `departure`, `indivGrp`, etc.
-Planyo-specific: `planyoId` (matches `ID`, `Reservation ID`, `Reservation #`, `Booking ID`, etc.) and `status` (matches `Status`, `Reservation Status`).
+Planyo-specific: `planyoId` (matches `ID`, `Reservation ID`, `Reservation #`, `Booking ID`, etc.), `status` (matches `Status`, `Reservation Status`), and `roomRequest` (matches `Room` — the guest's own room choice, displayed as "Room Chosen").
 
 Key fields for auto-placement: `groupName` (shared group ID), `indivGrp` ("individual"/"group"/"family/friends"), `gender`, `age`, `lowerBunk`.
 
@@ -263,7 +277,9 @@ Optional: `Room Name`, `Room Gender`, `Bed ID`, `Bed Type`, `Bed Position`, `Act
 After making changes, verify:
 - [ ] Can upload guest CSV files with various column names (including with preamble lines)
 - [ ] CSV import filters by status — any "reserved" variant active, "cancel" overrides to cancelled, others (Not completed / waitlist / etc.) skipped
-- [ ] Re-uploading a CSV surfaces all four diff categories in `ImportSummaryDialog`: cancellations, date changes, bed conflicts, **skipped new rows** (silently-dropped non-active new entries, listed by name + status)
+- [ ] Re-uploading a CSV surfaces all five diff categories in `ImportSummaryDialog`: cancellations, date changes, bed conflicts, **skipped new rows** (silently-dropped non-active new entries, listed by name + status), **Housing/Room disagreements**
+- [ ] Every imported guest gets a canonical Housing (`Dorm` / `Camping` / `Commuter` / `Canvas Tent`), derived from `Room` when `Housing type` is blank — including the `",Camping"` leading-comma form
+- [ ] "Room Chosen" column appears in All Reservations **and in Show/Hide Columns for a browser with existing saved settings** (not just a fresh profile)
 - [ ] Same Planyo `ID` matches across re-uploads (not by name)
 - [ ] Drag-and-drop assignment works between guests and beds
 - [ ] Click-to-pick assignment works as alternative to drag-and-drop
@@ -272,13 +288,15 @@ After making changes, verify:
 - [ ] Room configuration changes update assignment interface
 - [ ] Can export/import room configurations
 - [ ] Undo functionality works for recent assignments
-- [ ] Data persists across browser sessions (including View Date in Table View, print sub-tab choice, and per-sub-tab column toggles)
+- [ ] Data persists across browser sessions (including View Date in Table View, print sub-tab choice, and per-sub-tab column toggles). A new ref in a store only persists if it's in that store's `pick` list
 - [ ] Assignment warnings appear for violations (gender, age, bunk type, **date overlap**)
 - [ ] Tab switching works between all modes (Table View / Timeline View / Room Configuration / Print / Settings / All Reservations)
 - [ ] Timeline view displays guest arrival/departure data
 - [ ] Auto-place keeps groups/families together in one room
 - [ ] Auto-place respects group placement order from settings
 - [ ] Auto-place is date-aware: a March guest can be placed on a bed an April guest already holds
+- [ ] With a View Date set, auto-place (toolbar and per-room) suggests only guests present on that date
+- [ ] Per-room auto-place works on an NB room; non-binary guests land in NB rooms before Coed, never M/F
 - [ ] Mixed-gender couple splitting works per age threshold setting
 - [ ] Same-gender groups prefer gendered rooms over coed
 - [ ] Cancelled guests are visually faded with line-through and sort to the bottom of the unassigned list
