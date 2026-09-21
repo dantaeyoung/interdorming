@@ -119,7 +119,7 @@ disappears".
 Set `Housing` to `Dorm`. This preserves today's behavior exactly —
 `guestStore.ts:175` already treats a blank `housingType` as assignable —
 while satisfying the "always filled in" requirement. It does write a
-value the CSV did not contain; see Open Questions.
+value the CSV did not contain; see Decisions.
 
 ### Normalizing an existing Housing value
 
