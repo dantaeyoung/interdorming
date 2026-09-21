@@ -88,7 +88,7 @@
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="guestmasterColumns.roomRequest" />
-          <span>Room</span>
+          <span>Room Chosen</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="guestmasterColumns.lb" />
@@ -126,7 +126,7 @@
       <div class="checkbox-grid" style="margin-top: 8px">
         <label class="checkbox-label">
           <input type="checkbox" v-model="workCoordinatorColumns.roomRequest" />
-          <span>Room</span>
+          <span>Room Chosen</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="workCoordinatorColumns.gender" />
@@ -254,7 +254,7 @@
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="columns.roomRequest" />
-          <span>Room</span>
+          <span>Room Chosen</span>
         </label>
       </div>
     </div>
@@ -318,7 +318,7 @@
               <th v-if="columns.amountPaid">Amount Paid</th>
               <th v-if="columns.firstVisit">First Visit</th>
               <th v-if="columns.roomPreference">Rm Preference</th>
-              <th v-if="columns.roomRequest">Room</th>
+              <th v-if="columns.roomRequest">Room Chosen</th>
             </tr>
           </thead>
           <tbody>
@@ -385,7 +385,7 @@
                   <th v-if="columns.amountPaid">Amount Paid</th>
                   <th v-if="columns.firstVisit">First Visit</th>
                   <th v-if="columns.roomPreference">Rm Preference</th>
-                  <th v-if="columns.roomRequest">Room</th>
+                  <th v-if="columns.roomRequest">Room Chosen</th>
                 </tr>
               </thead>
               <tbody>
@@ -441,7 +441,7 @@
               <th v-if="columns.amountPaid">Amount Paid</th>
               <th v-if="columns.firstVisit">First Visit</th>
               <th v-if="columns.roomPreference">Rm Preference</th>
-              <th v-if="columns.roomRequest">Room</th>
+              <th v-if="columns.roomRequest">Room Chosen</th>
             </tr>
           </thead>
           <tbody>
@@ -551,7 +551,7 @@
                 <tr>
                   <th class="th-rm">Rm</th>
                   <th v-if="guestmasterColumns.beds" class="th-bed">Beds</th>
-                  <th v-if="guestmasterColumns.roomRequest" class="th-room-request">Room</th>
+                  <th v-if="guestmasterColumns.roomRequest" class="th-room-request">Room Chosen</th>
                   <th v-if="guestmasterColumns.lb" class="th-lb">LB?</th>
                   <th class="th-name">Guest Name</th>
                   <th v-if="guestmasterColumns.gender" class="th-narrow">G</th>
@@ -598,7 +598,7 @@
               <thead>
                 <tr>
                   <th class="th-housing">Housing</th>
-                  <th v-if="guestmasterColumns.roomRequest" class="th-room-request">Room</th>
+                  <th v-if="guestmasterColumns.roomRequest" class="th-room-request">Room Chosen</th>
                   <th class="th-name">Guest Name</th>
                   <th v-if="guestmasterColumns.gender" class="th-narrow">G</th>
                   <th v-if="guestmasterColumns.age" class="th-narrow">Age</th>
@@ -639,7 +639,7 @@
               <tr>
                 <th class="th-num">#</th>
                 <th class="th-name">Guest Name</th>
-                <th v-if="workCoordinatorColumns.roomRequest" class="th-room-request">Room</th>
+                <th v-if="workCoordinatorColumns.roomRequest" class="th-room-request">Room Chosen</th>
                 <th v-if="workCoordinatorColumns.gender" class="th-narrow">G</th>
                 <th v-if="workCoordinatorColumns.age" class="th-narrow">Age</th>
                 <th v-if="workCoordinatorColumns.group" class="th-group">Group</th>

@@ -94,7 +94,7 @@
 
         <div class="form-group">
           <label for="roomRequest">
-            Room
+            Room Chosen
             <span class="field-hint">(guest's own choice from registration — fills in Housing when blank; never assigns a bed)</span>
           </label>
           <input

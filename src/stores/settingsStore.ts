@@ -57,13 +57,25 @@ export const useSettingsStore = defineStore(
       }
     }
 
-    // Merge saved column config with defaults (handles new columns added in code)
+    /**
+     * Merge saved column config with defaults, so columns added in code
+     * show up for operators who already have saved settings.
+     *
+     * Order and visibility belong to the user and are preserved from
+     * the saved config. The label belongs to the code — the UI offers
+     * no way to edit one — so it is always refreshed from defaults;
+     * otherwise renaming a column in code would never reach anyone who
+     * had already used the app.
+     */
     function migrateColumns(saved: ColumnConfig[], defaults: ColumnConfig[]): ColumnConfig[] {
-      const defaultKeys = new Set(defaults.map(c => c.key))
+      const defaultByKey = new Map(defaults.map(c => [c.key, c]))
       const savedKeys = new Set(saved.map(c => c.key))
 
-      // Keep saved columns that still exist in defaults (preserves order + visibility)
-      const merged = saved.filter(c => defaultKeys.has(c.key))
+      // Keep saved columns that still exist in defaults (preserves order
+      // + visibility), taking the label from the default.
+      const merged = saved
+        .filter(c => defaultByKey.has(c.key))
+        .map(c => ({ ...c, label: defaultByKey.get(c.key)!.label }))
 
       // Append any new default columns not in saved
       for (const def of defaults) {
@@ -75,13 +87,27 @@ export const useSettingsStore = defineStore(
       return merged
     }
 
-    // Run migration on initialization
-    mergePriorities()
-    migrateGenderColors()
-    migrateGroupPlacementOrder()
-    migrateCoupleSettings()
-    guestDataColumns.value = migrateColumns(guestDataColumns.value, DEFAULT_GUEST_DATA_COLUMNS)
-    tableViewColumns.value = migrateColumns(tableViewColumns.value, DEFAULT_TABLE_VIEW_COLUMNS)
+    /**
+     * All settings migrations, in one place so they can run twice.
+     *
+     * Running them here in the setup body only ever migrates the
+     * pristine defaults: pinia-plugin-persistedstate hydrates AFTER the
+     * setup function returns and overwrites these refs with whatever
+     * was in localStorage, discarding the result. They must therefore
+     * run again from the `afterHydrate` hook below, which is what
+     * actually makes new columns and priorities reach existing users.
+     */
+    function runMigrations() {
+      mergePriorities()
+      migrateGenderColors()
+      migrateGroupPlacementOrder()
+      migrateCoupleSettings()
+      guestDataColumns.value = migrateColumns(guestDataColumns.value, DEFAULT_GUEST_DATA_COLUMNS)
+      tableViewColumns.value = migrateColumns(tableViewColumns.value, DEFAULT_TABLE_VIEW_COLUMNS)
+    }
+
+    // Covers a fresh install, where nothing is hydrated.
+    runMigrations()
 
     // Actions
     function updateWarningSettings(key: keyof Settings['warnings'], value: boolean) {
@@ -173,7 +199,15 @@ export const useSettingsStore = defineStore(
   {
     persist: {
       key: 'dormAssignments-settings',
-      paths: ['settings', 'guestDataColumns', 'tableViewColumns'],
+      // v4 renamed `paths` to `pick`; the old key is silently ignored,
+      // which persisted the whole store instead of just these three.
+      pick: ['settings', 'guestDataColumns', 'tableViewColumns'],
+      // Hydration replaces the refs wholesale, so migrations have to run
+      // again here — otherwise columns added in code never reach an
+      // operator who already has saved settings.
+      afterHydrate: () => {
+        runMigrations()
+      },
     },
   }
 )
