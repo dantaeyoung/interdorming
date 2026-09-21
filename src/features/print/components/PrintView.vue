@@ -761,7 +761,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import type { Dormitory } from '@/types'
+import type { Dormitory, Guest } from '@/types'
 import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 import { useUtils, parseLocalDate, formatGuestDate } from '@/shared/composables/useUtils'
 import type { Room } from '@/types'
