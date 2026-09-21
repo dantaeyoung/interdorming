@@ -15,6 +15,7 @@
           <th
             v-for="col in visibleColumns"
             :key="col.key"
+            :data-col-key="col.key"
             :class="{
               'dragging-column': draggedColumnKey === col.key,
               'drag-over-column': dragOverColumnKey === col.key,
@@ -43,6 +44,8 @@
           :family-position="getFamilyPosition(guest, index)"
           :readonly="props.readonly"
           :pill-unassigned="props.pillUnassigned"
+          :suggested-group-name="guestStore.getSuggestedGroupForGuest(guest.id)"
+          :suggested-group-index="getSuggestedGroupIndexFor(guest.id)"
           @edit="handleEditGuest"
         />
         <tr v-if="guests.length === 0" class="empty-row">
@@ -245,7 +248,32 @@ const guests = computed(() => {
   function tier(g: typeof filtered[0]): number {
     return guestStore.isGuestAssignable(g) ? 0 : 1
   }
-  return filtered.slice().sort((a, b) => tier(a) - tier(b))
+  const tiered = filtered.slice().sort((a, b) => tier(a) - tier(b))
+
+  /*
+   * Suggested-group temporary sort: when `Suggest Groups` is active,
+   * surface every suggested member to the top, members of the same
+   * group adjacent, group order alphabetical. The rest of the list
+   * keeps its tier + sort-config order beneath. Once suggestions are
+   * accepted or cleared, the list re-renders without this re-order.
+   */
+  if (guestStore.suggestedGroups.size === 0) return tiered
+
+  const suggested: typeof tiered = []
+  const rest: typeof tiered = []
+  for (const g of tiered) {
+    if (guestStore.getSuggestedGroupForGuest(g.id)) suggested.push(g)
+    else rest.push(g)
+  }
+  suggested.sort((a, b) => {
+    const ag = guestStore.getSuggestedGroupForGuest(a.id) ?? ''
+    const bg = guestStore.getSuggestedGroupForGuest(b.id) ?? ''
+    const cmp = ag.localeCompare(bg)
+    if (cmp !== 0) return cmp
+    // Within a group, preserve upstream order from `tiered`.
+    return tiered.indexOf(a) - tiered.indexOf(b)
+  })
+  return [...suggested, ...rest]
 })
 
 const visibleColumns = computed(() => props.columns.filter(c => c.visible))
@@ -414,10 +442,15 @@ const overlayStyle = computed(() => ({
 function updateOverlayPosition() {
   if (!tableRef.value) return
 
-  // Find the group-lines-header column to get its position
-  const header = tableRef.value.querySelector('.group-lines-header') as HTMLElement
-  if (header) {
-    overlayLeft.value = header.offsetLeft
+  // Anchor the group-lines + suggestion pills to the **Group column**
+  // so the lines visually originate from where each row's group name
+  // sits. Falls back to the legacy `.group-lines-header` column when
+  // the Group column is hidden by the operator's column toggles.
+  const groupTh = tableRef.value.querySelector('[data-col-key="groupName"]') as HTMLElement | null
+  const fallback = tableRef.value.querySelector('.group-lines-header') as HTMLElement | null
+  const anchor = groupTh || fallback
+  if (anchor) {
+    overlayLeft.value = anchor.offsetLeft
   }
 
   // Get the thead height for top offset
@@ -480,6 +513,17 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateOverlayPosition)
   resizeObserver?.disconnect()
 })
+
+/**
+ * For a guest who's in an active suggested group, return that group's
+ * stable color slot (0..N). Returned null for guests outside any
+ * suggestion so GuestRow can skip the row-tint.
+ */
+function getSuggestedGroupIndexFor(guestId: string): number | null {
+  const name = guestStore.getSuggestedGroupForGuest(guestId)
+  if (!name) return null
+  return guestStore.getSuggestedGroupIndex(name)
+}
 
 // Family grouping logic
 function getFamilyPosition(guest: Guest, index: number): 'none' | 'first' | 'middle' | 'last' | 'only' {
@@ -560,9 +604,13 @@ const floatingBlobGenderColor = computed(() => {
   return colors.nonBinary
 })
 
+// Position the blob via `transform` instead of `left`/`top`. Browsers
+// can GPU-composite transform changes without a layout pass, so the
+// blob keeps up with the cursor at 60Hz. The trailing
+// `translate(-50%, -50%)` centers the blob on the cursor (paired with
+// `left: 0; top: 0` in the static CSS).
 const floatingBlobStyle = computed(() => ({
-  left: `${mousePosition.value.x}px`,
-  top: `${mousePosition.value.y}px`,
+  transform: `translate3d(${mousePosition.value.x}px, ${mousePosition.value.y}px, 0) translate(-50%, -50%)`,
 }))
 
 // Drop validity for visual feedback
@@ -877,9 +925,15 @@ body.is-picking {
 // Non-scoped styles for teleported floating blob
 .drag-floating-blob {
   position: fixed;
+  // Anchor at origin; actual position comes from the JS-computed
+  // `transform: translate3d(...)` style. Keeping `left`/`top` at 0
+  // means transform is the only thing that moves the element, which
+  // is what lets the browser GPU-composite it without a layout pass.
+  left: 0;
+  top: 0;
   pointer-events: none;
   z-index: 99999;
-  transform: translate(-50%, -50%);
+  will-change: transform;
   background: white;
   border: 1px solid #d1d5db;
   border-radius: 4px;

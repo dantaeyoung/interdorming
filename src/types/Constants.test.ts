@@ -30,6 +30,14 @@ describe('parseRoomGender', () => {
     expect(parseRoomGender('co-ed')).toBe('Coed')
   })
 
+  it('accepts NB and its common spellings', () => {
+    expect(parseRoomGender('NB')).toBe('NB')
+    expect(parseRoomGender('nb')).toBe('NB')
+    expect(parseRoomGender('Non-binary')).toBe('NB')
+    expect(parseRoomGender('nonbinary')).toBe('NB')
+    expect(parseRoomGender('enby')).toBe('NB')
+  })
+
   it('trims whitespace before matching', () => {
     expect(parseRoomGender('  M  ')).toBe('M')
     expect(parseRoomGender('\tCoed\n')).toBe('Coed')

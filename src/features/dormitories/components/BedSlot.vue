@@ -100,11 +100,11 @@
       <div v-if="showNotesTooltip" class="notes-tooltip-overlay" :style="tooltipPosition">
         <div v-if="assignedGuest?.notes?.trim()" class="notes-tooltip-section">
           <div class="notes-tooltip-label">Notes from guest</div>
-          <div class="notes-tooltip-body">{{ assignedGuest.notes }}</div>
+          <div class="notes-tooltip-body" v-html="formatNotesWithBreaks(assignedGuest.notes)"></div>
         </div>
         <div v-if="assignedGuest?.internalNotes?.trim()" class="notes-tooltip-section">
           <div class="notes-tooltip-label">Internal</div>
-          <div class="notes-tooltip-body">{{ assignedGuest.internalNotes }}</div>
+          <div class="notes-tooltip-body" v-html="formatNotesWithBreaks(assignedGuest.internalNotes)"></div>
         </div>
       </div>
     </Teleport>
@@ -319,6 +319,21 @@ const hasInternalNotes = computed(
 const notesButtonRef = ref<HTMLButtonElement | null>(null)
 const showNotesTooltip = ref(false)
 const tooltipPosition = ref({ top: '0px', left: '0px' })
+
+/**
+ * Escape HTML so injected operator notes can't smuggle markup into the
+ * popover, then convert `<br>` / `<br/>` / `<br />` (any spacing,
+ * case-insensitive) to actual line breaks. Pasted CSV data from Planyo
+ * sometimes contains these tags literally — without this they render
+ * as text instead of breaks.
+ */
+function formatNotesWithBreaks(text: string): string {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  return escaped.replace(/&lt;br\s*\/?\s*&gt;/gi, '<br>')
+}
 
 function handleNotesMouseEnter() {
   if (notesButtonRef.value) {

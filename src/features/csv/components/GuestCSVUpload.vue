@@ -205,7 +205,19 @@ function handleAddAndUpdate() {
   }
 
   function findMatch(row: Guest): Guest | undefined {
-    if (row.planyoId && existingByPlanyoId.has(row.planyoId)) {
+    // Planyo issues a new Reservation ID per booking, so two reservations
+    // by the same person have DIFFERENT planyoIds. If the incoming row
+    // carries a planyoId, treat it as canonical: match only by that id,
+    // never fall through to name matching. Otherwise a returning guest
+    // who books another retreat (same name, different planyoId) would
+    // get matched to their previous reservation and silently overwrite
+    // it — losing the prior booking, and potentially flipping the prior
+    // record to "cancelled" if the new row was a cancellation under a
+    // fresh planyoId.
+    //
+    // Name fallback applies only when the row has NO planyoId (legacy
+    // data, non-Planyo CSV, or imports predating the planyoId column).
+    if (row.planyoId) {
       return existingByPlanyoId.get(row.planyoId)
     }
     const nameKey = `${(row.firstName || '').toLowerCase()}|${(row.lastName || '').toLowerCase()}`

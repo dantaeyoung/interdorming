@@ -100,6 +100,25 @@
         </div>
 
         <div class="form-group">
+          <label for="isCancelled">
+            Cancelled
+            <button
+              v-if="props.guest"
+              type="button"
+              class="btn-debug-raw"
+              @click="showRawDataModal = true"
+              title="Show every stored field for this guest"
+            >
+              Full details
+            </button>
+          </label>
+          <select id="isCancelled" v-model="formData.isCancelled">
+            <option :value="false">No</option>
+            <option :value="true">Yes (faded + line-through, excluded from print views)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="arrival">Arrival Date</label>
           <input id="arrival" v-model="formData.arrival" type="date" />
         </div>
@@ -199,6 +218,23 @@
       </div>
     </form>
   </Modal>
+
+  <!-- Raw-data debug modal: every persisted field for the guest in
+       JSON form. Mostly useful when the operator suspects a CSV import
+       has overwritten or mis-cancelled the record and wants to see
+       what's actually stored. -->
+  <Modal v-model="showRawDataModal" title="Full guest record (debug)" max-width="640px">
+    <div class="raw-data-modal">
+      <p class="raw-data-hint">
+        Every stored field on this guest. Read-only — close to return to the edit form.
+      </p>
+      <pre class="raw-data-pre">{{ rawGuestJson }}</pre>
+    </div>
+    <template #footer>
+      <button class="btn-cancel" @click="copyRawData">Copy JSON</button>
+      <button class="btn-submit" @click="showRawDataModal = false">Close</button>
+    </template>
+  </Modal>
 </template>
 
 <script setup lang="ts">
@@ -266,6 +302,7 @@ const initialFormData = {
   amountPaid: '',
   firstVisit: '',
   roomPreference: '',
+  isCancelled: false,
 }
 
 const formData = ref({
@@ -288,9 +325,27 @@ const formData = ref({
   amountPaid: '',
   firstVisit: '',
   roomPreference: '',
+  isCancelled: false,
 })
 
 const isEditMode = ref(false)
+
+// Raw-data debug modal — opened from the "Full details" button next
+// to Cancelled. Pretty-prints every persisted field for diagnosing
+// "why was this guest cancelled / why did this reservation merge?".
+const showRawDataModal = ref(false)
+const rawGuestJson = computed(() => {
+  if (!props.guest) return ''
+  return JSON.stringify(props.guest, null, 2)
+})
+async function copyRawData() {
+  try {
+    await navigator.clipboard.writeText(rawGuestJson.value)
+  } catch {
+    // Clipboard API can fail in some browsers / contexts; silent
+    // fall-back — the operator can still select + copy from the <pre>.
+  }
+}
 
 /**
  * Convert a YYYY-MM-DD ISO string (from `<input type="date">`) back into
@@ -369,6 +424,7 @@ watch(
         amountPaid: newGuest.amountPaid || '',
         firstVisit: newGuest.firstVisit || '',
         roomPreference: newGuest.roomPreference || '',
+        isCancelled: !!newGuest.isCancelled,
       }
     } else {
       isEditMode.value = false
@@ -413,7 +469,8 @@ function hasUnsavedChanges(): boolean {
       formData.value.priceQuoted !== (props.guest.priceQuoted || '') ||
       formData.value.amountPaid !== (props.guest.amountPaid || '') ||
       formData.value.firstVisit !== (props.guest.firstVisit || '') ||
-      formData.value.roomPreference !== (props.guest.roomPreference || '')
+      formData.value.roomPreference !== (props.guest.roomPreference || '') ||
+      formData.value.isCancelled !== !!props.guest.isCancelled
     )
   } else {
     // In add mode, check if any field has been filled
@@ -436,7 +493,8 @@ function hasUnsavedChanges(): boolean {
       formData.value.priceQuoted !== '' ||
       formData.value.amountPaid !== '' ||
       formData.value.firstVisit !== '' ||
-      formData.value.roomPreference !== ''
+      formData.value.roomPreference !== '' ||
+      formData.value.isCancelled !== false
     )
   }
 }
@@ -499,6 +557,7 @@ function handleSubmit() {
     amountPaid: formData.value.amountPaid || undefined,
     firstVisit: formData.value.firstVisit || undefined,
     roomPreference: formData.value.roomPreference || undefined,
+    isCancelled: formData.value.isCancelled,
   }
 
   if (props.guest) {
@@ -701,6 +760,49 @@ function findBedConflicts(
   cursor: pointer;
   transition: all 0.2s;
   border: none;
+}
+
+.btn-debug-raw {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #6b7280;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #1f2937;
+  }
+}
+
+.raw-data-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.raw-data-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.raw-data-pre {
+  margin: 0;
+  padding: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: auto;
+  max-height: 480px;
+  user-select: text;
+  white-space: pre;
 }
 
 .btn-cancel {

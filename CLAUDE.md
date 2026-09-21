@@ -73,7 +73,7 @@ Persisted under `dormAssignments-printMode`:
 - **Work Coordinator** — sequential roster sorted by gender (NB → F → M) then age, includes camping/commuter (portrait)
 - **Check-in Slips** — one slip per guest, sized for paper-cutter slicing (7 slips per portrait page, uniform row heights, last-name highlighted yellow)
 
-Each sub-tab has its own column-toggle preferences persisted under separate localStorage keys (`dormAssignments-guestmasterPrefs`, `…-workCoordinatorPrefs`, `…-checkInSlipsPrefs`). Print orientation is per-mode via an injected `@page` rule (see `applyPrintOrientation` in `PrintView.vue`).
+Each sub-tab has its own column-toggle preferences persisted under separate localStorage keys (`dormAssignments-guestmasterPrefs`, `…-workCoordinatorPrefs`, `…-checkInSlipsPrefs`). Print orientation is per-mode via an injected `@page` rule (see `applyPrintOrientation` in `PrintView.vue`). The shared **From / To date-range filter** above the sub-tabs persists under `dormAssignments-printDateRange` as a `{start, end}` JSON blob so the operator doesn't re-pick the retreat dates on every reload.
 
 ### Data Model Hierarchy
 ```
@@ -87,7 +87,7 @@ A bed can hold multiple `BedAssignment`s as long as their derived stays don't ov
 - **`dormitoryStore`**: Dormitory/room/bed configuration. Beds use the new `assignments: BedAssignment[]` shape; legacy `assignedGuestId` is migrated on first load via the eager `migrateBedAssignments` watcher.
 - **`assignmentStore`**: Guest-to-bed assignments map (`Map<guestId, bedId>`, kept in sync with `bed.assignments`), undo/redo history, suggestion accept/clear, swap helpers, and `getOverlappingAssignments` / `getAllOverlapConflicts` for the date-aware drop dialogs.
 - **`settingsStore`**: User preferences (warnings, display, gender colors, auto-placement, group placement order, couple splitting, table column visibility per view)
-- **`validationStore`**: Computed validation warnings (`dateOverlap`, gender, bunk, age, etc.). Date-scoped — only roommates whose stays overlap the candidate's stay count.
+- **`validationStore`**: Computed validation warnings (`dateOverlap`, gender, bunk, age, etc.). Date-scoped — only roommates whose stays overlap the candidate's stay count. Bed-level warnings are also **cohort-scoped** at the slot via `getWarningsForBed(bedId, displayedGuestId?)` so a bed-sharer in a different (non-overlapping) cohort can't surface their gender/bunk/age warning on the displayed guest's slot.
 - **`timelineStore`**: Timeline view state
 
 All stores use `pinia-plugin-persistedstate` for automatic localStorage sync.
@@ -128,10 +128,14 @@ src/
 - **Header detection**: Auto-skips preamble/metadata lines (e.g., "Reservations From: ...") by scanning for recognized column names
 - **Flexible column mapping**: `CSV_FIELD_MAPPINGS` in `Constants.ts` maps field names to multiple variations (e.g., `firstName` matches `FIRST NAME`, `First Name`)
 - **Two CSV types**: Guest data import and room configuration import/export
-- **Status-based filtering** (`isActiveReservationStatus` / `isCancelledStatus` in `Constants.ts`): Only `Reserved` and `Reserved + Email address verified + confirmed` count as active reservations and get imported. Anything containing `cancel` (case-insensitive) is treated as a cancellation. Other statuses (e.g., `Not completed`) are silently skipped.
+- **Status-based filtering** (`isActiveReservationStatus` / `isCancelledStatus` in `Constants.ts`): active = status contains `reserved` AND does NOT contain `cancel` (both case-insensitive substring rules). This catches Planyo variants — `Reserved`, `Reserved + Email address verified`, `Reserved + Email address verified + confirmed`, `Reserved (rebooked)`, etc. — without an explicit whitelist. Cancellation takes precedence so a hybrid like `Reserved → Cancelled` classifies as cancelled. Anything else (`Not completed`, `Pending`, `Added to waiting list`) is OTHER → skipped on import.
 - **Add & Update is the only merge mode** — the old "Reset & Replace" choice was removed because operators have continuous data; a single misclick was wiping manual assignments. Full-wipe still exists in Settings → Danger Zone.
 - **Match by Planyo `ID`** (or common variants in `CSV_FIELD_MAPPINGS.planyoId`), name as fallback. Same person across multiple retreats no longer collides.
-- **Diff & surface**: re-uploads detect cancellations (was active, now cancelled), date changes, and bed-overlap conflicts caused by date shifts. All three are reported in the combined `ImportSummaryDialog`.
+- **Diff & surface**: re-uploads report four categories in the combined `ImportSummaryDialog`:
+  1. Cancellations (was active, now cancelled)
+  2. Date changes (arrival or departure shifted)
+  3. Bed conflicts (a date shift broke an existing assignment)
+  4. Skipped new rows (new rows whose status isn't active — listed by name + Planyo ID + actual status so a misspelled status or unexpected variant doesn't quietly orphan a guest)
 
 ### Drag-and-Drop + Click-to-Pick (`src/features/assignments/composables/useDragDrop.ts`)
 - Singleton shared state for drag tracking across components
@@ -154,7 +158,7 @@ Non-blocking visual warnings for:
 - Family separation (same GroupName in different rooms)
 - Age compatibility issues (large age gaps, minors with adults)
 
-Gender / bunk / age warnings are date-scoped — only roommates whose stays overlap the candidate's stay are considered.
+Gender / bunk / age warnings are date-scoped — only roommates whose stays overlap the candidate's stay are considered. When the same warning gets aggregated onto a bed (which may hold multiple cohorts via date-aware sharing), bed-slot display additionally scopes to the visible cohort: `BedSlot` passes its `assignedGuest.id` to `getWarningsForBed(bedId, displayedGuestId)`, and the unscoped form is preserved for the global `getAllWarnings` scan used by hints.
 
 ### Internal Notes
 - Separate `internalNotes` field on `Guest`, distinct from CSV-imported `notes`. Operator-only, never overwritten by CSV re-imports.
@@ -207,22 +211,26 @@ Each store persists independently under its own key. The `assignmentStore` manag
 - Assignment history for undo/redo (10-action limit)
 
 ### Bed ID Generation
-- Format: `[RoomPrefix][BedNumber]` (e.g., "MA01", "FR03")
-- Auto-generated based on room name abbreviations
-- Must be unique across all dormitories
+- Format: `[RoomPrefix]-[BedNumber]` (e.g., `MAHA-01`, `LIBR-03`)
+  - **Multi-word room name:** first 2 chars of each word — `"Maple Hall"` → `MAHA`, `"Heavenly Grace"` → `HEGR`.
+  - **Single-word room name:** first 4 chars (or the whole name if shorter) — `"Library"` → `LIBR`, `"Hub"` → `HUB`.
+  - **Empty/whitespace name:** placeholder prefix `RM`.
+  - **Bed number:** 1-based, zero-padded to 2 digits.
+- The dash separator + 2-char-per-word scheme replaced the legacy 1-char-per-word format (`MH01`) in v2 to reduce structural collisions like `"Maple Hall"` vs `"Magnolia House"` both → `MH`. Migration: `dormitoryStore.migrateToBedIdFormatV2()` runs once on app mount, rewrites every tree (active + cuts + templates), updates the assignment map in lockstep, and surfaces renames in the `bedIdHealRenames` banner.
+- **INVARIANT: `bed.bedId` must be globally unique within a layout tree.** `assignmentStore.guestToBed`, `bedLookupMap`, validation, and print views all key on `bedId`; a collision silently collapses two beds into one slot and makes one guest appear in multiple rooms. **Always generate via `useBedIdGenerator.generateUniqueBedId(roomName, existingIds)`** and seed `existingIds` from **`dormitoryStore.getAllBedIdsAcrossTrees()`** plus any pending in-flight beds — i.e. every bedId across the active dormitories, every cut, and every template, not just the active config. Never inline a prefix+position scheme — `dormitoryStore.healDuplicateBedIds` exists to repair legacy collisions and `bedLookupMap` logs a `console.warn` on detection, but the only correct preventive path is the helper.
 
 ## Important Implementation Notes
 
 ### Version Tag
 A version tag (e.g., `v260225-16:45`) is displayed in the header for deployment verification. It lives in `App.vue` inside `<span class="version-tag">…</span>`.
 
-**MUST: bump it automatically on every merge to `main`.** Whenever you're about to merge `development` (or any branch) into `main`, do this without being asked:
+**MUST: bump it automatically on every push to `development` AND every merge to `main`.** Whenever you're about to push commits to `development` (or merge into `main`), do this without being asked:
 1. Run `date "+v%y%m%d-%H:%M"` to get the current stamp.
 2. Edit the `<span class="version-tag">…</span>` value in `App.vue` to that stamp.
 3. Stage and commit the bump as its own commit (subject: `Bump version tag to vYYMMDD-HH:MM`).
-4. Then perform the merge and push.
+4. Then perform the push/merge.
 
-This applies even when the user just says "merge to main" without mentioning the version. The intent is that production reflects when the merge happened, so the user never has to remind you.
+This applies even when the user just says "push to dev" or "merge to main" without mentioning the version. The intent is that any deployed environment reflects when it last received commits, so the user never has to remind you.
 
 ### Singleton Composables
 `useDragDrop` uses module-level singleton refs so drag/pick state is shared across all components that call the composable.
@@ -254,8 +262,8 @@ Optional: `Room Name`, `Room Gender`, `Bed ID`, `Bed Type`, `Bed Position`, `Act
 ## Validation Checklist
 After making changes, verify:
 - [ ] Can upload guest CSV files with various column names (including with preamble lines)
-- [ ] CSV import filters by status — only `Reserved` / `Reserved + Email address verified + confirmed` create guests
-- [ ] Re-uploading a CSV detects cancellations (status containing `cancel`) and date changes; surfaces them in `ImportSummaryDialog`
+- [ ] CSV import filters by status — any "reserved" variant active, "cancel" overrides to cancelled, others (Not completed / waitlist / etc.) skipped
+- [ ] Re-uploading a CSV surfaces all four diff categories in `ImportSummaryDialog`: cancellations, date changes, bed conflicts, **skipped new rows** (silently-dropped non-active new entries, listed by name + status)
 - [ ] Same Planyo `ID` matches across re-uploads (not by name)
 - [ ] Drag-and-drop assignment works between guests and beds
 - [ ] Click-to-pick assignment works as alternative to drag-and-drop

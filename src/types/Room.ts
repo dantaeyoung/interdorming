@@ -5,7 +5,7 @@
 
 import type { Bed } from './Bed'
 
-export type RoomGender = 'M' | 'F' | 'Coed'
+export type RoomGender = 'M' | 'F' | 'Coed' | 'NB'
 
 export interface Room {
   roomName: string

@@ -73,6 +73,8 @@ import RoomConfigCard from './RoomConfigCard.vue'
 import { ConfirmDialog } from '@/shared/components'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useGuestStore } from '@/stores/guestStore'
+import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { staysOverlap, parseLocalDate } from '@/shared/composables/useUtils'
 import { useHints } from '@/features/hints/composables/useHints'
 import type { Dormitory, Room } from '@/types'
 
@@ -96,6 +98,62 @@ const emit = defineEmits<{
 
 const assignmentStore = useAssignmentStore()
 const guestStore = useGuestStore()
+const dormitoryStore = useDormitoryStore()
+
+/**
+ * See RoomConfigCard's same-named helper for the bug context: this
+ * filters assigned guests to those whose stays actually fall in the
+ * editing configuration's window so deactivation warnings ignore
+ * guests in other configurations (including the common case of a
+ * configuration with a `null` end bound — "from this date forever" —
+ * which `staysOverlap` would otherwise treat as missing → always
+ * overlapping).
+ */
+function filterGuestIdsToCurrentConfigWindow(guestIds: string[]): string[] {
+  const selectedId = dormitoryStore.selectedConfigurationId
+  if (!selectedId) return guestIds
+  const window = dormitoryStore.configurationWindow(selectedId)
+  if (!window) return guestIds
+  return guestIds.filter(id => {
+    const guest = guestStore.guests.find(g => g.id === id)
+    if (!guest) return false
+    return guestStayOverlapsConfigWindow(guest.arrival, guest.departure, window)
+  })
+}
+
+/**
+ * See RoomConfigCard's same-named helper. Important: guest dates come
+ * from CSVs in mixed formats ("Jun 19, 2026" vs ISO "2026-06-18"), so
+ * lexical string comparison breaks the moment a guest date has a
+ * non-numeric leading char. `parseLocalDate` normalizes everything to
+ * epoch ms before comparing.
+ */
+function guestStayOverlapsConfigWindow(
+  arrival: string | undefined | null,
+  departure: string | undefined | null,
+  window: { start: string | null; endExclusive: string | null }
+): boolean {
+  if (!arrival || !departure) return true
+  const arrivalMs = parseLocalDate(arrival).getTime()
+  const departureMs = parseLocalDate(departure).getTime()
+  if (isNaN(arrivalMs) || isNaN(departureMs)) return true
+  if (window.start !== null) {
+    const startMs = parseLocalDate(window.start).getTime()
+    if (!isNaN(startMs) && departureMs <= startMs) return false
+  }
+  if (window.endExclusive !== null) {
+    const endMs = parseLocalDate(window.endExclusive).getTime()
+    if (!isNaN(endMs) && arrivalMs >= endMs) return false
+  }
+  return true
+}
+
+function namesFromGuestIds(guestIds: string[]): string[] {
+  return guestIds.map(id => {
+    const guest = guestStore.guests.find(g => g.id === id)
+    return guest ? `${guest.preferredName || guest.firstName} ${guest.lastName}` : 'Unknown'
+  })
+}
 const { highlightedElement } = useHints()
 
 const localDormitory = ref<Dormitory>({
@@ -131,15 +189,6 @@ function getDormitoryBedIds(): string[] {
   return bedIds
 }
 
-function getAssignedGuestNames(): string[] {
-  const bedIds = getDormitoryBedIds()
-  const guestIds = assignmentStore.getGuestsAssignedToDormitory(bedIds)
-  return guestIds.map(id => {
-    const guest = guestStore.guests.find(g => g.id === id)
-    return guest ? `${guest.preferredName || guest.firstName} ${guest.lastName}` : 'Unknown'
-  })
-}
-
 function handleConfirm() {
   if (pendingAction.value) {
     pendingAction.value()
@@ -161,16 +210,20 @@ function handleActiveChange() {
   previousActiveState.value = !localDormitory.value.active // Store the opposite since it already changed
 
   // Check if dormitory is being deactivated and has assigned guests
+  // whose stays overlap the currently editing configuration.
   if (!localDormitory.value.active) {
-    const assignedGuests = getAssignedGuestNames()
-    if (assignedGuests.length > 0) {
+    const bedIds = getDormitoryBedIds()
+    const affectedIds = filterGuestIdsToCurrentConfigWindow(
+      assignmentStore.getGuestsAssignedToDormitory(bedIds)
+    )
+    const affected = namesFromGuestIds(affectedIds)
+    if (affected.length > 0) {
       confirmDialogTitle.value = 'Deactivate Dormitory'
-      confirmDialogMessage.value = 'Deactivate this dormitory?'
-      confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to beds in this dormitory. Deactivating will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
+      confirmDialogMessage.value = 'Deactivate this dormitory in this configuration?'
+      confirmDialogDescription.value = `${affected.join(', ')} ${affected.length === 1 ? 'is' : 'are'} assigned to beds in this dormitory and ${affected.length === 1 ? 'their' : 'their'} stay overlaps this configuration. ${affected.length === 1 ? 'This guest' : 'These guests'} will show a "bed inactive during stay" warning until reassigned.`
       confirmDialogVariant.value = 'warning'
       pendingAction.value = () => {
-        const bedIds = getDormitoryBedIds()
-        assignmentStore.unassignGuestsFromDormitory(bedIds)
+        // Cuts model: don't auto-unassign — see RoomConfigCard.
         handleUpdate()
       }
       showConfirmDialog.value = true
@@ -182,22 +235,49 @@ function handleActiveChange() {
 }
 
 function handleRemoveDormitory() {
-  const assignedGuests = getAssignedGuestNames()
+  // Cuts model: removal scopes the dormitory out of THIS configuration
+  // only. BedIds that still exist in another cut keep their assignments
+  // (validation surfaces "no bed during stay" for window-overlapping
+  // guests); bedIds that disappear everywhere trigger unassign.
+  const bedIds = getDormitoryBedIds()
+  const selectedId = dormitoryStore.selectedConfigurationId
+  const otherCutBedIds = dormitoryStore.getBedIdsInOtherConfigurations(selectedId)
+  const trulyGoneBedIds = bedIds.filter(id => !otherCutBedIds.has(id))
+
+  const affectedIds = filterGuestIdsToCurrentConfigWindow(
+    assignmentStore.getGuestsAssignedToDormitory(bedIds)
+  )
+  const affected = namesFromGuestIds(affectedIds)
+  const trulyGoneGuestIds = trulyGoneBedIds.length > 0
+    ? assignmentStore.getGuestsAssignedToDormitory(trulyGoneBedIds)
+    : []
+  const trulyGoneGuests = namesFromGuestIds(trulyGoneGuestIds)
 
   confirmDialogTitle.value = 'Remove Dormitory'
-  if (assignedGuests.length > 0) {
-    confirmDialogMessage.value = `Remove "${localDormitory.value.dormitoryName}"?`
-    confirmDialogDescription.value = `${assignedGuests.join(', ')} ${assignedGuests.length === 1 ? 'is' : 'are'} currently assigned to beds in this dormitory. Removing will unassign ${assignedGuests.length === 1 ? 'this guest' : 'these guests'}.`
-  } else {
-    confirmDialogMessage.value = `Remove "${localDormitory.value.dormitoryName}"?`
-    confirmDialogDescription.value = 'This will also remove all rooms and beds in this dormitory. This action cannot be undone.'
+  confirmDialogMessage.value = trulyGoneBedIds.length === bedIds.length
+    ? `Remove "${localDormitory.value.dormitoryName}"?`
+    : `Remove "${localDormitory.value.dormitoryName}" from this configuration?`
+
+  const parts: string[] = []
+  if (affected.length > 0) {
+    parts.push(`${affected.join(', ')} ${affected.length === 1 ? 'is' : 'are'} assigned to beds in this dormitory and ${affected.length === 1 ? 'their' : 'their'} stay overlaps this configuration. ${affected.length === 1 ? 'This guest' : 'These guests'} will show a "no bed during stay" warning until reassigned.`)
   }
+  if (trulyGoneGuests.length > 0) {
+    parts.push(`${trulyGoneGuests.join(', ')} ${trulyGoneGuests.length === 1 ? 'is' : 'are'} assigned to beds that don't exist in any other configuration — ${trulyGoneGuests.length === 1 ? 'this guest' : 'these guests'} will be unassigned.`)
+  }
+  if (parts.length === 0) {
+    parts.push(trulyGoneBedIds.length === bedIds.length
+      ? 'This will also remove all rooms and beds in this dormitory. This action cannot be undone.'
+      : 'This dormitory will remain in other configurations. This action cannot be undone for this configuration.')
+  } else if (trulyGoneBedIds.length < bedIds.length) {
+    parts.push('Other configurations are unchanged.')
+  }
+  confirmDialogDescription.value = parts.join(' ')
   confirmDialogVariant.value = 'danger'
 
   pendingAction.value = () => {
-    if (assignedGuests.length > 0) {
-      const bedIds = getDormitoryBedIds()
-      assignmentStore.unassignGuestsFromDormitory(bedIds)
+    if (trulyGoneBedIds.length > 0) {
+      assignmentStore.unassignGuestsFromDormitory(trulyGoneBedIds)
     }
     emit('remove')
   }

@@ -14,13 +14,6 @@
           @upload-error="handleUploadError"
           @load-test-data="handleLoadTestData"
         />
-        <button
-          class="btn btn-suggest-groups"
-          :disabled="!guestStore.hasGuestsWithEmail"
-          @click="handleSuggestGroups"
-        >
-          Suggest Groups
-        </button>
       </div>
     </div>
 
@@ -237,15 +230,6 @@ async function handleLoadTestData() {
   }
 }
 
-
-function handleSuggestGroups() {
-  const count = guestStore.suggestGroupsByEmail()
-  if (count > 0) {
-    showStatus(`Found ${count} group suggestion${count === 1 ? '' : 's'} by shared email`, 'success')
-  } else {
-    showStatus('No new group suggestions found — guests may already be grouped', 'info')
-  }
-}
 
 function handleDeleteAll() {
   confirmAction(

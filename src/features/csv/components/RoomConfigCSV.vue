@@ -52,6 +52,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useCSV } from '../composables/useCSV'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
+import { useBedIdGenerator } from '@/shared/composables/useBedIdGenerator'
 import { ConfirmDialog } from '@/shared/components'
 import type { Dormitory, RoomLayout } from '@/types'
 import { parseRoomGender, parseBedType } from '@/types/Constants'
@@ -81,6 +82,7 @@ const importModeMessage = ref('')
 
 const dormitoryStore = useDormitoryStore()
 const { generateCSV, downloadCSV, generateTimestampedFilename, parseCSVRow } = useCSV()
+const { generateUniqueBedId } = useBedIdGenerator()
 
 // Close export menu when clicking outside
 function handleClickOutside(event: MouseEvent) {
@@ -322,15 +324,43 @@ function parseRoomConfigCSV(csvText: string): Dormitory[] {
 
   const headers = lines[startLine].split(',').map(h => h.trim().replace(/"/g, ''))
   const dormitoriesMap = new Map<string, Dormitory>()
+  // Seed with bedIds from every OTHER tree (cuts + templates) so the
+  // CSV's bedIds don't silently collide with another cut's beds and
+  // fuse them in the global assignment map. The active dormitories
+  // tree is being replaced by this import, so its existing bedIds are
+  // not relevant — only the cuts/templates that survive.
+  const seenBedIds = new Set<string>()
+  for (const c of dormitoryStore.configurations) {
+    for (const d of c.dormitories) for (const r of d.rooms) for (const b of r.beds) {
+      seenBedIds.add(b.bedId)
+    }
+  }
+  for (const t of dormitoryStore.configurationTemplates) {
+    for (const d of t.dormitories) for (const r of d.rooms) for (const b of r.beds) {
+      seenBedIds.add(b.bedId)
+    }
+  }
+  const renamedBedIds: Array<{ oldId: string; newId: string; roomName: string }> = []
 
   for (let i = startLine + 1; i < lines.length; i++) {
     const values = parseCSVRow(lines[i])
 
     const dormitoryName = values[headers.indexOf('Dormitory Name')]?.trim()
     const roomName = values[headers.indexOf('Room Name')]?.trim()
-    const bedId = values[headers.indexOf('Bed ID')]?.trim()
+    const rawBedId = values[headers.indexOf('Bed ID')]?.trim()
 
-    if (!dormitoryName || !roomName || !bedId) continue
+    if (!dormitoryName || !roomName || !rawBedId) continue
+
+    // Dedupe bedId against everything reserved across the system — both
+    // bedIds seen earlier in this CSV AND bedIds in other cuts/templates.
+    // Same helper used everywhere else so the renaming rule is consistent.
+    let bedId = rawBedId
+    if (seenBedIds.has(bedId)) {
+      const newId = generateUniqueBedId(roomName, Array.from(seenBedIds))
+      renamedBedIds.push({ oldId: bedId, newId, roomName })
+      bedId = newId
+    }
+    seenBedIds.add(bedId)
 
     // Get or create dormitory
     if (!dormitoriesMap.has(dormitoryName)) {
@@ -364,6 +394,13 @@ function parseRoomConfigCSV(csvText: string): Dormitory[] {
       assignments: [],
       active: values[headers.indexOf('Bed Active')]?.toLowerCase() !== 'no',
     })
+  }
+
+  if (renamedBedIds.length > 0) {
+    console.warn(
+      `[RoomConfigCSV] Renamed ${renamedBedIds.length} duplicate bed ID${renamedBedIds.length === 1 ? '' : 's'} during import:`,
+      renamedBedIds,
+    )
   }
 
   return Array.from(dormitoriesMap.values())

@@ -6,6 +6,9 @@
     </div>
 
     <div v-else ref="containerRef" class="rooms-container">
+      <div v-if="hasOverridesOnViewDate" class="override-banner" title="One or more configuration overrides are active on this date. Edit them in the Room Configuration tab.">
+        <span class="override-badge">📅</span> Overrides active on {{ viewDateLabel }} — layout differs from base config.
+      </div>
       <RoomGroupLinesOverlay v-if="isMounted && containerRef" :containerRef="containerRef" />
       <RoomCard
         v-for="entry in flatRooms"
@@ -13,6 +16,7 @@
         :room="entry.room"
         :view-date="viewDate"
         :dorm-color="entry.dormColor"
+        :gender-overridden="entry.genderOverridden"
       />
     </div>
   </div>
@@ -47,7 +51,56 @@ const dormitoryStore = useDormitoryStore()
 const guestStore = useGuestStore()
 const assignmentStore = useAssignmentStore()
 
-const dormitories = computed(() => dormitoryStore.dormitories)
+/**
+ * Convert the View Date prop into a YYYY-MM-DD string in local time so
+ * `dormitoriesAt` can resolve overrides. Null/undefined → null (raw base
+ * tree, no override resolution).
+ */
+function viewDateISO(d: Date | null | undefined): string | null {
+  if (!d) return null
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const dormitories = computed(() => dormitoryStore.dormitoriesAt(viewDateISO(props.viewDate)))
+
+/**
+ * Rooms whose effective gender differs from base on the View Date —
+ * surfaced as a small 📅 badge so the operator knows the label is
+ * driven by an override, not a base-config edit.
+ */
+const genderOverriddenKeys = computed(() => {
+  const out = new Set<string>()
+  const date = viewDateISO(props.viewDate)
+  if (!date) return out
+  for (const dorm of dormitoryStore.dormitories) {
+    for (const room of dorm.rooms) {
+      const effective = dormitoryStore.roomGenderAt(dorm.dormitoryName, room.roomName, date)
+      if (effective && effective !== room.roomGender) {
+        out.add(`${dorm.dormitoryName}::${room.roomName}`)
+      }
+    }
+  }
+  return out
+})
+
+const hasOverridesOnViewDate = computed(() => {
+  const date = viewDateISO(props.viewDate)
+  if (!date) return false
+  // Cheap predicate: any override whose window covers viewDate.
+  return dormitoryStore.overrides.some(o => {
+    if (o.effectiveFrom > date) return false
+    if (o.effectiveTo === null) return true
+    return o.effectiveTo >= date
+  })
+})
+
+const viewDateLabel = computed(() => {
+  if (!props.viewDate) return ''
+  return props.viewDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+})
 
 function normalizeText(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -57,6 +110,7 @@ interface FlatRoomEntry {
   room: Room
   dormName: string
   dormColor: string
+  genderOverridden: boolean
 }
 
 /**
@@ -96,7 +150,13 @@ const flatRooms = computed<FlatRoomEntry[]>(() => {
         if (!matchesName && !matchesGuest) continue
       }
 
-      out.push({ room, dormName: dorm.dormitoryName, dormColor })
+      const key = `${dorm.dormitoryName}::${room.roomName}`
+      out.push({
+        room,
+        dormName: dorm.dormitoryName,
+        dormColor,
+        genderOverridden: genderOverriddenKeys.value.has(key),
+      })
     }
   }
   return out
@@ -138,5 +198,23 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.override-banner {
+  padding: 6px 12px;
+  margin-bottom: 4px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: help;
+}
+
+.override-badge {
+  font-size: 0.85rem;
 }
 </style>

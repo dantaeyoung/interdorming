@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-          <span class="version-tag">v260521-13:07</span>
+<span class="version-tag">v260921-00:22</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -35,6 +35,34 @@
         />
         <!-- <AssignmentStats class="header-stats" data-tour="header-stats" /> -->
       </div>
+    </div>
+
+    <!-- Bed ID heal notice: shown once after the auto-heal renames any
+         duplicate bedIds from legacy data. Dismiss persists. -->
+    <div
+      v-if="dormitoryStore.bedIdHealRenames.length > 0"
+      class="bedid-heal-banner"
+      role="alert"
+    >
+      <div class="bedid-heal-banner__body">
+        <strong>Duplicate bed IDs were detected and renamed.</strong>
+        Two or more beds shared the same internal ID, which made one guest
+        appear in multiple rooms. The following beds were given fresh
+        unique IDs. Any assignments stay pinned to the original ID, so
+        you may need to re-verify which bed each guest belongs in:
+        <ul class="bedid-heal-banner__list">
+          <li v-for="r in dormitoryStore.bedIdHealRenames" :key="`${r.dormitoryName}-${r.oldId}-${r.newId}`">
+            {{ r.dormitoryName }} / {{ r.roomName }}: <code>{{ r.oldId }}</code> → <code>{{ r.newId }}</code>
+          </li>
+        </ul>
+      </div>
+      <button
+        class="bedid-heal-banner__dismiss"
+        @click="dormitoryStore.dismissBedIdHealNotice"
+        title="Dismiss"
+      >
+        ✕
+      </button>
     </div>
 
     <!-- Tab Navigation -->
@@ -80,6 +108,14 @@
               <!-- Controls row: actions on the left, search on the right -->
               <div class="search-section">
                 <button class="btn-add-guest-sm" @click="handleAddGuestClick">+ Add</button>
+                <button
+                  class="btn-suggest-groups-sm"
+                  :disabled="unassignedAtViewDate.length === 0 || !guestStore.hasGuestsWithEmail"
+                  :title="`Suggest groups for ${unassignedAtViewDate.length} unassigned guest${unassignedAtViewDate.length === 1 ? '' : 's'} on this date`"
+                  @click="handleSuggestGroupsForView"
+                >
+                  Suggest Groups
+                </button>
                 <button class="btn-sort" @click="showSortModal = true" :title="sortDescription">
                   <span class="sort-icon">↕</span>
                   Sort
@@ -214,7 +250,7 @@
 
     <!-- Room Configuration Tab -->
     <div v-if="activeTab === 'configuration'" class="tab-content">
-      <LayoutSelector @status="(msg, type) => showStatus(msg, type)" />
+      <LayoutSelector v-if="!layoutMigrationComplete" @status="(msg, type) => showStatus(msg, type)" />
       <div class="toolbar">
         <div class="toolbar-left">
           <h2>Room Configuration</h2>
@@ -232,6 +268,7 @@
       </div>
 
       <div class="scrollable-content">
+        <ConfigurationsSection />
         <ConfigRoomList
           empty-title="No rooms configured"
           empty-message="Add a dormitory to begin configuring rooms and beds."
@@ -280,6 +317,11 @@
     <!-- Combined post-CSV-import summary: cancellations + date changes
          + new bed conflicts in one dialog. -->
     <ImportSummaryDialog />
+
+    <!-- One-time migration: multi-layout state → base config + presets.
+         Surfaces only when the operator has >1 saved layout and hasn't
+         migrated yet. See specs/TimeBasedRoomConfig.md §Migration. -->
+    <LayoutMigrationDialog :is-open="showLayoutMigration" @close="showLayoutMigration = false" />
   </div>
 </template>
 
@@ -291,13 +333,14 @@ import { useGuestStore, useDormitoryStore, useAssignmentStore } from '@/stores'
 import { TabNavigation, ConfirmDialog, FloatingActionBar, SortConfigModal, OverlapConfirmDialog, GroupConflictDialog, ImportSummaryDialog } from '@/shared/components'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useSortConfig } from '@/shared/composables/useSortConfig'
+import { parseLocalDate } from '@/shared/composables/useUtils'
 
 // Feature components
 import { HintBanner } from '@/features/hints/components'
 import { useHints } from '@/features/hints/composables/useHints'
 import { useTour } from '@/features/hints/composables/useTour'
 import { GuestList, GuestSearch, ColumnsDropdown } from '@/features/guests/components'
-import { RoomList, ConfigRoomList, LayoutSelector } from '@/features/dormitories/components'
+import { RoomList, ConfigRoomList, LayoutSelector, ConfigurationsSection, LayoutMigrationDialog } from '@/features/dormitories/components'
 import { RoomConfigCSV, AssignmentCSVExport } from '@/features/csv/components'
 import { AssignmentToolbar, AssignmentStats } from '@/features/assignments/components'
 import { SettingsPanel } from '@/features/settings/components'
@@ -402,7 +445,30 @@ onMounted(() => {
   if (dormitoryStore.migrateBedAssignments()) {
     assignmentStore.clearHistory()
   }
+
+  // Layouts → base + presets migration. Silent for users who never had
+  // more than one layout (the common case); surfaces the dialog only when
+  // there's actual data to convert.
+  if (!dormitoryStore.layoutMigrationComplete) {
+    if (dormitoryStore.layouts.length <= 1) {
+      dormitoryStore.layoutMigrationComplete = true
+    } else {
+      showLayoutMigration.value = true
+    }
+  }
+
+  // Cuts-model migration: convert overrides/presets to configurations.
+  // Idempotent — runs once, flips the flag.
+  dormitoryStore.migrateToCutsModel()
+
+  // BedId format v2 migration: legacy `MH01` → `MAHA-01`. Rewrites every
+  // tree (active + cuts + templates) and the assignment map in lockstep.
+  // Idempotent — runs once, flips the flag.
+  dormitoryStore.migrateToBedIdFormatV2()
 })
+
+const showLayoutMigration = ref(false)
+const layoutMigrationComplete = computed(() => dormitoryStore.layoutMigrationComplete)
 
 // Tab state - restore from localStorage or default to 'guest-data'
 const ACTIVE_TAB_KEY = 'dormAssignments-activeTab'
@@ -448,6 +514,34 @@ const confirmDialog = ref({
 // Computed properties
 const unassignedCount = computed(() => assignmentStore.unassignedCount)
 const assignedCount = computed(() => assignmentStore.assignedCount)
+
+/**
+ * Unassigned guests whose stay covers the current View Date. Used by
+ * Table View's "Suggest Groups" so suggestions are scoped to the
+ * cohort the operator is actually looking at — same filter as
+ * `GuestList` with `:show-assigned="false"` + `:view-date="viewDate"`.
+ */
+const unassignedAtViewDate = computed(() => {
+  const vd = viewDate.value?.getTime()
+  return guestStore.guests.filter(g => {
+    if (assignmentStore.assignments.has(g.id)) return false
+    if (vd === undefined) return true
+    if (!g.arrival || !g.departure) return true
+    const arrival = parseLocalDate(g.arrival).getTime()
+    const departure = parseLocalDate(g.departure).getTime()
+    return vd >= arrival && vd < departure
+  })
+})
+
+function handleSuggestGroupsForView() {
+  const eligible = unassignedAtViewDate.value
+  const count = guestStore.suggestGroupsByEmail(eligible)
+  if (count > 0) {
+    showStatus(`Found ${count} group suggestion${count === 1 ? '' : 's'} among ${eligible.length} unassigned guest${eligible.length === 1 ? '' : 's'} on this date`, 'success')
+  } else {
+    showStatus('No new group suggestions among unassigned guests on this date', 'info')
+  }
+}
 
 // Guest list ref for add guest modal
 const guestListRef = ref<InstanceType<typeof GuestList> | null>(null)
@@ -894,6 +988,52 @@ function stopResize() {
   }
 }
 
+.bedid-heal-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 8px 16px;
+  padding: 12px 14px;
+  background-color: #fff7ed;
+  border: 1px solid #fdba74;
+  border-left: 4px solid #ea580c;
+  border-radius: 6px;
+  color: #7c2d12;
+  font-size: 0.85rem;
+  line-height: 1.4;
+
+  &__body {
+    flex: 1;
+  }
+
+  &__list {
+    margin: 6px 0 0;
+    padding-left: 18px;
+
+    code {
+      background: rgba(124, 45, 18, 0.08);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+  }
+
+  &__dismiss {
+    background: transparent;
+    border: none;
+    color: #7c2d12;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(124, 45, 18, 0.1);
+    }
+  }
+}
+
 .tour-btn {
   width: 22px;
   height: 22px;
@@ -1263,6 +1403,28 @@ function stopResize() {
 
   &:hover {
     background: #2563eb;
+  }
+}
+
+.btn-suggest-groups-sm {
+  padding: 6px 10px;
+  background: white;
+  color: #4f46e5;
+  border: 1px solid #4f46e5;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover { background: #eef2ff; }
+
+  &:disabled {
+    color: #9ca3af;
+    border-color: #d1d5db;
+    background: #f9fafb;
+    cursor: not-allowed;
   }
 }
 
