@@ -311,7 +311,13 @@ const isAssignable = computed(() => guestStore.isGuestAssignable(props.guest))
 
 const warnings = computed(() => validationStore.getWarningsForGuest(props.guest.id))
 
-const draggableProps = (props.readonly || !isAssignable.value) ? {} : useDraggableGuest(props.guest.id)
+// Computed, not a one-time setup value: an operator can change a guest's
+// Housing from Camping to Dorm while this row stays mounted (Table View
+// uses v-show), and the row must become draggable without a reload.
+const draggableHandlers = useDraggableGuest(props.guest.id)
+const draggableProps = computed(() =>
+  (props.readonly || !isAssignable.value) ? {} : draggableHandlers
+)
 
 // Notes modal state
 const showNotesModal = ref(false)
