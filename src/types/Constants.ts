@@ -193,13 +193,26 @@ const ROOM_TO_HOUSING_RULES: Array<{ pattern: RegExp; housing: HousingType }> = 
 /**
  * Normalizes a raw CSV cell for housing/room comparison.
  *
- * Planyo multi-select columns export as a bare "," when nothing is
- * chosen, and append a trailing comma when something is ("Dorm,"), so
- * both need stripping before the value means anything.
+ * Planyo multi-select columns encode the empty slots as commas, and
+ * which side they land on depends on which slot was filled:
+ *   ","         nothing chosen
+ *   "Dorm,"     first slot set
+ *   ",Camping"  second slot set
+ * So commas must be stripped from BOTH ends, not just the trailing one.
+ *
+ * Getting this wrong is not cosmetic: a leftover ",Camping" matches no
+ * canonical category, falls through to the preserve-verbatim branch,
+ * and is then missing from NON_ASSIGNABLE_HOUSING_TYPES — so the guest
+ * silently becomes assignable and demands a dorm bed.
+ *
+ * An embedded comma that survives ("Dorm,Camping" — both slots set) is
+ * left verbatim rather than guessed at. That keeps the guest assignable
+ * and therefore visible in the unassigned list, with the odd value on
+ * screen for the operator to correct.
  */
 export function cleanHousingCell(value: string | undefined | null): string {
   if (!value) return ''
-  return value.replace(/,\s*$/, '').replace(/\s+/g, ' ').trim()
+  return value.replace(/^[,\s]+|[,\s]+$/g, '').replace(/\s+/g, ' ').trim()
 }
 
 /**

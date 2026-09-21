@@ -35,6 +35,12 @@ with a `Room` value). Five distinct shapes:
 | Camping category | `CampingMen`, `CampingCouples` | 2 |
 | Blank | — | 3 |
 
+A second sample (`…_ANON_v2.csv`, 23 rows) adds shapes the first lacked
+and all parse correctly: a bare `Commuter`; the no-space-before-dash
+variant `FlameBlossom Rm 00 ( female only)- bed 2S`; `( male only)` and
+`(mixed/ group)` annotations; and `,Camping` — the leading-comma form
+described under *Normalizing an existing Housing value*.
+
 Critically: **every row with a `Room` value has a blank `Housing type`**
 (the raw cell is `","`, a Planyo multi-select artifact that cleans to
 empty). Every row with a populated `Housing type` (`Dorm,`, `Camping,`)
@@ -117,12 +123,31 @@ value the CSV did not contain; see Open Questions.
 
 ### Normalizing an existing Housing value
 
-When `Housing type` is non-blank, it is still normalized: strip the
-trailing comma (already done at `useCSV.ts:252`), trim, then
-case-insensitively map to the canonical casing (`camping` → `Camping`).
-A value that matches none of the four canonical categories is preserved
-verbatim rather than forced into a bucket — this protects legacy values
-like `BCM-RV`.
+When `Housing type` is non-blank, it is still normalized: strip Planyo's
+multi-select commas, trim, then case-insensitively map to the canonical
+casing (`camping` → `Camping`). A value that matches none of the four
+canonical categories is preserved verbatim rather than forced into a
+bucket — this protects legacy values like `BCM-RV`.
+
+Planyo encodes the *empty* slots of a multi-select as commas, and which
+side they land on depends on which slot was filled:
+
+| Raw cell | Meaning |
+|---|---|
+| `,` | nothing chosen |
+| `Dorm,` | first slot set |
+| `,Camping` | second slot set |
+
+So commas are stripped from **both** ends. This is not cosmetic: a
+surviving `,Camping` matches no canonical category, falls through to the
+preserve-verbatim branch, and is then absent from
+`NON_ASSIGNABLE_HOUSING_TYPES` — making the guest silently assignable,
+which is the exact failure this feature exists to prevent.
+
+An embedded comma that survives both-end stripping (`Dorm,Camping`, both
+slots set) is genuinely ambiguous and is left verbatim rather than
+guessed at. That keeps the guest assignable and therefore visible, with
+the odd value on screen for the operator to correct.
 
 ## Conflicts
 

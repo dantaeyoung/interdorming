@@ -10,7 +10,11 @@
 
 import { describe, it, expect } from 'vitest'
 import { useCSV } from './useCSV'
-import { isActiveReservationStatus, isCancelledStatus } from '@/types'
+import {
+  isActiveReservationStatus,
+  isCancelledStatus,
+  NON_ASSIGNABLE_HOUSING_TYPES,
+} from '@/types'
 
 // crypto.randomUUID() is not always present under jsdom — provide a stub
 // so parseGuestCSV's id assignment doesn't throw in the test runner.
@@ -303,6 +307,12 @@ describe('parseGuestCSV — Room column and derived Housing', () => {
     // RV sites are Dorm by decision — they need a bed
     ['RV Daffodil-1', 'Dorm'],
     ['RV Daffodil-2', 'Dorm'],
+    // v2-file shapes: no space before the dash, male-only and
+    // mixed/group annotations, single/lower bed suffixes
+    ['FlameBlossom Rm 00 ( female only)- bed 2S', 'Dorm'],
+    ['HeavenlyMusic Rm 4 ( male only) - bed 1L', 'Dorm'],
+    ['GoldenLotus Rm 00 (mixed/ group) - bed 1L', 'Dorm'],
+    ['CrystalSunshine Rm 2 ( female only)- bed 6', 'Dorm'],
     // Catch-all: an unrecognized room still means "needs a bed", so the
     // guest stays visible in the unassigned list rather than vanishing
     ['Some Room Nobody Anticipated', 'Dorm'],
@@ -323,6 +333,24 @@ describe('parseGuestCSV — Room column and derived Housing', () => {
 
   it('strips the trailing comma Planyo appends to a set value', () => {
     expect(housingFor('', 'Dorm,').housingType).toBe('Dorm')
+  })
+
+  // Planyo puts the empty slot's comma on whichever side wasn't filled,
+  // so a leading comma is just as common as a trailing one. Missing it
+  // left ",Camping" uncategorized — and therefore assignable.
+  it('strips a LEADING comma Planyo prepends to a set value', () => {
+    expect(housingFor('', ',Camping').housingType).toBe('Camping')
+  })
+
+  it('keeps a leading-comma Camping guest non-assignable', () => {
+    const guest = housingFor('Canvas Tent2-bed1', ',Camping')
+    expect(guest.housingType).toBe('Camping')
+    expect(NON_ASSIGNABLE_HOUSING_TYPES).toContain(guest.housingType!.toLowerCase())
+  })
+
+  it('leaves a genuine two-value multi-select verbatim', () => {
+    // Both slots set is ambiguous; don't guess, keep the guest visible
+    expect(housingFor('', 'Dorm,Camping').housingType).toBe('Dorm,Camping')
   })
 
   it('lets a stated Housing win over a conflicting Room, and reports it', () => {
