@@ -194,6 +194,10 @@ export const useSettingsStore = defineStore(
       toggleColumnVisibility,
       reorderColumn,
       resetColumns,
+      // Exposed so the `afterHydrate` persist hook can call it. That
+      // hook lives in the options object, outside this closure, so it
+      // cannot reach the local function directly.
+      runMigrations,
     }
   },
   {
@@ -205,8 +209,8 @@ export const useSettingsStore = defineStore(
       // Hydration replaces the refs wholesale, so migrations have to run
       // again here — otherwise columns added in code never reach an
       // operator who already has saved settings.
-      afterHydrate: () => {
-        runMigrations()
+      afterHydrate: ctx => {
+        ;(ctx.store as unknown as { runMigrations: () => void }).runMigrations()
       },
     },
   }
