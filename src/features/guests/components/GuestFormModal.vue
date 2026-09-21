@@ -90,6 +90,13 @@
             <option value="Commuter">Commuter</option>
             <option value="Canvas Tent">Canvas Tent</option>
           </select>
+          <p v-if="showStaffHousingNote" class="staff-housing-note">
+            Set by staff — CSV uploads won't change this.
+            <template v-if="guest?.csvHousingType">
+              CSV says: <strong>{{ guest.csvHousingType }}</strong>.
+              <button type="button" class="link-button" @click="useCsvHousing">Use CSV value</button>
+            </template>
+          </p>
         </div>
 
         <div class="form-group">
@@ -346,6 +353,18 @@ const formData = ref({
 
 const isEditMode = ref(false)
 
+// Set by "Use CSV value": on save, the guest's Housing goes back to
+// following CSV uploads (if Housing still matches the CSV's value).
+const revertHousingToCsv = ref(false)
+const showStaffHousingNote = computed(
+  () => !!props.guest?.housingSetByStaff && !revertHousingToCsv.value
+)
+function useCsvHousing() {
+  if (!props.guest?.csvHousingType) return
+  formData.value.housingType = props.guest.csvHousingType
+  revertHousingToCsv.value = true
+}
+
 // Raw-data debug modal — opened from the "Full details" button next
 // to Cancelled. Pretty-prints every persisted field for diagnosing
 // "why was this guest cancelled / why did this reservation merge?".
@@ -418,6 +437,7 @@ function parseDateToISO(dateStr: string): string {
 watch(
   () => props.guest,
   newGuest => {
+    revertHousingToCsv.value = false
     if (newGuest) {
       isEditMode.value = true
       formData.value = {
@@ -582,6 +602,17 @@ function handleSubmit() {
 
   if (props.guest) {
     guestData.id = props.guest.id
+    // A hand edit to Housing survives CSV re-imports; "Use CSV value"
+    // hands it back to the CSV. Only a real change sets the flag, and
+    // the key is omitted otherwise so updateGuest's spread keeps it.
+    if (
+      revertHousingToCsv.value &&
+      (guestData.housingType || '') === (props.guest.csvHousingType || '')
+    ) {
+      guestData.housingSetByStaff = false
+    } else if ((guestData.housingType || '') !== (props.guest.housingType || '')) {
+      guestData.housingSetByStaff = true
+    }
   }
 
   // Date-aware conflict check: if the operator changed arrival/departure
@@ -780,6 +811,22 @@ function findBedConflicts(
   cursor: pointer;
   transition: all 0.2s;
   border: none;
+}
+
+.staff-housing-note {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: #6d28d9;
+
+  .link-button {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #6d28d9;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: inherit;
+  }
 }
 
 .btn-debug-raw {

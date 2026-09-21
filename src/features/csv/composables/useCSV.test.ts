@@ -269,6 +269,11 @@ describe('parseGuestCSV — Room column and derived Housing', () => {
     return parseGuestCSV(csv).guests[0]
   }
 
+  it('records the resolved category as csvHousingType', () => {
+    expect(housingFor('CampingWomen').csvHousingType).toBe('Camping')
+    expect(housingFor('', 'Dorm,').csvHousingType).toBe('Dorm')
+  })
+
   it('keeps the raw Room value on the guest', () => {
     const guest = housingFor('CrystalSunshine Rm 1 ( female only) - bed 7')
     expect(guest.roomRequest).toBe('CrystalSunshine Rm 1 ( female only) - bed 7')

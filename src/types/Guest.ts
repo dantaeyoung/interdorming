@@ -32,6 +32,18 @@ export interface Guest {
   roomPreference?: string
   housingType?: string
   /**
+   * True once an operator has changed `housingType` by hand in the guest
+   * form (e.g. moving a camper into a free dorm bed). CSV re-imports then
+   * leave `housingType` alone. Cleared by "Use CSV value" in the form.
+   */
+  housingSetByStaff?: boolean
+  /**
+   * The Housing category the most recent CSV import resolved for this
+   * guest, kept whether or not `housingSetByStaff` is set, so the form
+   * and import summary can show what the CSV says.
+   */
+  csvHousingType?: string
+  /**
    * Raw accommodation choice from the registration CSV's `Room` column,
    * where guests pick their own spot (e.g. "CrystalSunshine Rm 1
    * ( female only) - bed 7", "CampingCouples", "Canvas Tent1-bed1").

@@ -176,12 +176,53 @@ cancellations / date changes / bed conflicts / skipped rows.
 - `Housing` is re-derived on every import. A stored guest whose Housing
   was previously derived as `Dorm` will update to `Camping` if a later
   CSV gives them `Room = CampingMen`. This is intended — the newer CSV
-  is the newer truth.
+  is the newer truth — **unless an operator set the guest's Housing by
+  hand**; see *Staff-set Housing* below.
 - Neither field touches `internalNotes` or existing bed assignments. A
   guest who becomes non-assignable (e.g. Dorm → Camping) is **not**
   auto-unassigned; consistent with how cancellations are handled, the
   operator decides. The now-orphaned assignment is reported in the
   import summary.
+
+## Staff-set Housing
+
+Added after launch. Staff sometimes move guests who chose camping into
+dorms when beds are free: they edit Housing from `Camping` to `Dorm`.
+Under the rule above, the next CSV upload silently flipped those guests
+back to `Camping`, greying them out in their beds.
+
+An operator's hand edit to Housing now survives re-imports, the same
+way Internal Notes do.
+
+- **Marking.** When an operator saves the guest form with a Housing
+  value different from the one stored, the guest is flagged
+  `housingSetByStaff: true`. Only a real change sets it; saving the
+  form for other reasons does not.
+- **Re-import.** For a flagged guest, the CSV's Housing (stated or
+  derived from Room) never overwrites the stored value. Every other
+  field merges as before, including `roomRequest`.
+- **Remembering the CSV's answer.** Every import stores the CSV's
+  resolved category on the guest as `csvHousingType`, flagged or not.
+  This gives the form and the summary something to compare against.
+- **Import summary.** A flagged guest whose `csvHousingType` differs
+  from their kept Housing is listed in the existing Housing/Room
+  section as: *name — CSV says Camping, kept Dorm (set by staff)*. It is
+  not listed when the two agree.
+- **Guest form.** A flagged guest's Housing field shows a small note,
+  *"Set by staff — CSV uploads won't change this. CSV says: Camping"*,
+  with a **Use CSV value** link. The link sets Housing to
+  `csvHousingType` and clears the flag, so the guest follows the CSV
+  again from the next upload on.
+- **Existing data.** Guests edited before this change carry no flag.
+  They revert on their next upload as they do today; staff re-edit
+  them once, and from then on the edit sticks.
+- **Unaffected.** Bed assignments, cancellations, and the
+  Housing-vs-Room conflict check on the CSV itself work as before.
+
+Tests: a flagged guest keeps `Dorm` across a re-import whose CSV says
+Camping, and is listed in the summary. An unflagged guest still
+updates. Saving the form without changing Housing does not flag.
+**Use CSV value** clears the flag.
 
 ## UI surfacing
 
@@ -274,3 +315,7 @@ Added to `src/stores/guestStore.test.ts`:
    Reversed: tents are real sleeping places that need a bed, and the
    right fix for the missing rooms is to add them to the configuration,
    not to hide the guests from the bed list.
+5. **An operator's Housing edit beats the CSV.** This is the one
+   exception to "the newer CSV is the newer truth". Staff deliberately
+   move campers into free dorm beds, and a routine re-upload must not
+   undo that. The disagreement is still reported, never silent.
