@@ -59,8 +59,13 @@ export function useDragDrop() {
       // Capture initial position for floating blob
       mousePosition.value = { x: event.clientX, y: event.clientY }
 
-      // Add mouse move listener for tracking
-      document.addEventListener('mousemove', handleMouseMove)
+      // During an HTML5 drag, `dragover` is the canonical source of
+      // cursor position — `mousemove` does NOT fire while a drag is in
+      // progress on most browsers, but on some (legacy IE/Edge paths,
+      // certain devtools modes) it can fire alongside dragover at
+      // ~60Hz. Listening to both doubles reactivity work for no
+      // benefit; `dragover` alone covers every browser we target.
+      // (Pick-mode still uses `mousemove` — different code path.)
       document.addEventListener('dragover', handleDragOver)
 
       // Add body class for global cursor
@@ -84,8 +89,7 @@ export function useDragDrop() {
       draggedGuestId.value = null
       isDragging.value = false
 
-      // Remove mouse move listener
-      document.removeEventListener('mousemove', handleMouseMove)
+      // Mirror of the listeners attached in onDragStart.
       document.removeEventListener('dragover', handleDragOver)
 
       // Remove body class for global cursor

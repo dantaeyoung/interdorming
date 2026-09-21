@@ -604,9 +604,13 @@ const floatingBlobGenderColor = computed(() => {
   return colors.nonBinary
 })
 
+// Position the blob via `transform` instead of `left`/`top`. Browsers
+// can GPU-composite transform changes without a layout pass, so the
+// blob keeps up with the cursor at 60Hz. The trailing
+// `translate(-50%, -50%)` centers the blob on the cursor (paired with
+// `left: 0; top: 0` in the static CSS).
 const floatingBlobStyle = computed(() => ({
-  left: `${mousePosition.value.x}px`,
-  top: `${mousePosition.value.y}px`,
+  transform: `translate3d(${mousePosition.value.x}px, ${mousePosition.value.y}px, 0) translate(-50%, -50%)`,
 }))
 
 // Drop validity for visual feedback
@@ -921,9 +925,15 @@ body.is-picking {
 // Non-scoped styles for teleported floating blob
 .drag-floating-blob {
   position: fixed;
+  // Anchor at origin; actual position comes from the JS-computed
+  // `transform: translate3d(...)` style. Keeping `left`/`top` at 0
+  // means transform is the only thing that moves the element, which
+  // is what lets the browser GPU-composite it without a layout pass.
+  left: 0;
+  top: 0;
   pointer-events: none;
   z-index: 99999;
-  transform: translate(-50%, -50%);
+  will-change: transform;
   background: white;
   border: 1px solid #d1d5db;
   border-radius: 4px;
