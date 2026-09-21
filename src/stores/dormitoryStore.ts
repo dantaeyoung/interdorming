@@ -848,7 +848,7 @@ export const useDormitoryStore = defineStore(
         const roomGender = new Map<string, RoomGender>()
         const bedActive = new Map<string, boolean>()
 
-        const roomKey = (dormName: string, roomName: string) => `${dormName} ${roomName}`
+        const roomKey = (dormName: string, roomName: string) => `${dormName}\u0000${roomName}`
 
         for (const o of sorted) {
           if (o.target.kind === 'dormitory' && o.change.attr === 'active') {

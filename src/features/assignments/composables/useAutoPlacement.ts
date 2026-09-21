@@ -11,7 +11,7 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { staysOverlap } from '@/shared/composables/useUtils'
+import { staysOverlap, stayCoversDate } from '@/shared/composables/useUtils'
 import { classifyGuests } from './useGroupClassification'
 import type { ClassifiedGroup } from './useGroupClassification'
 import type { Guest, Bed, Room, FlatRoom } from '@/types'
@@ -31,6 +31,13 @@ export interface UnplaceableGroup {
 export interface AutoPlaceResult {
   suggestions: Map<string, string>
   unplaceableGroups: UnplaceableGroup[]
+  /**
+   * How many guests were actually considered — unassigned, assignable,
+   * and present on the View Date. Callers report "N could not be
+   * placed" against this, not against every unassigned guest in the
+   * data, which would otherwise count guests from other dates.
+   */
+  candidateCount: number
 }
 
 export function useAutoPlacement() {
@@ -103,21 +110,41 @@ export function useAutoPlacement() {
    * Uses 3-pass algorithm with progressive constraint relaxation.
    * Each pass runs Stage 1 (groups) then Stage 2 (individuals).
    */
-  function autoPlaceGuests(): AutoPlaceResult {
+  /**
+   * Restrict candidates to guests actually present on the Table View's
+   * "View Date".
+   *
+   * Without this, auto-place scoops up every unassigned guest in the
+   * data — so with the picker on Sep 23 it would happily suggest beds
+   * for a Jun 19–21 guest, who then occupies a slot the operator can't
+   * even see. A null date means "all dates", and guests with missing
+   * arrival/departure always count as present (`stayCoversDate`).
+   */
+  function presentOn(guests: Guest[], viewDate?: Date | null): Guest[] {
+    if (!viewDate) return guests
+    return guests.filter(g => stayCoversDate(g, viewDate))
+  }
+
+  function autoPlaceGuests(viewDate?: Date | null): AutoPlaceResult {
     const suggestedAssignments = new Map<string, string>()
     const unplaceableGroups: UnplaceableGroup[] = []
 
-    // Get all unassigned guests (only assignable housing types)
-    const unassignedGuests = guestStore.assignableGuests
-      .filter(g => !assignmentStore.assignments.has(g.id))
+    // Get all unassigned guests (only assignable housing types),
+    // scoped to the View Date when one is set.
+    const unassignedGuests = presentOn(
+      guestStore.assignableGuests.filter(g => !assignmentStore.assignments.has(g.id)),
+      viewDate
+    )
+
+    const candidateCount = unassignedGuests.length
 
     if (unassignedGuests.length === 0) {
-      return { suggestions: suggestedAssignments, unplaceableGroups }
+      return { suggestions: suggestedAssignments, unplaceableGroups, candidateCount }
     }
 
     const availableBeds = getAvailableBeds()
     if (availableBeds.length === 0) {
-      return { suggestions: suggestedAssignments, unplaceableGroups }
+      return { suggestions: suggestedAssignments, unplaceableGroups, candidateCount }
     }
 
     // Classify guests into groups and individuals using configured placement order
@@ -183,7 +210,7 @@ export function useAutoPlacement() {
       }
     }
 
-    return { suggestions: suggestedAssignments, unplaceableGroups }
+    return { suggestions: suggestedAssignments, unplaceableGroups, candidateCount }
   }
 
   // ---------------------------------------------------------------------------
@@ -475,21 +502,53 @@ export function useAutoPlacement() {
   // ---------------------------------------------------------------------------
 
   /**
+   * Map a guest's gender onto the room-gender space so the two can be
+   * compared directly.
+   *
+   * Guest genders are stored as 'M' | 'F' | 'Non-binary/Other' while
+   * rooms use 'M' | 'F' | 'Coed' | 'NB', so a non-binary guest never
+   * string-matches an NB room without this translation. Returns null
+   * for a missing or unrecognized gender, which callers treat as "no
+   * opinion" rather than a mismatch.
+   */
+  function guestGenderAsRoomGender(guest: Guest): 'M' | 'F' | 'NB' | null {
+    const g = guest.gender?.toString().trim().toUpperCase()
+    if (!g) return null
+    if (g === 'M' || g === 'MALE') return 'M'
+    if (g === 'F' || g === 'FEMALE') return 'F'
+    if (
+      g === 'NB' ||
+      g === 'N' ||
+      g === 'OTHER' ||
+      g.startsWith('NON-BINARY') ||
+      g.startsWith('NONBINARY')
+    ) {
+      return 'NB'
+    }
+    return null
+  }
+
+  /**
    * Score gender matching (hard constraint)
    * Returns -1 for mismatch (triggers -Infinity), 0-1 for acceptable
+   *
+   * NB rooms are the mirror of M and F rooms: they accept non-binary
+   * guests and nobody else. Before this was handled, an NB room matched
+   * none of the cases and so rejected EVERY guest, making auto-place
+   * silently produce nothing for it — and non-binary guests, matching
+   * no case either, could only ever land in Coed rooms.
    */
   function scoreGenderMatch(guest: Guest, room: Room): number {
-    // Co-ed rooms accept anyone
+    // Co-ed rooms accept anyone, non-binary guests included
     if (room.roomGender === 'Coed') return 1.0
 
-    const guestGender = guest.gender?.toUpperCase()
+    const guestGender = guestGenderAsRoomGender(guest)
 
     // Unknown gender gets neutral score
     if (!guestGender) return 0
 
-    // Exact match required for gendered rooms
-    if (room.roomGender === 'M' && guestGender === 'M') return 1.0
-    if (room.roomGender === 'F' && guestGender === 'F') return 1.0
+    // Exact match required for gendered rooms (M/M, F/F, NB/NB)
+    if (room.roomGender === guestGender) return 1.0
 
     // Gender mismatch is forbidden
     return -1
@@ -529,6 +588,9 @@ export function useAutoPlacement() {
    */
   function scoreGenderedRoomPreference(guest: Guest, room: Room): number {
     const guestGender = guest.gender?.toUpperCase()
+    // Compared against room.roomGender, which uses 'NB' rather than the
+    // guest-side 'Non-binary/Other'.
+    const guestRoomGender = guestGenderAsRoomGender(guest)
 
     if (!guestGender) return 0
 
@@ -553,14 +615,13 @@ export function useAutoPlacement() {
 
     // For same-gender individuals/groups: prefer gendered rooms over co-ed
     if (isSameGenderGroup) {
-      // Matching gendered room gets highest score
-      if (
-        (room.roomGender === 'M' && guestGender === 'M') ||
-        (room.roomGender === 'F' && guestGender === 'F')
-      ) {
+      // Matching gendered room gets highest score — M/M, F/F, NB/NB
+      if (guestRoomGender && room.roomGender === guestRoomGender) {
         return 1.0
       }
-      // Co-ed room is acceptable but not preferred
+      // Co-ed room is acceptable but not preferred. For a non-binary
+      // guest this is the fallback when no NB room has space, which is
+      // why NB is a strong preference here rather than a hard rule.
       if (room.roomGender === 'Coed') {
         return 0.5
       }
@@ -586,18 +647,18 @@ export function useAutoPlacement() {
    * mixed-gender families). Mixed-gender groups get a bonus for coed rooms.
    */
   function scoreGroupGenderedRoomPreference(group: ClassifiedGroup, room: Room): number {
+    // Normalized to the room-gender space so an all-non-binary group
+    // can match an NB room.
     const genders = new Set(
-      group.members.map(m => m.gender?.toUpperCase()).filter(Boolean)
+      group.members.map(m => guestGenderAsRoomGender(m)).filter(Boolean)
     )
     const isSameGender = genders.size === 1
     const singleGender = isSameGender ? [...genders][0] : null
 
     if (isSameGender && singleGender) {
-      // Same-gender group: strongly prefer matching gendered room
-      if (
-        (room.roomGender === 'M' && singleGender === 'M') ||
-        (room.roomGender === 'F' && singleGender === 'F')
-      ) {
+      // Same-gender group: strongly prefer matching gendered room,
+      // including an all-non-binary group in an NB room
+      if (room.roomGender === singleGender) {
         return 1.0
       }
       // Coed room is wasteful for a same-gender group — penalize
@@ -805,13 +866,15 @@ export function useAutoPlacement() {
    * Auto-place guests in a specific room only
    * Uses individual-only algorithm (no group logic needed for single-room placement)
    */
-  function autoPlaceGuestsInRoom(room: Room): Map<string, string> {
+  function autoPlaceGuestsInRoom(room: Room, viewDate?: Date | null): Map<string, string> {
     const suggestedAssignments = new Map<string, string>()
 
     // Get unassigned guests and prioritize those with hard constraints
     // Place guests with lower bunk requirements FIRST to ensure they get valid beds
-    let unassignedGuests = guestStore.assignableGuests
-      .filter(g => !assignmentStore.assignments.has(g.id))
+    let unassignedGuests = presentOn(
+      guestStore.assignableGuests.filter(g => !assignmentStore.assignments.has(g.id)),
+      viewDate
+    )
       .sort((a, b) => {
         const aRequiresLower = requiresLowerBunk(a)
         const bRequiresLower = requiresLowerBunk(b)

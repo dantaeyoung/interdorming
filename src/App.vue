@@ -8,7 +8,7 @@
           <span v-if="currentBranch && currentBranch !== 'main'" class="branch-indicator">
             ({{ currentBranch }} branch)
           </span>
-<span class="version-tag">v260921-01:23</span>
+<span class="version-tag">v260921-01:36</span>
         </h1>
         <button class="tour-btn" @click="startTour" title="Take a guided tour">
           ?
@@ -610,7 +610,9 @@ function handleGuestDataStatus(message: string, type: 'success' | 'error' | 'inf
 // Assignment toolbar handlers
 function handleAutoPlace() {
   try {
-    const result = assignmentStore.autoPlace()
+    // Scope to the Table View date filter: with the picker on a date,
+    // only guests present then are candidates.
+    const result = assignmentStore.autoPlace(viewDate.value)
 
     const groupWarning =
       result.unplaceableGroups.length > 0
