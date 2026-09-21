@@ -143,6 +143,7 @@ src/
   5. Housing/Room disagreements (stated `Housing type` conflicts with the category implied by `Room`; the stated value wins)
 - **Room column → Housing category** (`resolveHousingType` in `Constants.ts`, spec: `specs/RoomColumnAndHousing.md`): the newer Planyo export has a `Room` column (stored as `Guest.roomRequest`, labeled **"Room Chosen"** in the UI) and leaves `Housing type` blank on exactly those rows. Housing is always populated from four canonical categories — `Dorm`, `Camping`, `Commuter`, `Canvas Tent` — derived from Room when blank. Ordered rules, first match wins: `^comm+uter` → Commuter (tolerates "Commmuter"), `^camping` → Camping (`CampingMen`/`Women`/`Couples`), `^canvas\s*tent` → Canvas Tent, anything else → Dorm (including `RV Daffodil-*` and unknown rooms, so they stay visible rather than vanish). Both blank → Dorm.
   - **Planyo multi-select commas land on either side**: `","` = nothing, `"Dorm,"` = first slot, `",Camping"` = second slot. `cleanHousingCell` strips both ends. A leftover `",Camping"` once matched no category and made a camper assignable.
+  - **Staff-set Housing beats the CSV.** Changing Housing by hand in the guest form sets `housingSetByStaff`; re-imports then leave `housingType` alone (they still record the CSV's answer in `csvHousingType`) and list any disagreement in the summary's Housing section. "Use CSV value" in the form clears it. Merge logic lives in `mergeImportedGuest.ts`.
   - **`roomRequest` never assigns a bed.** The registration form's bed numbers come from a different source than the room config's `Bed Position`, so they can't be mapped. It is operator-facing information only.
 
 ### Drag-and-Drop + Click-to-Pick (`src/features/assignments/composables/useDragDrop.ts`)
@@ -279,6 +280,7 @@ After making changes, verify:
 - [ ] CSV import filters by status — any "reserved" variant active, "cancel" overrides to cancelled, others (Not completed / waitlist / etc.) skipped
 - [ ] Re-uploading a CSV surfaces all five diff categories in `ImportSummaryDialog`: cancellations, date changes, bed conflicts, **skipped new rows** (silently-dropped non-active new entries, listed by name + status), **Housing/Room disagreements**
 - [ ] Every imported guest gets a canonical Housing (`Dorm` / `Camping` / `Commuter` / `Canvas Tent`), derived from `Room` when `Housing type` is blank — including the `",Camping"` leading-comma form
+- [ ] A guest changed from Camping to Dorm in the form is draggable immediately, and stays Dorm after re-uploading the CSV (listed as "set by staff, kept")
 - [ ] "Room Chosen" column appears in All Reservations **and in Show/Hide Columns for a browser with existing saved settings** (not just a fresh profile)
 - [ ] Same Planyo `ID` matches across re-uploads (not by name)
 - [ ] Drag-and-drop assignment works between guests and beds

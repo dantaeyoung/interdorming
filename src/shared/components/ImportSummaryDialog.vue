@@ -86,7 +86,8 @@
       </section>
 
       <!-- Housing / Room disagreements -->
-      <section v-if="housingConflicts.length > 0" class="summary-section">
+      <section v-if="housingConflicts.length > 0 || staffHousingKept.length > 0" class="summary-section">
+        <template v-if="housingConflicts.length > 0">
         <h4 class="section-title housing-conflicts">
           <span class="icon">🏠</span>
           {{ housingConflicts.length }} housing/room disagreement{{ housingConflicts.length === 1 ? '' : 's' }}
@@ -108,6 +109,28 @@
           when Housing is blank. Edit the guest if the Room choice is the
           correct one.
         </p>
+        </template>
+        <template v-if="staffHousingKept.length > 0">
+          <h4 class="section-title housing-conflicts">
+            <span class="icon">🏠</span>
+            {{ staffHousingKept.length }} housing set by staff, kept
+          </h4>
+          <ul class="item-list">
+            <li v-for="(item, idx) in staffHousingKept" :key="`hk-${idx}`">
+              <strong>{{ item.guestName }}</strong>
+              <span v-if="item.planyoId" class="meta">— {{ item.planyoId }}</span>
+              <span class="meta">
+                CSV says <strong>{{ item.csvHousing }}</strong>, kept
+                <strong>{{ item.keptHousing }}</strong> (set by staff)
+              </span>
+            </li>
+          </ul>
+          <p class="hint">
+            CSV uploads don't change Housing that staff set by hand. To
+            follow the CSV again, open the guest and choose
+            <em>Use CSV value</em>.
+          </p>
+        </template>
       </section>
 
       <div class="actions">
@@ -121,7 +144,7 @@
 import Modal from './Modal.vue'
 import { useImportSummary } from '@/shared/composables/useImportSummary'
 
-const { isOpen, cancellations, dateChanges, bedConflicts, skippedNewRows, housingConflicts, dismissImportSummary } = useImportSummary()
+const { isOpen, cancellations, dateChanges, bedConflicts, skippedNewRows, housingConflicts, staffHousingKept, dismissImportSummary } = useImportSummary()
 
 function formatRange(arrival?: string, departure?: string): string {
   if (!arrival && !departure) return 'no dates'

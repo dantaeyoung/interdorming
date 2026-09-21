@@ -40,6 +40,8 @@
 import { ref, nextTick } from 'vue'
 import { useCSV } from '../composables/useCSV'
 import type { CSVParseResult } from '../composables/useCSV'
+import { mergeImportedGuest } from '../mergeImportedGuest'
+import type { StaffHousingKept } from '../mergeImportedGuest'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -234,6 +236,9 @@ function handleAddAndUpdate() {
   // itself, independent of what's already in the store.
   const housingConflicts: ImportSummaryHousingConflict[] =
     pendingCSVData.value.housingConflicts ?? []
+  // Guests whose Housing an operator set by hand, where this CSV says
+  // something else. The operator's value was kept.
+  const staffHousingKept: StaffHousingKept[] = []
 
   newRows.forEach(newGuest => {
     const isActive = isActiveReservationStatus(newGuest.status)
@@ -286,18 +291,9 @@ function handleAddAndUpdate() {
         })
       }
 
-      const merged: Record<string, any> = {
-        ...existing,
-        // Reactivation: clear cancelled flag if it was set.
-        isCancelled: false,
-      }
-      for (const [key, value] of Object.entries(newGuest)) {
-        if (key === 'id' || key === 'importOrder') continue
-        if (value !== undefined && value !== '' && value !== null) {
-          merged[key] = value
-        }
-      }
-      existingGuests[existingIndex] = merged as Guest
+      const { merged, staffHousingKept: kept } = mergeImportedGuest(existing, newGuest)
+      if (kept) staffHousingKept.push(kept)
+      existingGuests[existingIndex] = merged
     } else {
       // No matching existing guest. Only add if active — cancelled and
       // "other" statuses (e.g. "Not completed") for new rows are
@@ -340,6 +336,7 @@ function handleAddAndUpdate() {
       bedConflicts,
       skippedNewRows,
       housingConflicts,
+      staffHousingKept,
     })
   })
 

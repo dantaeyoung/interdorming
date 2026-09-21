@@ -271,6 +271,7 @@ export function useCSV() {
       guest.roomRequest = (guest.roomRequest || '').trim()
       const resolved = resolveHousingType(guest.housingType, guest.roomRequest)
       guest.housingType = resolved.housingType
+      guest.csvHousingType = resolved.housingType
       if (resolved.conflict) {
         housingConflicts.push({
           guestName: `${guest.firstName} ${guest.lastName}`.trim(),

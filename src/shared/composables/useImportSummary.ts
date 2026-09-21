@@ -13,7 +13,10 @@
  *   - Housing conflicts (the row's stated `Housing type` disagrees with
  *                       the category implied by its `Room` value — the
  *                       stated value wins, so this is purely to tell
- *                       the operator the two columns disagree)
+ *                       the operator the two columns disagree).
+ *                       Also lists guests whose Housing an operator set
+ *                       by hand where the CSV now says otherwise — the
+ *                       operator's value was kept.
  *
  * Replaces the older `useImportConflictDialog` which only handled bed
  * conflicts. Per spec, all five are merged into a single dialog so the
@@ -61,12 +64,20 @@ export interface ImportSummaryHousingConflict {
   impliedByRoom: string
 }
 
+export interface ImportSummaryStaffHousingKept {
+  guestName: string
+  planyoId?: string
+  csvHousing: string
+  keptHousing: string
+}
+
 const isOpen = ref(false)
 const cancellations = ref<ImportSummaryCancellation[]>([])
 const dateChanges = ref<ImportSummaryDateChange[]>([])
 const bedConflicts = ref<ImportSummaryBedConflict[]>([])
 const skippedNewRows = ref<ImportSummarySkippedNewRow[]>([])
 const housingConflicts = ref<ImportSummaryHousingConflict[]>([])
+const staffHousingKept = ref<ImportSummaryStaffHousingKept[]>([])
 
 export interface ImportSummaryPayload {
   cancellations?: ImportSummaryCancellation[]
@@ -74,6 +85,7 @@ export interface ImportSummaryPayload {
   bedConflicts?: ImportSummaryBedConflict[]
   skippedNewRows?: ImportSummarySkippedNewRow[]
   housingConflicts?: ImportSummaryHousingConflict[]
+  staffHousingKept?: ImportSummaryStaffHousingKept[]
 }
 
 export function useImportSummary() {
@@ -86,12 +98,14 @@ export function useImportSummary() {
     const b = payload.bedConflicts ?? []
     const s = payload.skippedNewRows ?? []
     const h = payload.housingConflicts ?? []
+    const k = payload.staffHousingKept ?? []
     if (
       c.length === 0 &&
       d.length === 0 &&
       b.length === 0 &&
       s.length === 0 &&
-      h.length === 0
+      h.length === 0 &&
+      k.length === 0
     )
       return
     cancellations.value = c
@@ -99,6 +113,7 @@ export function useImportSummary() {
     bedConflicts.value = b
     skippedNewRows.value = s
     housingConflicts.value = h
+    staffHousingKept.value = k
     isOpen.value = true
   }
 
@@ -109,6 +124,7 @@ export function useImportSummary() {
     bedConflicts.value = []
     skippedNewRows.value = []
     housingConflicts.value = []
+    staffHousingKept.value = []
   }
 
   return {
@@ -118,6 +134,7 @@ export function useImportSummary() {
     bedConflicts,
     skippedNewRows,
     housingConflicts,
+    staffHousingKept,
     showImportSummary,
     dismissImportSummary,
   }
