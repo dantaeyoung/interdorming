@@ -166,16 +166,17 @@ export const HOUSING_TYPES = ['Dorm', 'Camping', 'Commuter', 'Canvas Tent'] as c
 export type HousingType = (typeof HOUSING_TYPES)[number]
 
 /**
- * Housing types that are NOT assignable to dorm beds.
+ * Housing types that are NOT assignable to a bed.
  *
- * Canvas Tent is label-only: the registration CSV names tent beds
- * (`Canvas Tent1-bed1`), but those beds are not modelled in the room
- * configuration, so tent occupants are excluded from the bed list.
+ * Canvas Tent is NOT in this list: the registration CSV names tent beds
+ * (`Canvas Tent1-bed1`), and tent occupants get a real bed like dorm
+ * guests do. Those tents need to exist in the room configuration for a
+ * bed to be available to place them in.
  *
  * Compared lowercase against the guest's housingType, so entries here
  * must be lowercase.
  */
-export const NON_ASSIGNABLE_HOUSING_TYPES = ['camping', 'commuter', 'canvas tent']
+export const NON_ASSIGNABLE_HOUSING_TYPES = ['camping', 'commuter']
 
 /**
  * Rules mapping a raw `Room` value to a housing category. Evaluated in

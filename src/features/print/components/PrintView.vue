@@ -55,7 +55,7 @@
       </label>
       <label class="checkbox-label">
         <input type="checkbox" v-model="showCampingCommuter" />
-        <span>Include Camping, Commuter &amp; Tent guests</span>
+        <span>Include Camping &amp; Commuter guests</span>
       </label>
     </div>
 
@@ -467,9 +467,9 @@
         </table>
       </div>
 
-      <!-- Non-assignable guests: camping, commuter, canvas tent -->
+      <!-- Camping & Commuter Guests -->
       <div v-if="showCampingCommuter && campingCommuterGuests.length > 0" class="unassigned-section">
-        <h3>Camping, Commuter &amp; Tent Guests</h3>
+        <h3>Camping &amp; Commuter Guests</h3>
         <table class="unassigned-table">
           <thead>
             <tr>
@@ -587,13 +587,12 @@
             </table>
           </div>
 
-          <!-- Non-assignable guests (camping, commuter, canvas tent)
-               live outside the bed grid since they aren't assigned to
-               physical beds. Rendered as a flat table with no
-               Rm/Beds/LB? columns at the very bottom of the Guestmaster
-               sheet. -->
+          <!-- Camping & commuter guests live outside the bed grid since
+               they aren't assigned to physical beds. Rendered as a flat
+               table with no Rm/Beds/LB? columns at the very bottom of
+               the Guestmaster sheet. -->
           <div v-if="campingCommuterGuests.length > 0" class="guestmaster-camping">
-            <h4 class="guestmaster-camping-title">Camping, Commuter &amp; Tents</h4>
+            <h4 class="guestmaster-camping-title">Camping &amp; Commuter</h4>
             <table class="guestmaster-table guestmaster-camping-table">
               <thead>
                 <tr>

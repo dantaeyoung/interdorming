@@ -92,9 +92,9 @@ describe('guestStore.suggestedGroups normalization', () => {
 /**
  * Housing categories and bed assignability.
  *
- * Canvas Tent joins camping/commuter as non-assignable: the CSV names
- * tent beds ("Canvas Tent1-bed1") but those beds aren't modelled in the
- * room configuration, so tent occupants must stay out of the bed list.
+ * Camping and Commuter guests get no bed. Canvas Tent guests DO get a
+ * bed — the CSV names tent beds ("Canvas Tent1-bed1") and tents are
+ * real sleeping places, so they are assignable like Dorm.
  */
 describe('guestStore.assignableGuests — housing categories', () => {
   beforeEach(() => {
@@ -112,10 +112,10 @@ describe('guestStore.assignableGuests — housing categories', () => {
     }
   }
 
-  it('excludes Canvas Tent guests from assignableGuests', () => {
+  it('includes Canvas Tent guests in assignableGuests', () => {
     const store = useGuestStore()
     store.importGuests([makeGuest('tent', 'Canvas Tent')])
-    expect(store.assignableGuests).toHaveLength(0)
+    expect(store.assignableGuests.map(g => g.id)).toEqual(['tent'])
   })
 
   it('includes Dorm guests in assignableGuests', () => {
@@ -125,7 +125,7 @@ describe('guestStore.assignableGuests — housing categories', () => {
     expect(store.assignableGuests[0].id).toBe('dorm')
   })
 
-  it('excludes Camping and Commuter, includes only Dorm', () => {
+  it('excludes only Camping and Commuter', () => {
     const store = useGuestStore()
     store.importGuests([
       makeGuest('dorm', 'Dorm'),
@@ -133,7 +133,7 @@ describe('guestStore.assignableGuests — housing categories', () => {
       makeGuest('commute', 'Commuter'),
       makeGuest('tent', 'Canvas Tent'),
     ])
-    expect(store.assignableGuests.map(g => g.id)).toEqual(['dorm'])
+    expect(store.assignableGuests.map(g => g.id)).toEqual(['dorm', 'tent'])
   })
 
   it('still treats a blank housingType as assignable (backwards compat)', () => {
