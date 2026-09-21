@@ -1906,7 +1906,14 @@ export const useDormitoryStore = defineStore(
   {
     persist: {
       key: 'dormAssignments-dormitories',
-      paths: [
+      // v4 renamed `paths` to `pick`. The old key is silently ignored
+      // and the fallback is "persist everything", not "persist
+      // nothing" — so this list was decorative and the whole store was
+      // going to localStorage. The only ref it leaves out is
+      // `selectedDormitoryIndex`, which is store-internal (no component
+      // reads selectedDormitory or calls setSelectedDormitory), so
+      // honoring the list changes nothing the operator can see.
+      pick: [
         'dormitories',
         'configName',
         'layouts',
