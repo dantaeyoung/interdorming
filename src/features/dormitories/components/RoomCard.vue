@@ -131,7 +131,7 @@ const ageRange = computed(() => {
 })
 
 function handleAutoPlaceRoom() {
-  const suggestions = autoPlaceGuestsInRoom(props.room)
+  const suggestions = autoPlaceGuestsInRoom(props.room, props.viewDate)
 
   // Add suggestions to the assignment store
   suggestions.forEach((bedId, guestId) => {

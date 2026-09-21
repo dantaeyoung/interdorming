@@ -11,7 +11,7 @@ import { useGuestStore } from '@/stores/guestStore'
 import { useDormitoryStore } from '@/stores/dormitoryStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { staysOverlap } from '@/shared/composables/useUtils'
+import { staysOverlap, stayCoversDate } from '@/shared/composables/useUtils'
 import { classifyGuests } from './useGroupClassification'
 import type { ClassifiedGroup } from './useGroupClassification'
 import type { Guest, Bed, Room, FlatRoom } from '@/types'
@@ -31,6 +31,13 @@ export interface UnplaceableGroup {
 export interface AutoPlaceResult {
   suggestions: Map<string, string>
   unplaceableGroups: UnplaceableGroup[]
+  /**
+   * How many guests were actually considered — unassigned, assignable,
+   * and present on the View Date. Callers report "N could not be
+   * placed" against this, not against every unassigned guest in the
+   * data, which would otherwise count guests from other dates.
+   */
+  candidateCount: number
 }
 
 export function useAutoPlacement() {
@@ -103,21 +110,41 @@ export function useAutoPlacement() {
    * Uses 3-pass algorithm with progressive constraint relaxation.
    * Each pass runs Stage 1 (groups) then Stage 2 (individuals).
    */
-  function autoPlaceGuests(): AutoPlaceResult {
+  /**
+   * Restrict candidates to guests actually present on the Table View's
+   * "View Date".
+   *
+   * Without this, auto-place scoops up every unassigned guest in the
+   * data — so with the picker on Sep 23 it would happily suggest beds
+   * for a Jun 19–21 guest, who then occupies a slot the operator can't
+   * even see. A null date means "all dates", and guests with missing
+   * arrival/departure always count as present (`stayCoversDate`).
+   */
+  function presentOn(guests: Guest[], viewDate?: Date | null): Guest[] {
+    if (!viewDate) return guests
+    return guests.filter(g => stayCoversDate(g, viewDate))
+  }
+
+  function autoPlaceGuests(viewDate?: Date | null): AutoPlaceResult {
     const suggestedAssignments = new Map<string, string>()
     const unplaceableGroups: UnplaceableGroup[] = []
 
-    // Get all unassigned guests (only assignable housing types)
-    const unassignedGuests = guestStore.assignableGuests
-      .filter(g => !assignmentStore.assignments.has(g.id))
+    // Get all unassigned guests (only assignable housing types),
+    // scoped to the View Date when one is set.
+    const unassignedGuests = presentOn(
+      guestStore.assignableGuests.filter(g => !assignmentStore.assignments.has(g.id)),
+      viewDate
+    )
+
+    const candidateCount = unassignedGuests.length
 
     if (unassignedGuests.length === 0) {
-      return { suggestions: suggestedAssignments, unplaceableGroups }
+      return { suggestions: suggestedAssignments, unplaceableGroups, candidateCount }
     }
 
     const availableBeds = getAvailableBeds()
     if (availableBeds.length === 0) {
-      return { suggestions: suggestedAssignments, unplaceableGroups }
+      return { suggestions: suggestedAssignments, unplaceableGroups, candidateCount }
     }
 
     // Classify guests into groups and individuals using configured placement order
@@ -183,7 +210,7 @@ export function useAutoPlacement() {
       }
     }
 
-    return { suggestions: suggestedAssignments, unplaceableGroups }
+    return { suggestions: suggestedAssignments, unplaceableGroups, candidateCount }
   }
 
   // ---------------------------------------------------------------------------
@@ -839,13 +866,15 @@ export function useAutoPlacement() {
    * Auto-place guests in a specific room only
    * Uses individual-only algorithm (no group logic needed for single-room placement)
    */
-  function autoPlaceGuestsInRoom(room: Room): Map<string, string> {
+  function autoPlaceGuestsInRoom(room: Room, viewDate?: Date | null): Map<string, string> {
     const suggestedAssignments = new Map<string, string>()
 
     // Get unassigned guests and prioritize those with hard constraints
     // Place guests with lower bunk requirements FIRST to ensure they get valid beds
-    let unassignedGuests = guestStore.assignableGuests
-      .filter(g => !assignmentStore.assignments.has(g.id))
+    let unassignedGuests = presentOn(
+      guestStore.assignableGuests.filter(g => !assignmentStore.assignments.has(g.id)),
+      viewDate
+    )
       .sort((a, b) => {
         const aRequiresLower = requiresLowerBunk(a)
         const bRequiresLower = requiresLowerBunk(b)

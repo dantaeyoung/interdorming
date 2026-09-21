@@ -499,13 +499,18 @@ export const useAssignmentStore = defineStore(
       return count
     }
 
-    function autoPlace() {
+    /**
+     * @param viewDate Table View's date filter. When set, only guests
+     *   present on that date are considered — otherwise auto-place
+     *   suggests beds for guests the operator can't currently see.
+     */
+    function autoPlace(viewDate?: Date | null) {
       const { autoPlaceGuests } = useAutoPlacement()
 
       suggestedAssignments.value.clear()
       unplaceableGroups.value = []
 
-      const result = autoPlaceGuests()
+      const result = autoPlaceGuests(viewDate)
 
       result.suggestions.forEach((bedId, guestId) => {
         suggestedAssignments.value.set(guestId, bedId)
@@ -515,7 +520,10 @@ export const useAssignmentStore = defineStore(
 
       return {
         placedCount: result.suggestions.size,
-        unplacedCount: unassignedGuestIds.value.length - result.suggestions.size,
+        // Against the candidates actually considered, not every
+        // unassigned guest — otherwise a View Date filter makes this
+        // report guests from other dates as "could not be placed".
+        unplacedCount: result.candidateCount - result.suggestions.size,
         unplaceableGroups: result.unplaceableGroups,
       }
     }

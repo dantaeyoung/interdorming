@@ -152,3 +152,97 @@ describe('useAutoPlacement — date-aware bed availability', () => {
     expect(result.suggestions.has(bob.id)).toBe(false)
   })
 })
+
+/**
+ * Auto-place honors the Table View "View Date" filter.
+ *
+ * Without this scoping, auto-place considered every unassigned guest in
+ * the data regardless of the picker — so with the filter on Sep 23 it
+ * would suggest beds for a guest staying Jun 19–21, silently consuming
+ * a bed the operator can't even see on screen.
+ */
+describe('useAutoPlacement — View Date scoping', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorageMock.clear()
+  })
+
+  it('ignores guests whose stay does not cover the view date', () => {
+    seedSingleBedDorm()
+    const june = addGuest('June', '2026-06-19', '2026-06-21')
+
+    const { autoPlaceGuests } = useAutoPlacement()
+    const result = autoPlaceGuests(new Date(2026, 8, 23)) // Sep 23
+
+    expect(result.suggestions.get(june.id)).toBeUndefined()
+    expect(result.candidateCount).toBe(0)
+  })
+
+  it('places a guest whose stay covers the view date', () => {
+    const bedId = seedSingleBedDorm()
+    const sept = addGuest('Sept', '2026-09-23', '2026-09-27')
+
+    const { autoPlaceGuests } = useAutoPlacement()
+    const result = autoPlaceGuests(new Date(2026, 8, 23))
+
+    expect(result.suggestions.get(sept.id)).toBe(bedId)
+    expect(result.candidateCount).toBe(1)
+  })
+
+  it('picks only the on-date guest when both are unassigned', () => {
+    const bedId = seedSingleBedDorm()
+    const june = addGuest('June', '2026-06-19', '2026-06-21')
+    const sept = addGuest('Sept', '2026-09-23', '2026-09-27')
+
+    const { autoPlaceGuests } = useAutoPlacement()
+    const result = autoPlaceGuests(new Date(2026, 8, 23))
+
+    expect(result.suggestions.get(sept.id)).toBe(bedId)
+    expect(result.suggestions.get(june.id)).toBeUndefined()
+    expect(result.candidateCount).toBe(1)
+  })
+
+  it('considers everyone when no view date is set', () => {
+    seedSingleBedDorm()
+    addGuest('June', '2026-06-19', '2026-06-21')
+    addGuest('Sept', '2026-09-23', '2026-09-27')
+
+    const { autoPlaceGuests } = useAutoPlacement()
+    const result = autoPlaceGuests(null)
+
+    expect(result.candidateCount).toBe(2)
+  })
+
+  it('treats the departure day as no longer present', () => {
+    seedSingleBedDorm()
+    const g = addGuest('Leaving', '2026-09-20', '2026-09-23')
+
+    const { autoPlaceGuests } = useAutoPlacement()
+    const result = autoPlaceGuests(new Date(2026, 8, 23)) // departure day
+
+    expect(result.suggestions.get(g.id)).toBeUndefined()
+  })
+
+  it('still includes guests with missing dates', () => {
+    const bedId = seedSingleBedDorm()
+    const g = addGuest('NoDates', '', '')
+
+    const { autoPlaceGuests } = useAutoPlacement()
+    const result = autoPlaceGuests(new Date(2026, 8, 23))
+
+    expect(result.suggestions.get(g.id)).toBe(bedId)
+  })
+
+  it('scopes the per-room button too', () => {
+    seedSingleBedDorm()
+    const june = addGuest('June', '2026-06-19', '2026-06-21')
+
+    const dorm = useDormitoryStore()
+    const room = dorm.dormitories[0].rooms[0]
+
+    const { autoPlaceGuestsInRoom } = useAutoPlacement()
+    expect(autoPlaceGuestsInRoom(room, new Date(2026, 8, 23)).size).toBe(0)
+    // ...and still works with no date filter
+    expect(autoPlaceGuestsInRoom(room, null).get(june.id)).toBeDefined()
+  })
+})
