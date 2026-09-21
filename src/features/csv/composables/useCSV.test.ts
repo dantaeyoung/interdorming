@@ -276,7 +276,7 @@ describe('parseGuestCSV — Room column and derived Housing', () => {
 
   it.each([
     ['CampingMen', 'Camping'],
-    ['CampingWomen', 'Camping'],
+    ['CampingWomen', 'Camping'], // appears in the v3 export
     ['CampingCouples', 'Camping'],
     ['Camping', 'Camping'],
   ])('maps %s to %s', (room, expected) => {
@@ -313,6 +313,18 @@ describe('parseGuestCSV — Room column and derived Housing', () => {
     ['HeavenlyMusic Rm 4 ( male only) - bed 1L', 'Dorm'],
     ['GoldenLotus Rm 00 (mixed/ group) - bed 1L', 'Dorm'],
     ['CrystalSunshine Rm 2 ( female only)- bed 6', 'Dorm'],
+    // v3-file shapes: punctuation varies row to row because operators
+    // type these by hand — no space before the paren, no space inside
+    // it, no dash at all, a "couple" annotation, capitalized
+    // "Mixed/ Group", and rooms with no gender annotation
+    ['CrystalSunshine Rm 1( female only) - bed 1L', 'Dorm'],
+    ['CrystalSunshine Rm 1 (female only) - bed 6', 'Dorm'],
+    ['CrystalSunshine Rm 2 ( female only) bed 1L', 'Dorm'],
+    ['RoseCloud Rm 1( couple ) - bed 1L', 'Dorm'],
+    ['RoseCloud Rm 3 - bed 4', 'Dorm'],
+    ['GoldenLotus Rm 4 (Mixed/ Group) - bed 1L', 'Dorm'],
+    // A bare room name with no bed at all
+    ['JADE CANDLE', 'Dorm'],
     // Catch-all: an unrecognized room still means "needs a bed", so the
     // guest stays visible in the unassigned list rather than vanishing
     ['Some Room Nobody Anticipated', 'Dorm'],
