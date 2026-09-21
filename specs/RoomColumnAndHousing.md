@@ -86,13 +86,18 @@ than repeating string literals.
 ### Assignability
 
 ```ts
-export const NON_ASSIGNABLE_HOUSING_TYPES = ['camping', 'commuter', 'canvas tent']
+export const NON_ASSIGNABLE_HOUSING_TYPES = ['camping', 'commuter']
 ```
 
-`Dorm` is the only assignable category. Canvas Tent is **label-only** —
-tent occupants are excluded from the bed list even though the CSV names
-tent beds (`Canvas Tent1-bed1`). Managing tent beds as real beds is out
-of scope.
+`Dorm` and `Canvas Tent` are assignable; `Camping` and `Commuter` are
+not. Tents are real sleeping places and the CSV names their beds
+(`Canvas Tent1-bed1`), so a tent guest needs a bed just as a dorm guest
+does.
+
+Consequence, accepted: `Canvas Tent*` is not in the room configuration,
+so tent guests appear in the unassigned list with nowhere to go until
+those tents are added as rooms — the same situation as `RV Daffodil`
+and `JADE CANDLE`.
 
 ## Derivation rules
 
@@ -188,7 +193,9 @@ cancellations / date changes / bed conflicts / skipped rows.
   Housing Type. The Housing Type `<select>` gains a `Canvas Tent`
   option; `BCM-RV` is retained so existing records round-trip.
 - **Sorting** — `roomRequest` added to `useSortConfig` as a string sort.
-- **Print views** — `roomRequest` becomes an optional, toggleable column
+- **Print views** — the non-assignable list stays "Camping & Commuter";
+  tents are assignable so they appear in the bed grid, not that list.
+  `roomRequest` becomes an optional, toggleable column
   labeled `Room`, wherever `roomPreference` already is: the shared
   `columns` toggles behind List by Dorm / A-Z, plus the separately
   persisted Guestmaster and Work Coordinator preference sets
@@ -216,8 +223,9 @@ Added to `src/features/csv/composables/useCSV.test.ts`:
 
 Added to `src/stores/guestStore.test.ts`:
 
-- A `Canvas Tent` guest is excluded from `assignableGuests`.
+- A `Canvas Tent` guest is included in `assignableGuests`.
 - A `Dorm` guest is included.
+- `Camping` and `Commuter` guests are excluded.
 
 ## Out of scope
 
@@ -238,10 +246,10 @@ Added to `src/stores/guestStore.test.ts`:
   and place them by hand; nothing in this change writes a bed
   assignment. Revisiting this would require reconciling the two
   numbering schemes first.
-- **Creating rooms for `RV Daffodil` / `Canvas Tent*`.** Neither exists
-  in `default_room_config.csv`. Under these rules the two RV guests
-  become `Dorm` and will appear in the unassigned list with nowhere to
-  go until the operator adds those rooms.
+- **Creating rooms for `RV Daffodil` / `Canvas Tent*` / `JADE CANDLE`.**
+  None exists in `default_room_config.csv`. Under these rules those
+  guests are all assignable and will appear in the unassigned list with
+  nowhere to go until the operator adds the rooms.
 - **Gender-conflict validation on the `( female only)` annotation.** Two
   sample guests are Non-binary/Other but chose female-only rooms. The
   existing gender validation already warns once they are assigned to a
@@ -261,3 +269,8 @@ Added to `src/stores/guestStore.test.ts`:
    never stated is acceptable; it matches the behavior a blank already
    produces today.
 3. **`Room` is an optional print column** — see UI surfacing.
+4. **Canvas Tent is assignable.** An earlier draft made it label-only,
+   on the reasoning that tent beds aren't in the room configuration.
+   Reversed: tents are real sleeping places that need a bed, and the
+   right fix for the missing rooms is to add them to the configuration,
+   not to hide the guests from the bed list.
