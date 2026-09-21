@@ -580,7 +580,13 @@ export const useAssignmentStore = defineStore(
   {
     persist: {
       key: 'dormAssignments-assignments',
-      paths: ['assignments', 'assignmentHistory'],
+      // v4 renamed `paths` to `pick`. Here the old key was harmless:
+      // the custom serializer below hand-builds the payload, so only
+      // these two were ever written regardless. pickedUpGuestId,
+      // redoHistory, suggestedAssignments and unplaceableGroups are
+      // deliberately NOT persisted — click-to-pick state surviving a
+      // reload would strand the operator in pick mode.
+      pick: ['assignments', 'assignmentHistory'],
       serializer: {
         serialize: state => {
           return JSON.stringify({
