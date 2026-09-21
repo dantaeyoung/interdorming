@@ -69,8 +69,14 @@ export {
   BED_TYPES,
   ROOM_GENDERS,
   CSV_FIELD_MAPPINGS,
+  HOUSING_TYPES,
   NON_ASSIGNABLE_HOUSING_TYPES,
   MESSAGES,
   isActiveReservationStatus,
   isCancelledStatus,
+  cleanHousingCell,
+  deriveHousingFromRoom,
+  normalizeHousingType,
+  resolveHousingType,
 } from './Constants'
+export type { HousingType } from './Constants'

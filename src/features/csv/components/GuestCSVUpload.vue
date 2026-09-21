@@ -39,6 +39,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { useCSV } from '../composables/useCSV'
+import type { CSVParseResult } from '../composables/useCSV'
 import { useGuestStore } from '@/stores/guestStore'
 import { useAssignmentStore } from '@/stores/assignmentStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -49,6 +50,7 @@ import type {
   ImportSummaryCancellation,
   ImportSummaryDateChange,
   ImportSummarySkippedNewRow,
+  ImportSummaryHousingConflict,
 } from '@/shared/composables/useImportSummary'
 import { useUtils } from '@/shared/composables/useUtils'
 import { isActiveReservationStatus, isCancelledStatus } from '@/types'
@@ -99,7 +101,7 @@ const warnings = ref<string[]>([])
 const skippedCount = ref(0)
 
 // Stash for the parsed CSV between parse and the merge handler.
-const pendingCSVData = ref<{ guests: Guest[]; warnings: string[]; totalRows: number } | null>(null)
+const pendingCSVData = ref<CSVParseResult | null>(null)
 
 function closeWarningModal() {
   showWarningModal.value = false
@@ -227,6 +229,11 @@ function handleAddAndUpdate() {
   const cancellations: ImportSummaryCancellation[] = []
   const dateChanges: ImportSummaryDateChange[] = []
   const skippedNewRows: ImportSummarySkippedNewRow[] = []
+  // Produced during parsing, not during the merge — a row whose stated
+  // Housing disagrees with its Room value is a property of the CSV
+  // itself, independent of what's already in the store.
+  const housingConflicts: ImportSummaryHousingConflict[] =
+    pendingCSVData.value.housingConflicts ?? []
 
   newRows.forEach(newGuest => {
     const isActive = isActiveReservationStatus(newGuest.status)
@@ -327,7 +334,13 @@ function handleAddAndUpdate() {
         }
       }),
     }))
-    showImportSummary({ cancellations, dateChanges, bedConflicts, skippedNewRows })
+    showImportSummary({
+      cancellations,
+      dateChanges,
+      bedConflicts,
+      skippedNewRows,
+      housingConflicts,
+    })
   })
 
   if (pendingCSVData.value.warnings.length > 0) {

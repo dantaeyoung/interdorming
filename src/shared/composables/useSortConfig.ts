@@ -23,6 +23,7 @@ export type SortableField =
   | 'amountPaid'
   | 'importOrder'
   | 'housingType'
+  | 'roomRequest'
   | 'indivGrp'
   | 'email'
   | 'creationDate'
@@ -57,6 +58,7 @@ export const SORT_FIELD_OPTIONS: SortFieldOption[] = [
   { value: 'amountPaid', label: 'Amount Paid', type: 'money' },
   { value: 'importOrder', label: 'Import Order', type: 'number' },
   { value: 'housingType', label: 'Housing Type', type: 'string' },
+  { value: 'roomRequest', label: 'Room', type: 'string' },
   { value: 'indivGrp', label: 'Individual/Group', type: 'string' },
   { value: 'email', label: 'Email', type: 'string' },
   { value: 'creationDate', label: 'Creation Date', type: 'date' },

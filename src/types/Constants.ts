@@ -92,6 +92,7 @@ export const CSV_FIELD_MAPPINGS: Record<string, string[]> = {
   firstVisit: ['firstVisit', 'First visit to a TNH monastery', 'FIRST VISIT TO A TNH MONASTERY', 'First Visit', 'first_visit'],
   roomPreference: ['roomPreference', 'Rm Preference', 'RM PREFERENCE', 'Room Preference', 'room_preference', 'Rm preference'],
   housingType: ['housingType', 'Housing type', 'HOUSING TYPE', 'Housing Type', 'housing_type'],
+  roomRequest: ['roomRequest', 'Room', 'ROOM', 'room', 'Room Assignment', 'room_assignment'],
   accommodationChoice: ['accommodationChoice', 'Accommodation Choice', 'ACCOMMODATION CHOICE', 'accommodation_choice'],
   creationDate: ['creationDate', 'Creation Date', 'CREATION DATE', 'creation_date'],
   groupOrIndiv: ['groupOrIndiv', 'Group or Indiv?', 'GROUP OR INDIV?', 'Group or Indiv', 'group_or_indiv'],
@@ -156,9 +157,120 @@ export function isCancelledStatus(status: string | undefined | null): boolean {
 }
 
 /**
- * Housing types that are NOT assignable to dorm beds
+ * Canonical housing categories. Every guest ends up in exactly one of
+ * these after import — the `Room` column is used to derive a category
+ * whenever the CSV's `Housing type` cell is blank.
  */
-export const NON_ASSIGNABLE_HOUSING_TYPES = ['camping', 'commuter']
+export const HOUSING_TYPES = ['Dorm', 'Camping', 'Commuter', 'Canvas Tent'] as const
+
+export type HousingType = (typeof HOUSING_TYPES)[number]
+
+/**
+ * Housing types that are NOT assignable to dorm beds.
+ *
+ * Canvas Tent is label-only: the registration CSV names tent beds
+ * (`Canvas Tent1-bed1`), but those beds are not modelled in the room
+ * configuration, so tent occupants are excluded from the bed list.
+ *
+ * Compared lowercase against the guest's housingType, so entries here
+ * must be lowercase.
+ */
+export const NON_ASSIGNABLE_HOUSING_TYPES = ['camping', 'commuter', 'canvas tent']
+
+/**
+ * Rules mapping a raw `Room` value to a housing category. Evaluated in
+ * order — FIRST MATCH WINS, so ordering is significant.
+ *
+ * `comm+uter` tolerates the doubled-m misspelling ("Commmuter") seen in
+ * real registration data.
+ */
+const ROOM_TO_HOUSING_RULES: Array<{ pattern: RegExp; housing: HousingType }> = [
+  { pattern: /^comm+uter/i, housing: 'Commuter' },
+  { pattern: /^camping/i, housing: 'Camping' },
+  { pattern: /^canvas\s*tent/i, housing: 'Canvas Tent' },
+]
+
+/**
+ * Normalizes a raw CSV cell for housing/room comparison.
+ *
+ * Planyo multi-select columns export as a bare "," when nothing is
+ * chosen, and append a trailing comma when something is ("Dorm,"), so
+ * both need stripping before the value means anything.
+ */
+export function cleanHousingCell(value: string | undefined | null): string {
+  if (!value) return ''
+  return value.replace(/,\s*$/, '').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Derives a housing category from a raw `Room` value.
+ *
+ * Returns 'Dorm' for any non-empty value that matches no specific rule:
+ * an unrecognized room string means the guest chose *something*, and
+ * defaulting to Dorm keeps them visible in the unassigned list. Failing
+ * toward "the operator sees them" beats failing toward "they silently
+ * disappear".
+ *
+ * Returns undefined only for a genuinely empty value.
+ */
+export function deriveHousingFromRoom(
+  roomRequest: string | undefined | null
+): HousingType | undefined {
+  const cleaned = cleanHousingCell(roomRequest)
+  if (!cleaned) return undefined
+
+  for (const { pattern, housing } of ROOM_TO_HOUSING_RULES) {
+    if (pattern.test(cleaned)) return housing
+  }
+
+  // Catch-all: named a room of some kind (a dorm room, an RV site, or
+  // something we don't recognize) — they need a bed.
+  return 'Dorm'
+}
+
+/**
+ * Maps a stated `Housing type` value onto canonical casing.
+ *
+ * A value matching none of the canonical categories is preserved
+ * verbatim rather than forced into a bucket — this protects legacy
+ * values such as "BCM-RV" that predate this categorization.
+ */
+export function normalizeHousingType(value: string | undefined | null): string {
+  const cleaned = cleanHousingCell(value)
+  if (!cleaned) return ''
+
+  const match = HOUSING_TYPES.find(h => h.toLowerCase() === cleaned.toLowerCase())
+  return match ?? cleaned
+}
+
+/**
+ * Resolves the housing category for one imported row.
+ *
+ * A stated `Housing type` always wins — the registration system's
+ * explicit answer is never overwritten by inference from `Room`. When
+ * the two disagree, the caller is told via `conflict` so the operator
+ * can resolve it, rather than the disagreement being settled silently.
+ *
+ * When neither column says anything, defaults to 'Dorm', matching the
+ * behavior a blank housingType already produces (see
+ * `guestStore.assignableGuests`).
+ */
+export function resolveHousingType(
+  statedHousing: string | undefined | null,
+  roomRequest: string | undefined | null
+): { housingType: string; conflict?: { stated: string; impliedByRoom: HousingType } } {
+  const stated = normalizeHousingType(statedHousing)
+  const implied = deriveHousingFromRoom(roomRequest)
+
+  if (stated) {
+    if (implied && implied.toLowerCase() !== stated.toLowerCase()) {
+      return { housingType: stated, conflict: { stated, impliedByRoom: implied } }
+    }
+    return { housingType: stated }
+  }
+
+  return { housingType: implied ?? 'Dorm' }
+}
 
 /**
  * UI Messages

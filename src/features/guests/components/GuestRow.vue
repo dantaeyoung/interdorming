@@ -43,6 +43,13 @@
         <span v-else>-</span>
       </td>
 
+      <!-- Room choice from the registration CSV. Values run long
+           ("CrystalSunshine Rm 1 ( female only) - bed 7"), so the cell
+           truncates and the full text lives in the tooltip. -->
+      <td v-else-if="col.key === 'roomRequest'" class="room-request-cell" :title="guest.roomRequest || ''">
+        {{ guest.roomRequest || '-' }}
+      </td>
+
       <td v-else-if="col.key === 'firstName'" :title="displayName">
         <div class="name-cell">
           <span class="name-text" :class="{ 'cancelled-name': guest.isCancelled }">{{ displayName }}</span>
@@ -747,6 +754,13 @@ td {
     color: #6b7280;
     text-align: center;
     width: 50px;
+  }
+
+  // Room choices are long free text; cap the column so it can't crowd
+  // out the rest of the row (the td already ellipsis-truncates).
+  &.room-request-cell {
+    max-width: 220px;
+    color: #4b5563;
   }
 }
 

@@ -244,3 +244,124 @@ describe('isCancelledStatus', () => {
     }
   })
 })
+
+/**
+ * Room column → Housing category derivation.
+ *
+ * The newer registration export leaves `Housing type` blank on any row
+ * where the guest picked a specific spot in the `Room` column, so Room
+ * is what tells us whether they need a bed at all. Before this, a
+ * `CampingCouples` guest landed in the unassigned list demanding a dorm
+ * bed, because a blank housingType reads as "assignable".
+ */
+describe('parseGuestCSV — Room column and derived Housing', () => {
+  const HEADER_ROOM = 'First Name,Last Name,Gender,Age,Housing type,Room'
+
+  function housingFor(room: string, housing = '') {
+    const { parseGuestCSV } = useCSV()
+    // Both values are quoted: Planyo's trailing commas ("Dorm,") would
+    // otherwise split into an extra column.
+    const csv = `${HEADER_ROOM}\nAlice,Smith,F,40,"${housing}","${room}"`
+    return parseGuestCSV(csv).guests[0]
+  }
+
+  it('keeps the raw Room value on the guest', () => {
+    const guest = housingFor('CrystalSunshine Rm 1 ( female only) - bed 7')
+    expect(guest.roomRequest).toBe('CrystalSunshine Rm 1 ( female only) - bed 7')
+  })
+
+  it.each([
+    ['CampingMen', 'Camping'],
+    ['CampingWomen', 'Camping'],
+    ['CampingCouples', 'Camping'],
+    ['Camping', 'Camping'],
+  ])('maps %s to %s', (room, expected) => {
+    expect(housingFor(room).housingType).toBe(expected)
+  })
+
+  it.each([
+    ['Commuter', 'Commuter'],
+    // Doubled-m misspelling seen in real registration data
+    ['Commmuter', 'Commuter'],
+  ])('maps %s to %s', (room, expected) => {
+    expect(housingFor(room).housingType).toBe(expected)
+  })
+
+  it.each([
+    ['Canvas Tent1-bed1', 'Canvas Tent'],
+    ['Canvas Tent3-bed2', 'Canvas Tent'],
+    ['CanvasTent1-bed1', 'Canvas Tent'],
+  ])('maps %s to %s', (room, expected) => {
+    expect(housingFor(room).housingType).toBe(expected)
+  })
+
+  it.each([
+    // Real dorm rooms
+    ['CrystalSunshine Rm 1 ( female only) - bed 7', 'Dorm'],
+    ['CrystalSunshine Rm 2 ( female only) - bed 2L', 'Dorm'],
+    ['FlameBlossom Rm 1 ( female only) - bed 6', 'Dorm'],
+    // RV sites are Dorm by decision — they need a bed
+    ['RV Daffodil-1', 'Dorm'],
+    ['RV Daffodil-2', 'Dorm'],
+    // Catch-all: an unrecognized room still means "needs a bed", so the
+    // guest stays visible in the unassigned list rather than vanishing
+    ['Some Room Nobody Anticipated', 'Dorm'],
+  ])('maps %s to %s', (room, expected) => {
+    expect(housingFor(room).housingType).toBe(expected)
+  })
+
+  it('defaults to Dorm when both Housing and Room are blank', () => {
+    expect(housingFor('', '').housingType).toBe('Dorm')
+  })
+
+  it('treats the Planyo "," artifact as blank, not as a category', () => {
+    // Planyo exports an unset multi-select as a bare comma
+    const { parseGuestCSV } = useCSV()
+    const csv = `${HEADER_ROOM}\nAlice,Smith,F,40,",",CampingMen`
+    expect(parseGuestCSV(csv).guests[0].housingType).toBe('Camping')
+  })
+
+  it('strips the trailing comma Planyo appends to a set value', () => {
+    expect(housingFor('', 'Dorm,').housingType).toBe('Dorm')
+  })
+
+  it('lets a stated Housing win over a conflicting Room, and reports it', () => {
+    const { parseGuestCSV } = useCSV()
+    const csv = `${HEADER_ROOM}\nAlice,Smith,F,40,"Dorm,",CampingMen`
+    const result = parseGuestCSV(csv)
+
+    expect(result.guests[0].housingType).toBe('Dorm')
+    expect(result.housingConflicts).toHaveLength(1)
+    expect(result.housingConflicts[0]).toMatchObject({
+      guestName: 'Alice Smith',
+      roomRequest: 'CampingMen',
+      stated: 'Dorm',
+      impliedByRoom: 'Camping',
+    })
+  })
+
+  it('reports no conflict when Housing and Room agree', () => {
+    const { parseGuestCSV } = useCSV()
+    const csv = `${HEADER_ROOM}\nAlice,Smith,F,40,"Camping,",CampingMen`
+    const result = parseGuestCSV(csv)
+
+    expect(result.guests[0].housingType).toBe('Camping')
+    expect(result.housingConflicts).toHaveLength(0)
+  })
+
+  it('preserves a legacy Housing value it does not recognize', () => {
+    // BCM-RV predates these categories and must round-trip untouched
+    expect(housingFor('', 'BCM-RV').housingType).toBe('BCM-RV')
+  })
+
+  it('imports a CSV with no Room column at all, unchanged', () => {
+    const { parseGuestCSV } = useCSV()
+    const csv = `${HEADER_BASIC},Housing type\nAlice,Smith,F,40,"Dorm,"`
+    const result = parseGuestCSV(csv)
+
+    expect(result.guests).toHaveLength(1)
+    expect(result.guests[0].housingType).toBe('Dorm')
+    expect(result.guests[0].roomRequest).toBe('')
+    expect(result.housingConflicts).toHaveLength(0)
+  })
+})

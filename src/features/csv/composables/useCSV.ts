@@ -3,8 +3,22 @@
  * Provides CSV parsing and generation functionality
  */
 
-import { CSV_FIELD_MAPPINGS } from '@/types'
-import type { Guest, GuestCSVRow } from '@/types'
+import { CSV_FIELD_MAPPINGS, resolveHousingType } from '@/types'
+import type { Guest, GuestCSVRow, HousingType } from '@/types'
+
+/**
+ * A row where the CSV's stated `Housing type` disagrees with the
+ * category implied by its `Room` value. The stated value wins; this
+ * record exists so the operator is told rather than the disagreement
+ * being resolved silently.
+ */
+export interface HousingConflict {
+  guestName: string
+  planyoId?: string
+  roomRequest: string
+  stated: string
+  impliedByRoom: HousingType
+}
 
 /**
  * Result of CSV parsing with guests and any warnings
@@ -13,6 +27,7 @@ export interface CSVParseResult {
   guests: Guest[]
   warnings: string[]
   totalRows: number
+  housingConflicts: HousingConflict[]
 }
 
 export function useCSV() {
@@ -168,6 +183,7 @@ export function useCSV() {
 
     const guests: Guest[] = []
     const invalidRows: string[] = []
+    const housingConflicts: HousingConflict[] = []
 
     for (let i = headerLineIndex + 1; i < lines.length; i++) {
       const rawRow = lines[i]
@@ -247,9 +263,22 @@ export function useCSV() {
       guest.lowerBunk = parseBoolean(guest.lowerBunk)
       guest.groupName = guest.groupName || ''
       guest.preferredName = guest.preferredName || ''
-      // Clean housingType (CSV may have trailing commas inside quotes like "Dorm,")
-      if (guest.housingType) {
-        guest.housingType = guest.housingType.replace(/,\s*$/, '').trim()
+      // Resolve the housing category. The newer registration export
+      // leaves `Housing type` blank on any row where the guest picked a
+      // specific spot in the `Room` column, so Room is what tells us
+      // whether they need a bed at all. A stated housing value always
+      // wins; a disagreement is reported, never silently resolved.
+      guest.roomRequest = (guest.roomRequest || '').trim()
+      const resolved = resolveHousingType(guest.housingType, guest.roomRequest)
+      guest.housingType = resolved.housingType
+      if (resolved.conflict) {
+        housingConflicts.push({
+          guestName: `${guest.firstName} ${guest.lastName}`.trim(),
+          planyoId: guest.planyoId || undefined,
+          roomRequest: guest.roomRequest,
+          stated: resolved.conflict.stated,
+          impliedByRoom: resolved.conflict.impliedByRoom,
+        })
       }
 
       guests.push(guest as Guest)
@@ -270,6 +299,7 @@ export function useCSV() {
       guests,
       warnings: invalidRows,
       totalRows: lines.length - headerLineIndex - 1,
+      housingConflicts,
     }
   }
 

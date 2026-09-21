@@ -85,6 +85,31 @@
         </p>
       </section>
 
+      <!-- Housing / Room disagreements -->
+      <section v-if="housingConflicts.length > 0" class="summary-section">
+        <h4 class="section-title housing-conflicts">
+          <span class="icon">🏠</span>
+          {{ housingConflicts.length }} housing/room disagreement{{ housingConflicts.length === 1 ? '' : 's' }}
+        </h4>
+        <ul class="item-list">
+          <li v-for="(item, idx) in housingConflicts" :key="`hx-${idx}`">
+            <strong>{{ item.guestName }}</strong>
+            <span v-if="item.planyoId" class="meta">— {{ item.planyoId }}</span>
+            <span class="meta">
+              Housing says <strong>{{ item.stated }}</strong>, but Room
+              “{{ item.roomRequest }}” implies
+              <strong>{{ item.impliedByRoom }}</strong>
+            </span>
+          </li>
+        </ul>
+        <p class="hint">
+          The stated <code>Housing</code> value was kept — the
+          <code>Room</code> column is only used to fill in a category
+          when Housing is blank. Edit the guest if the Room choice is the
+          correct one.
+        </p>
+      </section>
+
       <div class="actions">
         <button class="btn-ok" @click="dismissImportSummary">Got it</button>
       </div>
@@ -96,7 +121,7 @@
 import Modal from './Modal.vue'
 import { useImportSummary } from '@/shared/composables/useImportSummary'
 
-const { isOpen, cancellations, dateChanges, bedConflicts, skippedNewRows, dismissImportSummary } = useImportSummary()
+const { isOpen, cancellations, dateChanges, bedConflicts, skippedNewRows, housingConflicts, dismissImportSummary } = useImportSummary()
 
 function formatRange(arrival?: string, departure?: string): string {
   if (!arrival && !departure) return 'no dates'
@@ -145,6 +170,7 @@ function formatRange(arrival?: string, departure?: string): string {
   &.date-changes  { color: #1d4ed8; }
   &.bed-conflicts { color: #92400e; }
   &.skipped-new   { color: #4b5563; }
+  &.housing-conflicts { color: #6d28d9; }
 }
 
 .icon {
@@ -189,6 +215,12 @@ function formatRange(arrival?: string, departure?: string): string {
 .summary-section:has(.skipped-new) .item-list > li {
   border-left-color: #9ca3af;
   background: #f3f4f6;
+}
+
+.housing-conflicts + .item-list > li,
+.summary-section:has(.housing-conflicts) .item-list > li {
+  border-left-color: #8b5cf6;
+  background: #f5f3ff;
 }
 
 .status-skipped {

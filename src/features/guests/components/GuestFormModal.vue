@@ -88,7 +88,21 @@
             <option value="BCM-RV">BCM-RV</option>
             <option value="Camping">Camping</option>
             <option value="Commuter">Commuter</option>
+            <option value="Canvas Tent">Canvas Tent</option>
           </select>
+        </div>
+
+        <div class="form-group">
+          <label for="roomRequest">
+            Room
+            <span class="field-hint">(guest's own choice from registration — fills in Housing when blank; never assigns a bed)</span>
+          </label>
+          <input
+            id="roomRequest"
+            v-model="formData.roomRequest"
+            type="text"
+            placeholder="e.g. CrystalSunshine Rm 1 - bed 7"
+          />
         </div>
 
         <div class="form-group">
@@ -302,6 +316,7 @@ const initialFormData = {
   amountPaid: '',
   firstVisit: '',
   roomPreference: '',
+  roomRequest: '',
   isCancelled: false,
 }
 
@@ -325,6 +340,7 @@ const formData = ref({
   amountPaid: '',
   firstVisit: '',
   roomPreference: '',
+  roomRequest: '',
   isCancelled: false,
 })
 
@@ -424,6 +440,7 @@ watch(
         amountPaid: newGuest.amountPaid || '',
         firstVisit: newGuest.firstVisit || '',
         roomPreference: newGuest.roomPreference || '',
+        roomRequest: newGuest.roomRequest || '',
         isCancelled: !!newGuest.isCancelled,
       }
     } else {
@@ -470,6 +487,7 @@ function hasUnsavedChanges(): boolean {
       formData.value.amountPaid !== (props.guest.amountPaid || '') ||
       formData.value.firstVisit !== (props.guest.firstVisit || '') ||
       formData.value.roomPreference !== (props.guest.roomPreference || '') ||
+      formData.value.roomRequest !== (props.guest.roomRequest || '') ||
       formData.value.isCancelled !== !!props.guest.isCancelled
     )
   } else {
@@ -494,6 +512,7 @@ function hasUnsavedChanges(): boolean {
       formData.value.amountPaid !== '' ||
       formData.value.firstVisit !== '' ||
       formData.value.roomPreference !== '' ||
+      formData.value.roomRequest !== '' ||
       formData.value.isCancelled !== false
     )
   }
@@ -557,6 +576,7 @@ function handleSubmit() {
     amountPaid: formData.value.amountPaid || undefined,
     firstVisit: formData.value.firstVisit || undefined,
     roomPreference: formData.value.roomPreference || undefined,
+    roomRequest: formData.value.roomRequest || undefined,
     isCancelled: formData.value.isCancelled,
   }
 
