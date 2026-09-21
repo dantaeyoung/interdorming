@@ -31,6 +31,20 @@ export interface Guest {
   firstVisit?: string
   roomPreference?: string
   housingType?: string
+  /**
+   * Raw accommodation choice from the registration CSV's `Room` column,
+   * where guests pick their own spot (e.g. "CrystalSunshine Rm 1
+   * ( female only) - bed 7", "CampingCouples", "Canvas Tent1-bed1").
+   *
+   * Free text, carried for the operator to read. Used to derive
+   * `housingType` when the CSV's own Housing column is blank.
+   *
+   * NOT used to assign a bed: the registration form's bed numbers come
+   * from a different source than the room configuration's bed
+   * positions, so the two numbering schemes cannot be mapped onto each
+   * other.
+   */
+  roomRequest?: string
   accommodationChoice?: string
   creationDate?: string
   groupOrIndiv?: string

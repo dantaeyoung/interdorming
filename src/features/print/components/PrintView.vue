@@ -55,7 +55,7 @@
       </label>
       <label class="checkbox-label">
         <input type="checkbox" v-model="showCampingCommuter" />
-        <span>Include Camping & Commuter guests</span>
+        <span>Include Camping, Commuter &amp; Tent guests</span>
       </label>
     </div>
 
@@ -85,6 +85,10 @@
         <label class="checkbox-label">
           <input type="checkbox" v-model="guestmasterColumns.beds" />
           <span>Beds</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="guestmasterColumns.roomRequest" />
+          <span>Room Chosen</span>
         </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="guestmasterColumns.lb" />
@@ -120,6 +124,10 @@
         line per guest with their room.
       </p>
       <div class="checkbox-grid" style="margin-top: 8px">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="workCoordinatorColumns.roomRequest" />
+          <span>Room Chosen</span>
+        </label>
         <label class="checkbox-label">
           <input type="checkbox" v-model="workCoordinatorColumns.gender" />
           <span>Gender</span>
@@ -244,6 +252,10 @@
           <input type="checkbox" v-model="columns.roomPreference" />
           <span>Rm Preference</span>
         </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="columns.roomRequest" />
+          <span>Room Chosen</span>
+        </label>
       </div>
     </div>
 
@@ -306,6 +318,7 @@
               <th v-if="columns.amountPaid">Amount Paid</th>
               <th v-if="columns.firstVisit">First Visit</th>
               <th v-if="columns.roomPreference">Rm Preference</th>
+              <th v-if="columns.roomRequest">Room Chosen</th>
             </tr>
           </thead>
           <tbody>
@@ -328,6 +341,7 @@
               <td v-if="columns.amountPaid">{{ getGuestField(bed.guestId, 'amountPaid') }}</td>
               <td v-if="columns.firstVisit">{{ getGuestField(bed.guestId, 'firstVisit') }}</td>
               <td v-if="columns.roomPreference">{{ getGuestField(bed.guestId, 'roomPreference') }}</td>
+              <td v-if="columns.roomRequest">{{ getGuestField(bed.guestId, 'roomRequest') }}</td>
             </tr>
           </tbody>
         </table>
@@ -371,6 +385,7 @@
                   <th v-if="columns.amountPaid">Amount Paid</th>
                   <th v-if="columns.firstVisit">First Visit</th>
                   <th v-if="columns.roomPreference">Rm Preference</th>
+                  <th v-if="columns.roomRequest">Room Chosen</th>
                 </tr>
               </thead>
               <tbody>
@@ -393,6 +408,7 @@
                   <td v-if="columns.amountPaid">{{ getGuestField(getPrintGuestIdForBed(bed), 'amountPaid') }}</td>
                   <td v-if="columns.firstVisit">{{ getGuestField(getPrintGuestIdForBed(bed), 'firstVisit') }}</td>
                   <td v-if="columns.roomPreference">{{ getGuestField(getPrintGuestIdForBed(bed), 'roomPreference') }}</td>
+                  <td v-if="columns.roomRequest">{{ getGuestField(getPrintGuestIdForBed(bed), 'roomRequest') }}</td>
                 </tr>
               </tbody>
             </table>
@@ -425,6 +441,7 @@
               <th v-if="columns.amountPaid">Amount Paid</th>
               <th v-if="columns.firstVisit">First Visit</th>
               <th v-if="columns.roomPreference">Rm Preference</th>
+              <th v-if="columns.roomRequest">Room Chosen</th>
             </tr>
           </thead>
           <tbody>
@@ -444,14 +461,15 @@
               <td v-if="columns.amountPaid">{{ getGuestFieldById(guestId, 'amountPaid') }}</td>
               <td v-if="columns.firstVisit">{{ getGuestFieldById(guestId, 'firstVisit') }}</td>
               <td v-if="columns.roomPreference">{{ getGuestFieldById(guestId, 'roomPreference') }}</td>
+              <td v-if="columns.roomRequest">{{ getGuestFieldById(guestId, 'roomRequest') }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- Camping & Commuter Guests -->
+      <!-- Non-assignable guests: camping, commuter, canvas tent -->
       <div v-if="showCampingCommuter && campingCommuterGuests.length > 0" class="unassigned-section">
-        <h3>Camping & Commuter Guests</h3>
+        <h3>Camping, Commuter &amp; Tent Guests</h3>
         <table class="unassigned-table">
           <thead>
             <tr>
@@ -533,6 +551,7 @@
                 <tr>
                   <th class="th-rm">Rm</th>
                   <th v-if="guestmasterColumns.beds" class="th-bed">Beds</th>
+                  <th v-if="guestmasterColumns.roomRequest" class="th-room-request">Room Chosen</th>
                   <th v-if="guestmasterColumns.lb" class="th-lb">LB?</th>
                   <th class="th-name">Guest Name</th>
                   <th v-if="guestmasterColumns.gender" class="th-narrow">G</th>
@@ -554,6 +573,7 @@
                       :style="rIdx === 0 ? { background: group.dormColor } : undefined"
                     >{{ rIdx === 0 ? group.roomName : '' }}</td>
                     <td v-if="guestmasterColumns.beds" class="td-bed">{{ row.bedLabel }}</td>
+                    <td v-if="guestmasterColumns.roomRequest" class="td-room-request">{{ row.roomRequest }}</td>
                     <td v-if="guestmasterColumns.lb" class="td-lb">{{ row.lowerBunk ? '✓' : '' }}</td>
                     <td class="td-name">{{ row.guestName }}</td>
                     <td v-if="guestmasterColumns.gender" class="td-narrow">{{ row.gender }}</td>
@@ -567,16 +587,18 @@
             </table>
           </div>
 
-          <!-- Camping & commuter guests live outside the bed grid since
-               they aren't assigned to physical beds. Rendered as a flat
-               table with no Rm/Beds/LB? columns at the very bottom of
-               the Guestmaster sheet. -->
+          <!-- Non-assignable guests (camping, commuter, canvas tent)
+               live outside the bed grid since they aren't assigned to
+               physical beds. Rendered as a flat table with no
+               Rm/Beds/LB? columns at the very bottom of the Guestmaster
+               sheet. -->
           <div v-if="campingCommuterGuests.length > 0" class="guestmaster-camping">
-            <h4 class="guestmaster-camping-title">Camping & Commuter</h4>
+            <h4 class="guestmaster-camping-title">Camping, Commuter &amp; Tents</h4>
             <table class="guestmaster-table guestmaster-camping-table">
               <thead>
                 <tr>
                   <th class="th-housing">Housing</th>
+                  <th v-if="guestmasterColumns.roomRequest" class="th-room-request">Room Chosen</th>
                   <th class="th-name">Guest Name</th>
                   <th v-if="guestmasterColumns.gender" class="th-narrow">G</th>
                   <th v-if="guestmasterColumns.age" class="th-narrow">Age</th>
@@ -588,6 +610,7 @@
               <tbody>
                 <tr v-for="g in campingCommuterGuests" :key="g.id">
                   <td class="td-housing">{{ g.housingType || '' }}</td>
+                  <td v-if="guestmasterColumns.roomRequest" class="td-room-request">{{ g.roomRequest || '' }}</td>
                   <td class="td-name">{{ `${g.firstName || ''} ${g.lastName || ''}`.trim() }}</td>
                   <td v-if="guestmasterColumns.gender" class="td-narrow">{{ g.gender || '' }}</td>
                   <td v-if="guestmasterColumns.age" class="td-narrow">{{ g.age != null ? String(g.age) : '' }}</td>
@@ -616,6 +639,7 @@
               <tr>
                 <th class="th-num">#</th>
                 <th class="th-name">Guest Name</th>
+                <th v-if="workCoordinatorColumns.roomRequest" class="th-room-request">Room Chosen</th>
                 <th v-if="workCoordinatorColumns.gender" class="th-narrow">G</th>
                 <th v-if="workCoordinatorColumns.age" class="th-narrow">Age</th>
                 <th v-if="workCoordinatorColumns.group" class="th-group">Group</th>
@@ -630,6 +654,7 @@
               <tr v-for="(row, idx) in workCoordinatorRows" :key="row.guest.id">
                 <td class="td-num">{{ idx + 1 }}</td>
                 <td class="td-name">{{ `${row.guest.firstName || ''} ${row.guest.lastName || ''}`.trim() }}</td>
+                <td v-if="workCoordinatorColumns.roomRequest" class="td-room-request">{{ row.guest.roomRequest || '' }}</td>
                 <td v-if="workCoordinatorColumns.gender" class="td-narrow">{{ row.guest.gender || '' }}</td>
                 <td v-if="workCoordinatorColumns.age" class="td-narrow">{{ row.guest.age != null ? String(row.guest.age) : '' }}</td>
                 <td v-if="workCoordinatorColumns.group" class="td-group">{{ row.guest.groupName || '' }}</td>
@@ -767,6 +792,7 @@ const columns = reactive({
   amountPaid: false,
   firstVisit: false,
   roomPreference: false,
+  roomRequest: false,
 })
 
 // Display options
@@ -839,6 +865,7 @@ const alphabeticalSortBy = ref<'first' | 'last'>('last')
 const GUESTMASTER_PREFS_KEY = 'dormAssignments-guestmasterPrefs'
 const GUESTMASTER_DEFAULTS = {
   beds: false,
+  roomRequest: false,
   lb: true,
   age: false,
   gender: false,
@@ -860,6 +887,7 @@ function loadGuestmasterPrefs() {
 const _initialPrefs = loadGuestmasterPrefs()
 const guestmasterColumns = reactive({
   beds: _initialPrefs.beds,
+  roomRequest: _initialPrefs.roomRequest,
   lb: _initialPrefs.lb,
   age: _initialPrefs.age,
   gender: _initialPrefs.gender,
@@ -873,6 +901,7 @@ function saveGuestmasterPrefs() {
       GUESTMASTER_PREFS_KEY,
       JSON.stringify({
         beds: guestmasterColumns.beds,
+        roomRequest: guestmasterColumns.roomRequest,
         lb: guestmasterColumns.lb,
         age: guestmasterColumns.age,
         gender: guestmasterColumns.gender,
@@ -888,6 +917,7 @@ function saveGuestmasterPrefs() {
 watch(
   () => [
     guestmasterColumns.beds,
+    guestmasterColumns.roomRequest,
     guestmasterColumns.lb,
     guestmasterColumns.age,
     guestmasterColumns.gender,
@@ -899,6 +929,7 @@ watch(
 
 function resetGuestmasterPrefs() {
   guestmasterColumns.beds = GUESTMASTER_DEFAULTS.beds
+  guestmasterColumns.roomRequest = GUESTMASTER_DEFAULTS.roomRequest
   guestmasterColumns.lb = GUESTMASTER_DEFAULTS.lb
   guestmasterColumns.age = GUESTMASTER_DEFAULTS.age
   guestmasterColumns.gender = GUESTMASTER_DEFAULTS.gender
@@ -909,6 +940,7 @@ function resetGuestmasterPrefs() {
 // ---------- Work Coordinator (sequential roster) ----------
 const WORK_COORDINATOR_PREFS_KEY = 'dormAssignments-workCoordinatorPrefs'
 const WORK_COORDINATOR_DEFAULTS = {
+  roomRequest: false,
   gender: true,
   age: true,
   group: true,
@@ -927,6 +959,7 @@ function loadWorkCoordinatorPrefs() {
 
 const _initialWcPrefs = loadWorkCoordinatorPrefs()
 const workCoordinatorColumns = reactive({
+  roomRequest: _initialWcPrefs.roomRequest,
   gender: _initialWcPrefs.gender,
   age: _initialWcPrefs.age,
   group: _initialWcPrefs.group,
@@ -935,6 +968,7 @@ const workCoordinatorColumns = reactive({
 
 watch(
   () => [
+    workCoordinatorColumns.roomRequest,
     workCoordinatorColumns.gender,
     workCoordinatorColumns.age,
     workCoordinatorColumns.group,
@@ -945,6 +979,7 @@ watch(
       localStorage.setItem(
         WORK_COORDINATOR_PREFS_KEY,
         JSON.stringify({
+          roomRequest: workCoordinatorColumns.roomRequest,
           gender: workCoordinatorColumns.gender,
           age: workCoordinatorColumns.age,
           group: workCoordinatorColumns.group,
@@ -958,6 +993,7 @@ watch(
 )
 
 function resetWorkCoordinatorPrefs() {
+  workCoordinatorColumns.roomRequest = WORK_COORDINATOR_DEFAULTS.roomRequest
   workCoordinatorColumns.gender = WORK_COORDINATOR_DEFAULTS.gender
   workCoordinatorColumns.age = WORK_COORDINATOR_DEFAULTS.age
   workCoordinatorColumns.group = WORK_COORDINATOR_DEFAULTS.group
@@ -1163,6 +1199,7 @@ const workCoordinatorRows = computed<WorkCoordinatorRow[]>(() => {
 interface GuestmasterRow {
   bedId: string
   bedLabel: string
+  roomRequest: string
   lowerBunk: boolean
   guestName: string
   gender: string
@@ -1184,6 +1221,7 @@ const guestmasterColumnCount = computed(() => {
   // Rm, Name, Arrive, Depart = 4 base
   let n = 4
   if (guestmasterColumns.beds) n++
+  if (guestmasterColumns.roomRequest) n++
   if (guestmasterColumns.lb) n++
   if (guestmasterColumns.gender) n++
   if (guestmasterColumns.age) n++
@@ -1260,6 +1298,7 @@ const guestmasterRoomGroups = computed((): GuestmasterRoomGroup[] => {
         rows.push({
           bedId: bed.bedId,
           bedLabel: bed.bedType === 'single' ? `${bed.position}/Single` : bedLabel,
+          roomRequest: guest?.roomRequest || '',
           lowerBunk: !!guest?.lowerBunk,
           guestName: guest ? `${guest.firstName || ''} ${guest.lastName || ''}`.trim() : '',
           gender: guest?.gender || '',
@@ -2079,6 +2118,15 @@ function handlePrint() {
   .th-name, .td-name   { width: 28%; }
   .th-narrow, .td-narrow { width: 5%; text-align: center; }
   .th-group, .td-group { width: 12%; }
+  /* Room choices are long free text ("CrystalSunshine Rm 1 ( female
+     only) - bed 7"); give them room but let the cell truncate rather
+     than push the date columns off the page. */
+  .th-room-request, .td-room-request {
+    width: 18%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .th-date, .td-date   {
     width: 9%;
     text-align: center;

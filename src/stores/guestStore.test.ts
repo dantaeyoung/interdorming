@@ -88,3 +88,57 @@ describe('guestStore.suggestedGroups normalization', () => {
     expect(store.groupSuggestionCount).toBe(2)
   })
 })
+
+/**
+ * Housing categories and bed assignability.
+ *
+ * Canvas Tent joins camping/commuter as non-assignable: the CSV names
+ * tent beds ("Canvas Tent1-bed1") but those beds aren't modelled in the
+ * room configuration, so tent occupants must stay out of the bed list.
+ */
+describe('guestStore.assignableGuests — housing categories', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  function makeGuest(id: string, housingType?: string) {
+    return {
+      id,
+      firstName: id,
+      lastName: 'Test',
+      gender: 'F' as const,
+      age: 40,
+      housingType,
+    }
+  }
+
+  it('excludes Canvas Tent guests from assignableGuests', () => {
+    const store = useGuestStore()
+    store.importGuests([makeGuest('tent', 'Canvas Tent')])
+    expect(store.assignableGuests).toHaveLength(0)
+  })
+
+  it('includes Dorm guests in assignableGuests', () => {
+    const store = useGuestStore()
+    store.importGuests([makeGuest('dorm', 'Dorm')])
+    expect(store.assignableGuests).toHaveLength(1)
+    expect(store.assignableGuests[0].id).toBe('dorm')
+  })
+
+  it('excludes Camping and Commuter, includes only Dorm', () => {
+    const store = useGuestStore()
+    store.importGuests([
+      makeGuest('dorm', 'Dorm'),
+      makeGuest('camp', 'Camping'),
+      makeGuest('commute', 'Commuter'),
+      makeGuest('tent', 'Canvas Tent'),
+    ])
+    expect(store.assignableGuests.map(g => g.id)).toEqual(['dorm'])
+  })
+
+  it('still treats a blank housingType as assignable (backwards compat)', () => {
+    const store = useGuestStore()
+    store.importGuests([makeGuest('legacy', undefined)])
+    expect(store.assignableGuests).toHaveLength(1)
+  })
+})
