@@ -5,6 +5,7 @@
  */
 
 import type { Guest, GroupType, CoupleSettings } from '@/types'
+import { requiresLowerBunk } from '@/shared/composables/useUtils'
 
 export interface ClassifiedGroup {
   groupName: string
@@ -148,12 +149,7 @@ function shouldSplitCouple(
 
   // Keep together if either member requires a lower bunk (mobility needs)
   for (const member of members) {
-    const needsLower =
-      member.lowerBunk === 'Yes' ||
-      member.lowerBunk === true ||
-      member.lowerBunk === 'TRUE' ||
-      member.lowerBunk === 'true'
-    if (needsLower) return false
+    if (requiresLowerBunk(member)) return false
   }
 
   return true

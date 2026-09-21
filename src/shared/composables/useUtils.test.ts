@@ -10,8 +10,7 @@ import {
   parseLocalDate,
   stayCoversDate,
   formatGuestDate,
-  formatGuestDateShort,
-} from './useUtils'
+  formatGuestDateShort, requiresLowerBunk } from './useUtils'
 
 describe('parseLocalDate', () => {
   it('parses YYYY-MM-DD as local midnight (no UTC drift)', () => {
@@ -189,5 +188,56 @@ describe('formatGuestDateShort', () => {
 
   it('returns unparseable input unchanged (no year suffix to strip)', () => {
     expect(formatGuestDateShort('not a date')).toBe('not a date')
+  })
+})
+
+/**
+ * requiresLowerBunk — the single lower-bunk check.
+ *
+ * Before consolidation there were three, agreeing for booleans and
+ * diverging for strings: a four-way comparison duplicated across two
+ * composables, a truthiness test in the timeline, and `=== true` on the
+ * blob and bed-slot icons. The four-way version did NOT match 'YES' —
+ * the exact casing the monastery's CSV uses — so on string data
+ * auto-placement would have put a mobility-limited guest in an upper
+ * bunk while the timeline correctly refused the same drop.
+ */
+describe('requiresLowerBunk', () => {
+  it('handles the boolean shape CSV import actually produces', () => {
+    expect(requiresLowerBunk({ lowerBunk: true })).toBe(true)
+    expect(requiresLowerBunk({ lowerBunk: false })).toBe(false)
+  })
+
+  it.each(['YES', 'Yes', 'yes', 'yEs', ' yes ', 'TRUE', 'true', 'True', '1', 'on', 'y'])(
+    'treats %j as needing a lower bunk',
+    value => {
+      expect(requiresLowerBunk({ lowerBunk: value })).toBe(true)
+    }
+  )
+
+  it.each(['NO', 'No', 'no', 'false', 'FALSE', '0', 'off', '', '   ', 'maybe'])(
+    'treats %j as not needing one',
+    value => {
+      expect(requiresLowerBunk({ lowerBunk: value })).toBe(false)
+    }
+  )
+
+  it('matches the CSV export casing that used to be missed', () => {
+    // The old four-way check tested 'Yes' but not 'YES'
+    expect(requiresLowerBunk({ lowerBunk: 'YES' })).toBe(true)
+  })
+
+  it('handles numbers', () => {
+    expect(requiresLowerBunk({ lowerBunk: 1 })).toBe(true)
+    expect(requiresLowerBunk({ lowerBunk: 0 })).toBe(false)
+    expect(requiresLowerBunk({ lowerBunk: 2 })).toBe(false)
+  })
+
+  it('is safe on missing, null and undefined input', () => {
+    expect(requiresLowerBunk({})).toBe(false)
+    expect(requiresLowerBunk({ lowerBunk: undefined })).toBe(false)
+    expect(requiresLowerBunk({ lowerBunk: null })).toBe(false)
+    expect(requiresLowerBunk(null)).toBe(false)
+    expect(requiresLowerBunk(undefined)).toBe(false)
   })
 })
