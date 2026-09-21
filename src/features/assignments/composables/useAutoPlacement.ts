@@ -475,21 +475,53 @@ export function useAutoPlacement() {
   // ---------------------------------------------------------------------------
 
   /**
+   * Map a guest's gender onto the room-gender space so the two can be
+   * compared directly.
+   *
+   * Guest genders are stored as 'M' | 'F' | 'Non-binary/Other' while
+   * rooms use 'M' | 'F' | 'Coed' | 'NB', so a non-binary guest never
+   * string-matches an NB room without this translation. Returns null
+   * for a missing or unrecognized gender, which callers treat as "no
+   * opinion" rather than a mismatch.
+   */
+  function guestGenderAsRoomGender(guest: Guest): 'M' | 'F' | 'NB' | null {
+    const g = guest.gender?.toString().trim().toUpperCase()
+    if (!g) return null
+    if (g === 'M' || g === 'MALE') return 'M'
+    if (g === 'F' || g === 'FEMALE') return 'F'
+    if (
+      g === 'NB' ||
+      g === 'N' ||
+      g === 'OTHER' ||
+      g.startsWith('NON-BINARY') ||
+      g.startsWith('NONBINARY')
+    ) {
+      return 'NB'
+    }
+    return null
+  }
+
+  /**
    * Score gender matching (hard constraint)
    * Returns -1 for mismatch (triggers -Infinity), 0-1 for acceptable
+   *
+   * NB rooms are the mirror of M and F rooms: they accept non-binary
+   * guests and nobody else. Before this was handled, an NB room matched
+   * none of the cases and so rejected EVERY guest, making auto-place
+   * silently produce nothing for it — and non-binary guests, matching
+   * no case either, could only ever land in Coed rooms.
    */
   function scoreGenderMatch(guest: Guest, room: Room): number {
-    // Co-ed rooms accept anyone
+    // Co-ed rooms accept anyone, non-binary guests included
     if (room.roomGender === 'Coed') return 1.0
 
-    const guestGender = guest.gender?.toUpperCase()
+    const guestGender = guestGenderAsRoomGender(guest)
 
     // Unknown gender gets neutral score
     if (!guestGender) return 0
 
-    // Exact match required for gendered rooms
-    if (room.roomGender === 'M' && guestGender === 'M') return 1.0
-    if (room.roomGender === 'F' && guestGender === 'F') return 1.0
+    // Exact match required for gendered rooms (M/M, F/F, NB/NB)
+    if (room.roomGender === guestGender) return 1.0
 
     // Gender mismatch is forbidden
     return -1
@@ -529,6 +561,9 @@ export function useAutoPlacement() {
    */
   function scoreGenderedRoomPreference(guest: Guest, room: Room): number {
     const guestGender = guest.gender?.toUpperCase()
+    // Compared against room.roomGender, which uses 'NB' rather than the
+    // guest-side 'Non-binary/Other'.
+    const guestRoomGender = guestGenderAsRoomGender(guest)
 
     if (!guestGender) return 0
 
@@ -553,14 +588,13 @@ export function useAutoPlacement() {
 
     // For same-gender individuals/groups: prefer gendered rooms over co-ed
     if (isSameGenderGroup) {
-      // Matching gendered room gets highest score
-      if (
-        (room.roomGender === 'M' && guestGender === 'M') ||
-        (room.roomGender === 'F' && guestGender === 'F')
-      ) {
+      // Matching gendered room gets highest score — M/M, F/F, NB/NB
+      if (guestRoomGender && room.roomGender === guestRoomGender) {
         return 1.0
       }
-      // Co-ed room is acceptable but not preferred
+      // Co-ed room is acceptable but not preferred. For a non-binary
+      // guest this is the fallback when no NB room has space, which is
+      // why NB is a strong preference here rather than a hard rule.
       if (room.roomGender === 'Coed') {
         return 0.5
       }
@@ -586,18 +620,18 @@ export function useAutoPlacement() {
    * mixed-gender families). Mixed-gender groups get a bonus for coed rooms.
    */
   function scoreGroupGenderedRoomPreference(group: ClassifiedGroup, room: Room): number {
+    // Normalized to the room-gender space so an all-non-binary group
+    // can match an NB room.
     const genders = new Set(
-      group.members.map(m => m.gender?.toUpperCase()).filter(Boolean)
+      group.members.map(m => guestGenderAsRoomGender(m)).filter(Boolean)
     )
     const isSameGender = genders.size === 1
     const singleGender = isSameGender ? [...genders][0] : null
 
     if (isSameGender && singleGender) {
-      // Same-gender group: strongly prefer matching gendered room
-      if (
-        (room.roomGender === 'M' && singleGender === 'M') ||
-        (room.roomGender === 'F' && singleGender === 'F')
-      ) {
+      // Same-gender group: strongly prefer matching gendered room,
+      // including an all-non-binary group in an NB room
+      if (room.roomGender === singleGender) {
         return 1.0
       }
       // Coed room is wasteful for a same-gender group — penalize
